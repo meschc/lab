@@ -209,6 +209,60 @@
             text-decoration-color: #2291FF80;
             text-underline-offset: 0.175em;
         }
+        /* ===== Переключатель режимов (свитч-таб) ===== */
+        .tabs {
+            display: flex;
+            width: 100%;
+            box-sizing: border-box;
+            background: #f0f0f0;
+            border-radius: 0.8em;
+            padding: 4px;
+            margin-top: 0.5em;
+        }
+        .tabs button {
+            flex: 1;
+            width: auto;
+            border: none;
+            background: transparent;
+            border-radius: 0.6em;
+            padding: 8px 12px;
+            color: #555;
+            font-size: 0.95em;
+        }
+        .tabs button:hover { background: #e8e8e8; }
+        .tabs button.is-active {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+        /* ===== Панель ввода для режима «из текста» ===== */
+        .text-panel {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6em;
+            margin-top: 1em;
+        }
+        .text-panel input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 14px;
+            border: 1px solid #D5D5D5;
+            border-radius: 0.8em;
+            font-family: inherit;
+            font-size: 1em;
+        }
+        .text-panel input:focus { outline: none; border-color: #2291FF; }
+        /* .text-panel задаёт display:flex и перебивал .hidden по порядку — чиним адресно */
+        .text-panel.hidden { display: none; }
+        /* Основная кнопка действия — синий акцент (как в index1) */
+        #genTextBtn {
+            background-color: #2291FF;
+            border-color: #2291FF;
+            color: #fff;
+        }
+        #genTextBtn:hover { background-color: #1f84e8; }
+        #genTextBtn:active { background-color: #1b76cf; }
     </style>
 </head>
 <body>
@@ -240,6 +294,19 @@
                 <div class="progress-bar"></div>
             </div>
             <div id="uploadResults"></div>
+        </div>
+
+        <!-- Переключатель режимов: из изображения / из названия+автора -->
+        <div class="tabs" id="modeTabs">
+          <button type="button" class="tab is-active" data-mode="image">Из изображения</button>
+          <button type="button" class="tab" data-mode="text">Из названия и автора</button>
+        </div>
+
+        <!-- Режим «из текста»: вводим название и автора -->
+        <div id="textPanel" class="text-panel hidden">
+          <input id="titleInput" type="text" placeholder="Название книги" autocomplete="off" maxlength="60">
+          <input id="authorInput" type="text" placeholder="Автор" autocomplete="off" maxlength="40">
+          <button type="button" id="genTextBtn">Сгенерировать обложку</button>
         </div>
 
         <div id="previewContainer">
@@ -622,6 +689,155 @@
                 alert('Все URL скопированы в буфер обмена');
             });
         });
+
+        // ===== Режим «из названия и автора» (свитч-таб) =====
+        const textPanel = document.getElementById('textPanel');
+        const titleInput = document.getElementById('titleInput');
+        const authorInput = document.getElementById('authorInput');
+        const genTextBtn = document.getElementById('genTextBtn');
+        const uploadOverlay = document.querySelector('.upload-overlay');
+
+        // Тот же алгоритм цвета/графики, что и в библиотеке, — обложки совпадают.
+        function hashStr(str) {
+            let h = 2166136261;
+            for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+            return h >>> 0;
+        }
+        // Плоский яркий цвет (без градиентов), белый текст читается
+        function genBg(seed) {
+            const hue = (seed * 47) % 360;
+            const sat = 72 + (seed % 20);          // 72..91 %
+            const lig = 36 + ((seed >>> 8) % 9);   // 36..44 %
+            return `hsl(${hue} ${sat}% ${lig}%)`;
+        }
+        // Графика из ПРЯМЫХ линий, сплошной белый, без полупрозрачности — в НИЖНЕЙ части (п.4)
+        function drawCoverArt(c, seed, W, H) {
+            const v = seed % 5;
+            c.save();
+            c.strokeStyle = '#fff';
+            c.lineWidth = Math.max(2, W * 0.008);
+            c.lineJoin = 'round';
+            c.lineCap = 'round';
+            const X = u => u * W, Y = u => u * H;
+            c.beginPath();
+            if (v === 0) {                       // диагональная штриховка (снизу)
+                for (let i = 0; i < 6; i++) { const o = 0.06 + i * 0.16; c.moveTo(X(o), Y(0.56)); c.lineTo(X(o - 0.26), Y(0.98)); }
+            } else if (v === 1) {                // вложенные ромбы (снизу)
+                for (let i = 0; i < 3; i++) { const r = 0.12 + i * 0.12; c.moveTo(X(0.5), Y(0.75 - r * 0.66)); c.lineTo(X(0.5 + r), Y(0.75)); c.lineTo(X(0.5), Y(0.75 + r * 0.66)); c.lineTo(X(0.5 - r), Y(0.75)); c.closePath(); }
+            } else if (v === 2) {                // треугольник (снизу)
+                c.moveTo(X(0.5), Y(0.56)); c.lineTo(X(0.86), Y(0.96)); c.lineTo(X(0.14), Y(0.96)); c.closePath();
+                c.moveTo(X(0.5), Y(0.56)); c.lineTo(X(0.5), Y(0.96));
+            } else if (v === 3) {                // шевроны (снизу)
+                for (let i = 0; i < 4; i++) { const y = 0.59 + i * 0.085; c.moveTo(X(0.16), Y(y + 0.07)); c.lineTo(X(0.5), Y(y)); c.lineTo(X(0.84), Y(y + 0.07)); }
+            } else {                             // сетка (снизу)
+                for (let i = 0; i < 4; i++) { const x = 0.22 + i * 0.18; c.moveTo(X(x), Y(0.56)); c.lineTo(X(x), Y(0.96)); }
+                for (let i = 0; i < 3; i++) { const y = 0.62 + i * 0.12; c.moveTo(X(0.12), Y(y)); c.lineTo(X(0.88), Y(y)); }
+            }
+            c.stroke();
+            c.restore();
+        }
+        function wrapLines(c, text, maxW) {
+            const words = text.split(/\s+/).filter(Boolean);
+            const lines = []; let line = '';
+            for (const w of words) {
+                const test = line ? line + ' ' + w : w;
+                if (c.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+                else line = test;
+            }
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        async function generateTextCover(title, author) {
+            const mockupImage = await loadSVG();
+            if (!mockupImage) { alert('Не удалось загрузить мокап'); return; }
+
+            const W = 800, H = 1200;
+            canvas.width = W; canvas.height = H;
+            ctx.clearRect(0, 0, W, H);
+
+            // СЛУЧАЙНЫЙ сид — каждая генерация даёт новую обложку (п.4)
+            const seed = Math.floor(Math.random() * 0xffffffff);
+            ctx.fillStyle = genBg(seed);
+            ctx.fillRect(0, 0, W, H);
+
+            // Графика из прямых линий в НИЖНЕЙ части
+            drawCoverArt(ctx, seed, W, H);
+
+            // Ждём шрифт, иначе canvas нарисует системным
+            await Promise.all([
+                document.fonts.load('700 80px "PT Serif"'),
+                document.fonts.load('400 48px "PT Serif"')
+            ]).catch(() => {});
+
+            const pad = W * 0.08;
+            const maxW = W - pad * 2;
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = '#fff';
+
+            // Заголовок — СВЕРХУ, с ограничением числа строк (п.4)
+            const titleSize = Math.round(W * 0.088);
+            ctx.font = `700 ${titleSize}px "PT Serif", serif`;
+            const lineH = titleSize * 1.06;
+            let lines = wrapLines(ctx, title, maxW);
+            const MAX_LINES = 4;
+            if (lines.length > MAX_LINES) {
+                lines = lines.slice(0, MAX_LINES);
+                lines[MAX_LINES - 1] = lines[MAX_LINES - 1].replace(/\s*\S*$/, '').trim() + '…';
+            }
+            let y = pad + titleSize;
+            lines.forEach(l => { ctx.fillText(l, pad, y); y += lineH; });
+
+            // Автор — под заголовком, обрезаем если не влезает
+            if (author) {
+                ctx.font = `400 ${Math.round(W * 0.05)}px "PT Serif", serif`;
+                let a = author;
+                if (ctx.measureText(a).width > maxW) {
+                    while (a.length > 1 && ctx.measureText(a + '…').width > maxW) a = a.slice(0, -1);
+                    a = a.trim() + '…';
+                }
+                ctx.fillText(a, pad, y + W * 0.02);
+            }
+
+            // Накладываем тот же мокап (корешок/блик), что и для режима из изображения
+            const s = Math.max(W / mockupImage.naturalWidth, H / mockupImage.naturalHeight);
+            const mw = mockupImage.naturalWidth * s;
+            const mh = mockupImage.naturalHeight * s;
+            ctx.drawImage(mockupImage, (W - mw) / 2, (H - mh) / 2, mw, mh);
+
+            canvas.classList.remove('hidden');
+            canvas.style.display = 'block';
+            mockupTemplate.classList.add('hidden');
+            downloadBtn.classList.remove('hidden');
+        }
+
+        function resetPreview() {
+            canvas.classList.add('hidden');
+            canvas.style.display = '';
+            downloadBtn.classList.add('hidden');
+            mockupTemplate.classList.remove('hidden');
+        }
+
+        function switchMode(mode) {
+            document.querySelectorAll('#modeTabs button').forEach(b =>
+                b.classList.toggle('is-active', b.dataset.mode === mode));
+            const isText = mode === 'text';
+            textPanel.classList.toggle('hidden', !isText);
+            uploadOverlay.style.display = isText ? 'none' : '';
+            resetPreview();
+        }
+
+        document.querySelectorAll('#modeTabs button').forEach(b =>
+            b.addEventListener('click', () => switchMode(b.dataset.mode)));
+
+        genTextBtn.addEventListener('click', () => {
+            const title = titleInput.value.trim();
+            const author = authorInput.value.trim();
+            if (!title) { titleInput.focus(); return; }
+            generateTextCover(title, author);
+        });
+        [titleInput, authorInput].forEach(inp =>
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); genTextBtn.click(); } }));
     </script>
 </body>
 </html>
