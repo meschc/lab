@@ -1,0 +1,13 @@
+{
+  "name": "avatar-generator",
+  "version": "1.0.0",
+  "description": "Генератор аватарок (ASCII) и имён: GET /api/avatar?lang=ru|en",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
