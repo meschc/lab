@@ -2,7 +2,7 @@
 
 const express = require('express');
 const { generateName } = require('./nameGenerator');
-const { generateAvatar, RAMP } = require('./asciiGenerator');
+const { generateAvatar, renderImg } = require('./asciiGenerator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,10 +38,9 @@ app.get('/', (req, res) => {
 
   .hero { display: flex; gap: 16px; align-items: center; }
   .icon { width: 96px; height: 96px; border-radius: 50%; flex: none; overflow: hidden;
-          display: grid; place-items: center; background: #000; }
-  .icon pre { font-family: ui-monospace, Menlo, monospace; font-size: 3.4px;
-              line-height: 3.1px; margin: 0; white-space: pre; text-align: center;
-              scale: 1.7; transform-origin: center; }
+          background: #000; }
+  .icon img { width: 100%; height: 100%; object-fit: cover; display: block;
+              image-rendering: auto; }
   .meta { min-width: 0; }
   .meta .label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
                  color: var(--muted); font-weight: 600; }
@@ -75,7 +74,7 @@ app.get('/', (req, res) => {
   <div class="wrap">
     <div class="card">
       <div class="hero">
-        <div class="icon"><pre id="art"></pre></div>
+        <div class="icon"><img id="art" alt="avatar"></div>
         <div class="meta">
           <div class="label">Аватар</div>
           <div class="name" id="name">…</div>
@@ -93,32 +92,17 @@ app.get('/', (req, res) => {
       <div class="u-title">Использование · API</div>
       <code>GET /api/avatar?lang=ru|en</code>
       <div class="row"><b>lang</b> — язык имени: <code>ru</code> или <code>en</code> (по умолчанию <code>en</code>). Цвета случайны и в запросе не задаются.</div>
-      <div class="row"><b>Ответ:</b> <code>{ name, avatar_ascii, colors }</code></div>
+      <div class="row"><b>Ответ:</b> <code>{ name, img, lang }</code> — <code>img</code> это data-URI картинки (SVG), готовый для <code>&lt;img src&gt;</code>.</div>
       <div class="row"><b>Пример:</b> <code>curl "http://localhost:3000/api/avatar?lang=ru"</code></div>
     </div>
   </div>
 
 <script>
-  const RAMP = ${JSON.stringify(RAMP)};
-
-  function colorize(ascii, colors) {
-    const esc = (ch) => ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch;
-    let out = '';
-    for (const ch of ascii) {
-      if (ch === '\\n') { out += '\\n'; continue; }
-      const idx = RAMP.indexOf(ch);
-      if (idx <= 0) { out += ' '; continue; }
-      const pi = Math.round((idx / (RAMP.length - 1)) * (colors.length - 1));
-      out += '<span style="color:' + colors[pi] + '">' + esc(ch) + '</span>';
-    }
-    return out;
-  }
-
   async function load(lang) {
     const r = await fetch('/api/avatar?lang=' + lang);
     const d = await r.json();
     document.getElementById('name').textContent = d.name;
-    document.getElementById('art').innerHTML = colorize(d.avatar_ascii, d.colors);
+    document.getElementById('art').src = d.img;
   }
 
   // Тема
@@ -145,8 +129,8 @@ app.get('/api/avatar', (req, res) => {
   const avatar = generateAvatar();
   res.json({
     name: generateName(lang),
-    avatar_ascii: avatar.ascii,
-    colors: avatar.colors
+    img: renderImg(avatar.ascii, avatar.colors),
+    lang
   });
 });
 

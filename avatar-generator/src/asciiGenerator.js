@@ -106,4 +106,57 @@ function generateAvatar() {
   return { ascii: rows.join('\n'), colors: buildPalette() };
 }
 
-module.exports = { generateAvatar, RAMP };
+// --- Рендер ASCII -> SVG --------------------------------------------------
+// Готовое изображение: чёрный фон + цветные символы. Клиенту не нужно
+// самому форматировать/раскрашивать ASCII — отдаём картинку.
+
+function escXml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function colorFor(ch, colors) {
+  const idx = RAMP.indexOf(ch);
+  if (idx <= 0) return null; // фон (пробел) — не красим, виден чёрный
+  const pi = Math.round((idx / (RAMP.length - 1)) * (colors.length - 1));
+  return colors[pi];
+}
+
+function renderSvg(ascii, colors) {
+  const rows = ascii.split('\n');
+  const cellW = 12;
+  const side = W * cellW;      // квадрат: 44*12 = 528
+  const cellH = side / H;      // высота строки, чтобы получить квадрат
+  const fontSize = 16;
+
+  let body = '';
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const y = (r * cellH + cellH * 0.78).toFixed(2);
+    let spans = '';
+    let i = 0;
+    while (i < row.length) {
+      const col = colorFor(row[i], colors);
+      let j = i + 1;
+      while (j < row.length && colorFor(row[j], colors) === col) j++;
+      const seg = escXml(row.slice(i, j));
+      spans += col === null ? seg : '<tspan fill="' + col + '">' + seg + '</tspan>';
+      i = j;
+    }
+    body += '<text x="0" y="' + y + '" textLength="' + side +
+            '" lengthAdjust="spacingAndGlyphs" xml:space="preserve">' + spans + '</text>';
+  }
+
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + side + '" height="' + side +
+         '" viewBox="0 0 ' + side + ' ' + side + '">' +
+         '<rect width="' + side + '" height="' + side + '" fill="#000"/>' +
+         '<g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="' + fontSize +
+         '">' + body + '</g></svg>';
+}
+
+// data:URI, готовый для <img src> и для сохранения из curl.
+function renderImg(ascii, colors) {
+  const svg = renderSvg(ascii, colors);
+  return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
+}
+
+module.exports = { generateAvatar, RAMP, renderSvg, renderImg };
