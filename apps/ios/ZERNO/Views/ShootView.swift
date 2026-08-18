@@ -22,10 +22,10 @@ struct ShootView: View {
 
             deck
         }
-        .background(Ink.ground)
+        .background(MeshBackground())
         .overlay {
             if flash {
-                Ink.paper.ignoresSafeArea().transition(.opacity)
+                Ink.text.ignoresSafeArea().transition(.opacity)
             }
         }
         .onChange(of: pickerItem) { _, item in load(item) }
@@ -37,11 +37,12 @@ struct ShootView: View {
         HStack {
             HStack(spacing: 9) {
                 ApertureMark(open: 1)
-                    .frame(width: 22, height: 22)
+                    .frame(width: 26, height: 26)
+                    .shadow(color: Ink.accent.opacity(0.24), radius: 8, y: 3)
                 Text("ЗЕРНО")
                     .font(Kind.display(17, .bold))
                     .tracking(3.4)
-                    .foregroundStyle(Ink.paper)
+                    .foregroundStyle(Ink.text)
             }
             Spacer()
             Button {
@@ -49,8 +50,9 @@ struct ShootView: View {
             } label: {
                 Image(systemName: "arrow.triangle.2.circlepath.camera")
                     .font(.system(size: 18, weight: .light))
-                    .foregroundStyle(Ink.silver)
+                    .foregroundStyle(Ink.text2)
                     .frame(width: 40, height: 40)
+                    .glass(radius: 20)
             }
             .pressable(scale: 0.9)
             Button {
@@ -58,8 +60,11 @@ struct ShootView: View {
             } label: {
                 Image(systemName: "grid")
                     .font(.system(size: 17, weight: .light))
-                    .foregroundStyle(showsGrid ? Ink.amber : Ink.silver)
+                    .foregroundStyle(showsGrid ? Color.white : Ink.text2)
                     .frame(width: 40, height: 40)
+                    .background(showsGrid ? AnyShapeStyle(Ink.action) : AnyShapeStyle(Color.clear),
+                                in: Circle())
+                    .glass(radius: 20, opacity: showsGrid ? 0 : 0.58)
             }
             .pressable(scale: 0.9)
         }
@@ -79,10 +84,11 @@ struct ShootView: View {
             }
             if showsGrid { GridOverlay() }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .shadow(color: .black.opacity(0.75), radius: 26, y: 12)
-        .overlay(RoundedRectangle(cornerRadius: 8)
-            .strokeBorder(Ink.paper.opacity(0.07), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .shadow(color: Color(red: 0.27, green: 0.20, blue: 0.59, opacity: 0.22), radius: 34, y: 16)
+        .shadow(color: Color(red: 0.90, green: 0.31, blue: 0.55, opacity: 0.12), radius: 12, y: 6)
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
+            .strokeBorder(Color.white.opacity(0.35), lineWidth: 1))
     }
 
     private var deck: some View {
@@ -101,7 +107,7 @@ struct ShootView: View {
                         Text("Из галереи")
                             .font(Kind.mono(9)).tracking(1.3).textCase(.uppercase)
                     }
-                    .foregroundStyle(Ink.silver)
+                    .foregroundStyle(Ink.text2)
                     .frame(minWidth: 62)
                 }
 
@@ -111,17 +117,17 @@ struct ShootView: View {
 
                 DeckButton(rollTitle) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 5).fill(Ink.rebate)
+                        RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.white)
                         if let first = state.store.frames.first,
                            let img = state.store.image(for: first) {
                             Image(uiImage: img)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                         } else {
                             Image(systemName: "camera")
                                 .font(.system(size: 12, weight: .light))
-                                .foregroundStyle(Ink.silver)
+                                .foregroundStyle(Ink.text2)
                         }
                     }
                 } action: {
@@ -132,10 +138,9 @@ struct ShootView: View {
             .padding(.top, 10)
             .padding(.bottom, 16)
         }
-        .background(
-            LinearGradient(colors: [Ink.ground.opacity(0), Ink.surface],
-                           startPoint: .top, endPoint: .bottom)
-                .frame(height: 40), alignment: .top)
+        .background(.ultraThinMaterial)
+        .background(LinearGradient(colors: [.white.opacity(0), .white.opacity(0.62)],
+                                   startPoint: .top, endPoint: .bottom))
     }
 
     private var rollTitle: String {
@@ -153,13 +158,13 @@ struct ShootView: View {
         VStack(spacing: 14) {
             Image(systemName: "camera.metering.unknown")
                 .font(.system(size: 34, weight: .ultraLight))
-                .foregroundStyle(Ink.edge)
+                .foregroundStyle(Ink.hair)
             Text("Нет доступа к камере")
                 .font(Kind.display(20))
-                .foregroundStyle(Ink.paper)
+                .foregroundStyle(Ink.text)
             Text("Разреши доступ в настройках — или загрузи фотографию из галереи.")
                 .font(Kind.ui(13))
-                .foregroundStyle(Ink.silver)
+                .foregroundStyle(Ink.text2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 260)
             Button("Открыть настройки") {
@@ -168,22 +173,22 @@ struct ShootView: View {
                 }
             }
             .font(Kind.ui(14, .semibold))
-            .foregroundStyle(Ink.amber)
+            .foregroundStyle(Ink.accent)
         }
         .padding(40)
         .frame(maxWidth: .infinity)
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
-        .background(Ink.surface)
+        .glass(radius: 30)
     }
 
     private var unsupported: some View {
         Text("Этому устройству не хватает Metal — фильтры недоступны.")
             .font(Kind.ui(14))
-            .foregroundStyle(Ink.silver)
+            .foregroundStyle(Ink.text2)
             .multilineTextAlignment(.center)
             .padding(40)
             .aspectRatio(3.0 / 4.0, contentMode: .fit)
-            .background(Ink.surface)
+            .glass(radius: 30)
     }
 
     // MARK: - Действия
@@ -230,7 +235,7 @@ struct GridOverlay: View {
                     p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: geo.size.width, y: y))
                 }
             }
-            .stroke(Ink.paper.opacity(0.26), lineWidth: 0.7)
+            .stroke(Ink.text.opacity(0.26), lineWidth: 0.7)
         }
         .transition(.opacity)
     }

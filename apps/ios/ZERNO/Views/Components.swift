@@ -14,17 +14,21 @@ struct FilmRail: View {
                 VStack(spacing: gap) {
                     ForEach(0..<count, id: \.self) { _ in
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Ink.edge)
+                            .fill(Ink.hair)
                             .frame(width: 8, height: holeH)
                     }
                 }
                 .frame(width: geo.size.width, alignment: mirrored ? .trailing : .leading)
                 .opacity(0.55)
+                .mask(LinearGradient(stops: [
+                    .init(color: .clear, location: 0), .init(color: .black, location: 0.18),
+                    .init(color: .black, location: 0.82), .init(color: .clear, location: 1)
+                ], startPoint: .top, endPoint: .bottom))
             }
             Text(text)
                 .font(Kind.mono(8.5))
                 .tracking(1.6)
-                .foregroundStyle(hot ? Ink.amber : Ink.amberDim)
+                .foregroundStyle(hot ? Ink.accent : Ink.text3)
                 .fixedSize()
                 .rotationEffect(.degrees(mirrored ? -90 : 90))
                 .lineLimit(1)
@@ -67,28 +71,30 @@ struct StockStrip: View {
         let picked = stock.id == selection
         return VStack(spacing: 7) {
             ZStack {
-                RoundedRectangle(cornerRadius: 8).fill(Ink.rebate)
+                RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white)
                 if let img = thumbnails[stock.id] {
                     Image(uiImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
             }
             .frame(width: 66, height: 66)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(picked ? Ink.amber : Ink.paper.opacity(0.08),
-                                  lineWidth: picked ? 2 : 1))
-            .shadow(color: picked ? Ink.amber.opacity(0.28) : .clear, radius: 10, y: 4)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.6), lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Ink.action, lineWidth: picked ? 2.5 : 0)
+                    .padding(-4))
+            .shadow(color: picked ? Ink.accent.opacity(0.32) : .black.opacity(0.12),
+                    radius: picked ? 14 : 8, y: picked ? 6 : 3)
 
             Text(stock.name)
-                .font(Kind.mono(9.5))
-                .tracking(0.9)
-                .textCase(.uppercase)
-                .foregroundStyle(picked ? Ink.amber : Ink.silver)
+                .font(Kind.ui(10.5, .semibold))
+                .foregroundStyle(picked ? Ink.text : Ink.text3)
         }
-        .offset(y: picked ? -5 : 0)
+        .offset(y: picked ? -6 : 0)
         .animation(.spring(response: 0.35, dampingFraction: 0.6), value: picked)
     }
 }
@@ -100,16 +106,18 @@ struct StockCaption: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(stock.name)
-                .font(Kind.mono(10, .semibold))
-                .foregroundStyle(Ink.paper)
-            Circle().fill(Ink.amberDim).frame(width: 3, height: 3)
+                .font(Kind.ui(11, .bold))
+                .foregroundStyle(Ink.text)
+            Circle().fill(Ink.action).frame(width: 4, height: 4)
             Text(stock.subtitle)
-                .font(Kind.mono(10))
-                .foregroundStyle(Ink.silver)
+                .font(Kind.ui(11, .semibold))
+                .foregroundStyle(Ink.text2)
         }
-        .tracking(1.6)
+        .tracking(0.7)
         .textCase(.uppercase)
-        .frame(height: 22)
+        .padding(.horizontal, 16)
+        .frame(height: 30)
+        .glass(radius: 15)
         .id(stock.id)
         .transition(.opacity.combined(with: .offset(y: 5)))
     }
@@ -124,19 +132,26 @@ struct ShutterButton: View {
         Button(action: action) {
             ZStack {
                 Circle()
-                    .strokeBorder(pressed ? Ink.halation : Ink.paper.opacity(0.30), lineWidth: 2)
-                    .frame(width: 74, height: 74)
+                    .strokeBorder(
+                        AngularGradient(colors: [Ink.pink1, Ink.amber1, Ink.cyan1,
+                                                 Ink.blue1, Ink.pink1],
+                                        center: .center, angle: .degrees(210)),
+                        lineWidth: 2.5)
+                    .frame(width: 78, height: 78)
+                    .rotationEffect(.degrees(pressed ? 24 : 0))
                     .scaleEffect(pressed ? 1.08 : 1)
+                    .saturation(pressed ? 1.4 : 1)
                 Circle()
                     .fill(RadialGradient(
                         colors: pressed
-                            ? [Color(red: 1, green: 0.85, blue: 0.77), Ink.halation]
-                            : [Color(red: 1, green: 0.953, blue: 0.894), Ink.paper,
-                               Color(red: 0.725, green: 0.686, blue: 0.627)],
-                        center: UnitPoint(x: 0.4, y: 0.32), startRadius: 2, endRadius: 44))
-                    .frame(width: 60, height: 60)
+                            ? [Color(red: 1, green: 0.85, blue: 0.77), Ink.hot]
+                            : [.white, Color(red: 0.949, green: 0.949, blue: 0.965),
+                               Color(red: 0.871, green: 0.871, blue: 0.902)],
+                        center: UnitPoint(x: 0.38, y: 0.30), startRadius: 2, endRadius: 46))
+                    .frame(width: 62, height: 62)
                     .scaleEffect(pressed ? 0.86 : 1)
-                    .shadow(color: .black.opacity(0.55), radius: 8, y: 4)
+                    .shadow(color: Color(red: 0.12, green: 0.11, blue: 0.24, opacity: 0.22),
+                            radius: 10, y: 5)
             }
             .animation(.easeOut(duration: 0.18), value: pressed)
         }
@@ -169,7 +184,7 @@ struct DeckButton<Icon: View>: View {
                     .tracking(1.3)
                     .textCase(.uppercase)
             }
-            .foregroundStyle(Ink.silver)
+            .foregroundStyle(Ink.text2)
             .frame(minWidth: 62)
         }
         .pressable(scale: 0.92)
@@ -181,14 +196,15 @@ struct ToastView: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(Kind.mono(11))
-            .tracking(0.6)
-            .foregroundStyle(Ink.paper)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 11)
-            .background(Capsule().fill(Ink.rebate))
-            .overlay(Capsule().strokeBorder(Ink.edge, lineWidth: 1))
-            .shadow(color: .black.opacity(0.6), radius: 16, y: 8)
+            .font(Kind.ui(12.5, .medium))
+            .foregroundStyle(Ink.text)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: Capsule())
+            .background(Color.white.opacity(0.72), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.85), lineWidth: 1))
+            .shadow(color: Color(red: 0.12, green: 0.11, blue: 0.24, opacity: 0.18),
+                    radius: 20, y: 8)
             .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
@@ -219,8 +235,8 @@ struct GrainOverlay: View {
             Image(uiImage: Self.tile)
                 .resizable(resizingMode: .tile)
                 .offset(x: CGFloat(step * 23 % 61), y: CGFloat(step * 41 % 53))
-                .blendMode(.screen)
-                .opacity(0.055)
+                .blendMode(.multiply)
+                .opacity(0.045)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)

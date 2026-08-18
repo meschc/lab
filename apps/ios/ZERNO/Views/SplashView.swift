@@ -11,18 +11,26 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            Ink.ground.ignoresSafeArea()
+            MeshBackground()
+            // мягкая многоцветная подсветка под знаком
+            RadialGradient(colors: [Ink.pink1.opacity(0.55), Ink.blue1.opacity(0.35), .clear],
+                           center: .center, startRadius: 0, endRadius: 200)
+                .frame(width: 380, height: 380)
+                .blur(radius: 58)
+                .opacity(0.30 + 0.16 * open)
+                .offset(y: -70)
             VStack(spacing: 30) {
                 ApertureMark(open: open)
-                    .frame(width: 150, height: 150)
-                    .shadow(color: Ink.amber.opacity(0.35 * open), radius: 60)
+                    .frame(width: 146, height: 146)
+                    .shadow(color: Color(red: 0.24, green: 0.16, blue: 0.47,
+                                         opacity: 0.34 * open), radius: 48, y: 24)
 
                 HStack(spacing: 0) {
                     ForEach(Array(title.enumerated()), id: \.offset) { index, ch in
                         Text(String(ch))
                             .font(Kind.display(52, .heavy))
                             .tracking(14)
-                            .foregroundStyle(Ink.paper)
+                            .foregroundStyle(Ink.text)
                             .offset(y: letters ? 0 : 70)
                             .opacity(letters ? 1 : 0)
                             .animation(.spring(response: 0.7, dampingFraction: 0.8)

@@ -22,7 +22,7 @@ struct DevelopView: View {
 
             deck
         }
-        .background(Ink.ground)
+        .background(MeshBackground())
         .overlay(alignment: .bottom) {
             if tuning {
                 TuningSheet(isPresented: $tuning)
@@ -43,8 +43,9 @@ struct DevelopView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .regular))
-                    .foregroundStyle(Ink.silver)
+                    .foregroundStyle(Ink.text2)
                     .frame(width: 40, height: 40)
+                    .glass(radius: 20)
             }
             .pressable(scale: 0.9)
             Spacer()
@@ -55,8 +56,11 @@ struct DevelopView: View {
             } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 17, weight: .light))
-                    .foregroundStyle(tuning ? Ink.amber : Ink.silver)
+                    .foregroundStyle(tuning ? Color.white : Ink.text2)
                     .frame(width: 40, height: 40)
+                    .background(tuning ? AnyShapeStyle(Ink.action) : AnyShapeStyle(Color.clear),
+                                in: Circle())
+                    .glass(radius: 20, opacity: tuning ? 0 : 0.58)
             }
             .pressable(scale: 0.9)
         }
@@ -73,13 +77,16 @@ struct DevelopView: View {
                     // «проявление»: кадр проступает из темноты, как в ванночке
                     .brightness(developed ? 0 : -0.35)
                     .saturation(developed ? 1 : 0.25)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(color: .black.opacity(0.75), radius: 26, y: 12)
+                    .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                    .shadow(color: Color(red: 0.27, green: 0.20, blue: 0.59, opacity: 0.22),
+                            radius: 34, y: 16)
+                    .shadow(color: Color(red: 0.90, green: 0.31, blue: 0.55, opacity: 0.12),
+                            radius: 12, y: 6)
             } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Ink.surface)
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(Color.white.opacity(0.5))
                     .aspectRatio(3.0 / 4.0, contentMode: .fit)
-                    .overlay(ProgressView().tint(Ink.amber))
+                    .overlay(ProgressView().tint(Ink.accent))
             }
         }
         .scaleEffect(tuning ? 0.46 : 1, anchor: .top)
@@ -97,11 +104,13 @@ struct DevelopView: View {
                     state.randomStock()
                 } label: {
                     Label("Наугад", systemImage: "shuffle")
-                        .font(Kind.ui(14, .semibold))
-                        .foregroundStyle(Ink.paper)
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 13)
-                        .background(Capsule().strokeBorder(Ink.edge, lineWidth: 1))
+                        .font(Kind.ui(14.5, .semibold))
+                        .foregroundStyle(Ink.text)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .background(Color.white.opacity(0.58), in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.85), lineWidth: 1))
                 }
                 .pressable()
 
@@ -109,21 +118,21 @@ struct DevelopView: View {
                     state.save()
                 } label: {
                     Label("Сохранить", systemImage: "arrow.down.to.line")
-                        .font(Kind.ui(14, .semibold))
-                        .foregroundStyle(Ink.ground)
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 13)
-                        .background(Capsule().fill(Ink.paper))
+                        .font(Kind.ui(14.5, .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                        .background(Capsule().fill(Ink.action))
+                        .shadow(color: Ink.accent.opacity(0.34), radius: 14, y: 6)
                 }
                 .pressable()
             }
             .padding(.top, 10)
             .padding(.bottom, 18)
         }
-        .background(
-            LinearGradient(colors: [Ink.ground.opacity(0), Ink.surface],
-                           startPoint: .top, endPoint: .bottom)
-                .frame(height: 40), alignment: .top)
+        .background(.ultraThinMaterial)
+        .background(LinearGradient(colors: [.white.opacity(0), .white.opacity(0.62)],
+                                   startPoint: .top, endPoint: .bottom))
     }
 }
 
@@ -135,14 +144,14 @@ struct TuningSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(Ink.edge)
-                .frame(width: 38, height: 4)
+                .fill(Ink.hair)
+                .frame(width: 40, height: 5)
                 .padding(.vertical, 10)
                 .onTapGesture { isPresented = false }
 
             Text("Настройка плёнки")
-                .font(Kind.display(20))
-                .foregroundStyle(Ink.paper)
+                .font(Kind.ui(20, .bold))
+                .foregroundStyle(Ink.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 10)
@@ -199,13 +208,15 @@ struct TuningSheet: View {
             }
         }
         .frame(maxHeight: UIScreen.main.bounds.height * 0.62)
-        .background(
-            Ink.surface
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous)))
+        .background(.ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 38, style: .continuous))
+        .background(Color.white.opacity(0.74),
+                    in: RoundedRectangle(cornerRadius: 38, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Ink.edge, lineWidth: 1))
-        .shadow(color: .black.opacity(0.6), radius: 30, y: -12)
+            RoundedRectangle(cornerRadius: 38, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.9), lineWidth: 1))
+        .shadow(color: Color(red: 0.12, green: 0.11, blue: 0.24, opacity: 0.16),
+                radius: 30, y: -12)
         .ignoresSafeArea(edges: .bottom)
     }
 
@@ -222,7 +233,7 @@ struct TuningSheet: View {
                 Spacer()
                 Text(format(value.wrappedValue))
                     .font(Kind.mono(12))
-                    .foregroundStyle(Ink.amber)
+                    .foregroundStyle(Ink.text)
                     .monospacedDigit()
             }
             BipolarSlider(value: value, range: range, neutral: neutral) {
@@ -230,7 +241,7 @@ struct TuningSheet: View {
             }
         }
         .padding(.vertical, 11)
-        .overlay(Divider().overlay(Ink.edge.opacity(0.6)), alignment: .bottom)
+        .overlay(Divider().overlay(Ink.hair.opacity(0.6)), alignment: .bottom)
     }
 
     private func row<Content: View>(_ title: String,
@@ -241,7 +252,7 @@ struct TuningSheet: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 11)
-        .overlay(Divider().overlay(Ink.edge.opacity(0.6)), alignment: .bottom)
+        .overlay(Divider().overlay(Ink.hair.opacity(0.6)), alignment: .bottom)
     }
 
     private func pill(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
@@ -249,14 +260,16 @@ struct TuningSheet: View {
             action(); Haptics.tap()
         } label: {
             Text(title)
-                .font(Kind.mono(10, on ? .bold : .medium))
-                .tracking(1.4)
+                .font(Kind.ui(11, .semibold))
+                .tracking(0.55)
                 .textCase(.uppercase)
-                .foregroundStyle(on ? Ink.ground : Ink.silver)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(on ? Ink.amber : .clear))
-                .overlay(Capsule().strokeBorder(on ? Ink.amber : Ink.edge, lineWidth: 1))
+                .foregroundStyle(on ? Color.white : Ink.text2)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 9)
+                .background(on ? AnyShapeStyle(Ink.action)
+                               : AnyShapeStyle(Color.white.opacity(0.65)), in: Capsule())
+                .overlay(Capsule().strokeBorder(on ? Color.clear : Ink.hair, lineWidth: 1))
+                .shadow(color: on ? Ink.accent.opacity(0.34) : .clear, radius: 12, y: 5)
         }
         .pressable(scale: 0.95)
     }
@@ -277,16 +290,18 @@ struct BipolarSlider: View {
             let zero = CGFloat((neutral - range.lowerBound) / span) * w
 
             ZStack(alignment: .leading) {
-                Capsule().fill(Ink.edge).frame(height: 2)
+                Capsule().fill(Color(red: 0.075, green: 0.075, blue: 0.098, opacity: 0.10))
+                    .frame(height: 5)
                 Capsule()
-                    .fill(Ink.amber)
-                    .frame(width: abs(pos - zero), height: 2)
+                    .fill(Ink.action)
+                    .frame(width: abs(pos - zero), height: 5)
                     .offset(x: min(pos, zero))
                 Circle()
-                    .fill(Ink.paper)
-                    .frame(width: 17, height: 17)
-                    .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-                    .offset(x: pos - 8.5)
+                    .fill(.white)
+                    .frame(width: 20, height: 20)
+                    .shadow(color: Color(red: 0.12, green: 0.11, blue: 0.24, opacity: 0.28),
+                            radius: 5, y: 2)
+                    .offset(x: pos - 10)
             }
             .frame(height: 26)
             .contentShape(Rectangle())

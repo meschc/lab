@@ -16,22 +16,24 @@ struct RollView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18))
-                        .foregroundStyle(Ink.silver)
+                        .foregroundStyle(Ink.text2)
                         .frame(width: 40, height: 40)
+                        .glass(radius: 20)
                 }
                 .pressable(scale: 0.9)
                 Spacer()
                 Text("Плёнка")
-                    .font(Kind.display(21))
-                    .foregroundStyle(Ink.paper)
+                    .font(Kind.ui(21, .bold))
+                    .foregroundStyle(Ink.text)
                 Spacer()
                 Button {
                     confirmClear = true
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 17, weight: .light))
-                        .foregroundStyle(Ink.silver)
+                        .foregroundStyle(Ink.text2)
                         .frame(width: 40, height: 40)
+                        .glass(radius: 20)
                 }
                 .pressable(scale: 0.9)
                 .disabled(state.store.frames.isEmpty)
@@ -60,7 +62,7 @@ struct RollView: View {
                 }
             }
         }
-        .background(Ink.ground)
+        .background(MeshBackground())
         .sheet(item: $viewing) { frame in
             FrameViewer(frame: frame).environmentObject(state)
         }
@@ -82,30 +84,29 @@ struct RollView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                Ink.rebate
+                Color.white
             }
             Text(frame.stock)
-                .font(Kind.mono(8.5))
-                .tracking(1)
-                .textCase(.uppercase)
-                .foregroundStyle(Ink.paper)
-                .shadow(color: .black.opacity(0.9), radius: 4)
-                .padding(6)
+                .font(Kind.ui(10, .semibold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.85), radius: 5)
+                .padding(9)
         }
         .frame(height: 108)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8)
-            .strokeBorder(Ink.paper.opacity(0.06), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .strokeBorder(Color.white.opacity(0.6), lineWidth: 1))
+        .shadow(color: Color(red: 0.12, green: 0.11, blue: 0.24, opacity: 0.13), radius: 14, y: 6)
     }
 
     private var empty: some View {
         VStack(spacing: 16) {
             Image(systemName: "film")
                 .font(.system(size: 40, weight: .ultraLight))
-                .foregroundStyle(Ink.edge)
+                .foregroundStyle(Ink.hair)
             Text("Здесь появятся проявленные кадры.\nСними что-нибудь или загрузи фото из галереи.")
                 .font(Kind.ui(13))
-                .foregroundStyle(Ink.silver)
+                .foregroundStyle(Ink.text2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 280)
         }
@@ -128,8 +129,9 @@ struct FrameViewer: View {
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 16))
-                        .foregroundStyle(Ink.silver)
+                        .foregroundStyle(Ink.text2)
                         .frame(width: 40, height: 40)
+                        .glass(radius: 20)
                 }
             }
 
@@ -137,7 +139,8 @@ struct FrameViewer: View {
                 Image(uiImage: img)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(color: Color(red: 0.12, green: 0.11, blue: 0.24, opacity: 0.24),
+                            radius: 22, y: 10)
 
                 HStack(spacing: 12) {
                     Button {
@@ -147,19 +150,22 @@ struct FrameViewer: View {
                         }
                     } label: {
                         Label("В галерею", systemImage: "square.and.arrow.down")
-                            .font(Kind.ui(14, .semibold))
-                            .foregroundStyle(Ink.ground)
-                            .padding(.horizontal, 22).padding(.vertical, 13)
-                            .background(Capsule().fill(Ink.paper))
+                            .font(Kind.ui(14.5, .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 24).padding(.vertical, 14)
+                            .background(Capsule().fill(Ink.action))
+                            .shadow(color: Ink.accent.opacity(0.34), radius: 14, y: 6)
                     }
                     .pressable()
 
                     ShareLink(item: Image(uiImage: img), preview: SharePreview(frame.stock)) {
                         Label("Поделиться", systemImage: "square.and.arrow.up")
-                            .font(Kind.ui(14, .semibold))
-                            .foregroundStyle(Ink.paper)
-                            .padding(.horizontal, 22).padding(.vertical, 13)
-                            .background(Capsule().strokeBorder(Ink.edge, lineWidth: 1))
+                            .font(Kind.ui(14.5, .semibold))
+                            .foregroundStyle(Ink.text)
+                            .padding(.horizontal, 24).padding(.vertical, 14)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .background(Color.white.opacity(0.58), in: Capsule())
+                            .overlay(Capsule().strokeBorder(Color.white.opacity(0.85), lineWidth: 1))
                     }
 
                     Button(role: .destructive) {
@@ -168,15 +174,15 @@ struct FrameViewer: View {
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 16))
-                            .foregroundStyle(Ink.silver)
-                            .frame(width: 46, height: 46)
-                            .background(Circle().strokeBorder(Ink.edge, lineWidth: 1))
+                            .foregroundStyle(Ink.text2)
+                            .frame(width: 48, height: 48)
+                            .glass(radius: 24)
                     }
                 }
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Ink.ground)
+        .background(MeshBackground())
     }
 }

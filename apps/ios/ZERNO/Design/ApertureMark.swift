@@ -30,14 +30,19 @@ struct ApertureMark: View {
                         .padding(side * 0.052)
                 }
 
-                // ядро света
+                // ядро света: тёплый центр → коралл → фиолетовая кромка
                 AperturePolygon(sides: bladeCount, radius: inner, center: c)
-                    .fill(RadialGradient(colors: [Color(red: 1.0, green: 0.965, blue: 0.878),
-                                                  Color(red: 0.718, green: 0.204, blue: 0.078)],
-                                         center: .center, startRadius: 0, endRadius: inner * 1.15))
+                    .fill(RadialGradient(
+                        stops: [
+                            .init(color: Color(red: 1.0, green: 0.969, blue: 0.906), location: 0),
+                            .init(color: Color(red: 1.0, green: 0.541, blue: 0.447), location: 0.34),
+                            .init(color: Color(red: 0.824, green: 0.337, blue: 0.620), location: 0.72),
+                            .init(color: Color(red: 0.373, green: 0.184, blue: 0.659), location: 1)
+                        ],
+                        center: .center, startRadius: 0, endRadius: inner * 1.05))
                 // гало
                 AperturePolygon(sides: bladeCount, radius: inner * 1.08, center: c)
-                    .fill(Ink.halation)
+                    .fill(Ink.hot)
                     .blur(radius: inner * 0.35)
                     .blendMode(.screen)
                     .opacity(0.75 * open)
@@ -54,7 +59,7 @@ struct ApertureMark: View {
 
                 if showsBody {
                     Circle()
-                        .strokeBorder(Ink.paper.opacity(0.18), lineWidth: side * 0.011)
+                        .strokeBorder(Color.white.opacity(0.20), lineWidth: side * 0.011)
                 }
             }
             .rotationEffect(.degrees(-30 * Double(1 - open)))

@@ -7,7 +7,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            Ink.ground.ignoresSafeArea()
+            MeshBackground()
 
             Group {
                 switch state.screen {
@@ -33,7 +33,7 @@ struct RootView: View {
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: state.toast)
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
         .statusBarHidden(splash)
         .animation(.easeOut(duration: 0.34), value: state.screen)
         .task {
