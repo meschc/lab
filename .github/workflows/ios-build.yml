@@ -1,0 +1,45 @@
+# Проверка сборки: компилирует приложение под симулятор без подписи.
+# Никаких секретов и учётной записи Apple не требуется — нужна только
+# macOS-машина, поэтому эта проверка гоняется на каждый пуш.
+
+name: Сборка iOS
+
+on:
+  push:
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Выбрать Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_16.app
+
+      - name: Поставить XcodeGen
+        run: brew install xcodegen
+
+      - name: Собрать проект из project.yml
+        working-directory: apps/ios
+        env:
+          ZERNO_TEAM_ID: ""
+        run: xcodegen generate
+
+      - name: Скомпилировать под симулятор
+        working-directory: apps/ios
+        run: |
+          xcodebuild build \
+            -project ZERNO.xcodeproj \
+            -scheme ZERNO \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM=""

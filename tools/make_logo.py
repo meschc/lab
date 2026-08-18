@@ -226,7 +226,8 @@ def render(size, *, rounded=False, bleed=1.0, open_amount=0.50, rot=0.0, glow=1.
 
 def export_all(outdir):
     os.makedirs(outdir, exist_ok=True)
-    ios = os.path.join(outdir, '..', 'apps', 'ios', 'ZERNO', 'Assets.xcassets', 'AppIcon.appiconset')
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ios = os.path.join(repo, 'apps', 'ios', 'ZERNO', 'Assets.xcassets', 'AppIcon.appiconset')
 
     # 1024 — App Store / AppIcon (без альфы, во весь квадрат)
     icon = render(1024, bleed=1.0).convert('RGB')

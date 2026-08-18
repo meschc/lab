@@ -1,0 +1,5 @@
+ZERNO.xcodeproj/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip

@@ -1,0 +1,138 @@
+# Сборка ЗЕРНО и выгрузка в TestFlight.
+#
+# Что нужно один раз положить в Settings → Secrets and variables → Actions:
+#
+#   APPLE_TEAM_ID              — идентификатор команды (10 знаков, Apple Developer → Membership)
+#   ASC_KEY_ID                 — Key ID ключа App Store Connect API
+#   ASC_ISSUER_ID              — Issuer ID оттуда же
+#   ASC_PRIVATE_KEY            — содержимое файла AuthKey_XXXX.p8 целиком
+#
+# Ключ создаётся здесь: App Store Connect → Users and Access → Integrations →
+# App Store Connect API → «+», роль App Manager. Файл .p8 скачивается один раз.
+#
+# Перед первым запуском в App Store Connect нужно завести приложение с
+# идентификатором ru.kirmesch.zerno (или поменять его в apps/ios/project.yml).
+
+name: TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Номер сборки (по умолчанию — номер запуска)"
+        required: false
+  push:
+    tags:
+      - "ios-v*"
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Выбрать Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_16.app
+
+      - name: Поставить XcodeGen
+        run: brew install xcodegen
+
+      - name: Собрать проект из project.yml
+        working-directory: apps/ios
+        env:
+          ZERNO_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: xcodegen generate
+
+      - name: Проставить номер сборки
+        working-directory: apps/ios
+        run: |
+          BUILD="${{ github.event.inputs.build_number || github.run_number }}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" ZERNO/Info.plist
+          echo "Номер сборки: $BUILD"
+
+      - name: Положить ключ App Store Connect
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys ~/private_keys
+          printf '%s' "$ASC_PRIVATE_KEY" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          cp ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 ~/.appstoreconnect/private_keys/
+
+      - name: Архивировать
+        working-directory: apps/ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild archive \
+            -project ZERNO.xcodeproj \
+            -scheme ZERNO \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/ZERNO.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic
+
+      - name: Экспортировать .ipa
+        working-directory: apps/ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>signingStyle</key><string>automatic</string>
+            <key>destination</key><string>export</string>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath build/ZERNO.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Выгрузить в TestFlight
+        working-directory: apps/ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          IPA=$(ls build/export/*.ipa | head -1)
+          echo "Выгружаю $IPA"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Сохранить сборку в артефактах
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zerno-ipa
+          path: apps/ios/build/export/*.ipa
+          if-no-files-found: ignore
