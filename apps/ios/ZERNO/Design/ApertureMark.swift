@@ -80,8 +80,9 @@ struct AperturePolygon: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
         for i in 0..<sides {
-            let a = .pi / 2 + Double(i) * 2 * .pi / Double(sides)
-            let pt = CGPoint(x: center.x + radius * cos(a), y: center.y + radius * sin(a))
+            let a: Double = .pi / 2 + Double(i) * 2 * .pi / Double(sides)
+            let pt = CGPoint(x: center.x + radius * CGFloat(cos(a)),
+                             y: center.y + radius * CGFloat(sin(a)))
             if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
         }
         p.closeSubpath()
@@ -98,8 +99,9 @@ struct BladeShape: Shape {
     let center: CGPoint
 
     private func vertex(_ i: Int) -> CGPoint {
-        let a = .pi / 2 + Double(i % count) * 2 * .pi / Double(count)
-        return CGPoint(x: center.x + inner * cos(a), y: center.y + inner * sin(a))
+        let a: Double = .pi / 2 + Double(i % count) * 2 * .pi / Double(count)
+        return CGPoint(x: center.x + inner * CGFloat(cos(a)),
+                       y: center.y + inner * CGFloat(sin(a)))
     }
 
     /// Точка, где шов от вершины упирается во внешнюю окружность.
