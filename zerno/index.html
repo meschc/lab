@@ -1,0 +1,1692 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ЗЕРНО</title>
+<meta name="description" content="Плёночные фильтры для твоих фотографий. Камера, зерно, гало и светопропуск — прямо в браузере.">
+<meta name="theme-color" content="#0B0A09">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-64.png" sizes="64x64">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ЗЕРНО">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Azeret+Mono:wght@400;500;700&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,700;6..96,900&display=swap">
+<style>
+/* ══ ЗЕРНО ══ тёмная комната: один визуальный мир, без светлой темы ══ */
+:root{
+  --ink:#0B0A09;          /* фон — почти чёрный, тёплый */
+  --emulsion:#141110;     /* поверхность */
+  --rebate:#221C17;       /* приподнятая поверхность, кромка плёнки */
+  --edge:#332B23;         /* линии */
+  --amber:#E9A13B;        /* акцент — лампа накаливания */
+  --amber-dim:#8A6224;
+  --halation:#FF5C3A;     /* горячий акцент: только затвор и запись */
+  --silver:#A79E90;       /* вторичный текст */
+  --paper:#F5EFE3;        /* основной текст */
+  --ok:#7C9A6A;
+
+  --display:'Bodoni Moda',Georgia,'Times New Roman',serif;
+  --ui:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Azeret Mono',ui-monospace,'SF Mono',Menlo,monospace;
+
+  --r-sm:8px; --r-md:14px; --r-lg:22px;
+  --deck:calc(280px + env(safe-area-inset-bottom));
+  --ease:cubic-bezier(.22,1,.36,1);
+  --ease-in:cubic-bezier(.55,0,.68,.2);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ink); color:var(--paper);
+  font-family:var(--ui); font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overscroll-behavior:none; -webkit-tap-highlight-color:transparent;
+  overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:4px}
+::selection{background:var(--amber);color:var(--ink)}
+
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{
+  font-family:var(--mono); font-size:10px; font-weight:500;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--silver);
+}
+
+/* ── зерно поверх всего интерфейса ── */
+#uigrain{
+  position:fixed; inset:-50%; z-index:900; pointer-events:none;
+  opacity:.055; mix-blend-mode:screen;
+  background-image:var(--grain-url); background-size:180px 180px;
+  animation:grainshift .6s steps(1) infinite;
+}
+@keyframes grainshift{
+  0%{transform:translate(0,0)}      20%{transform:translate(-3%,2%)}
+  40%{transform:translate(2%,-3%)}  60%{transform:translate(-2%,-2%)}
+  80%{transform:translate(3%,1%)}  100%{transform:translate(0,0)}
+}
+/* ── тёплая виньетка комнаты ── */
+#vig{position:fixed;inset:0;z-index:899;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 42%,transparent 42%,rgba(0,0,0,.55) 100%)}
+
+/* ════ ЗАСТАВКА ════ */
+#splash{
+  position:fixed; inset:0; z-index:1000; background:var(--ink);
+  display:grid; place-items:center; gap:0;
+  transition:opacity .7s var(--ease), visibility .7s;
+}
+#splash.gone{opacity:0;visibility:hidden}
+.splash-in{display:flex;flex-direction:column;align-items:center;gap:30px}
+#splashSvg{width:min(38vw,150px);height:auto;filter:drop-shadow(0 0 60px rgba(233,161,59,.35))}
+.wordmark{
+  font-family:var(--display); font-weight:900; font-size:clamp(38px,13vw,62px);
+  letter-spacing:.30em; margin-left:.30em; line-height:1;
+  display:flex; overflow:hidden;
+}
+.wordmark span{
+  display:inline-block; transform:translateY(110%);
+  animation:letterUp .9s var(--ease) forwards;
+}
+@keyframes letterUp{to{transform:translateY(0)}}
+.splash-sub{
+  opacity:0; animation:fadeIn .8s var(--ease) 1.05s forwards;
+  text-align:center;
+}
+@keyframes fadeIn{to{opacity:1}}
+
+/* ════ КАРКАС ════ */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;transition:opacity .6s var(--ease)}
+#app.ready{opacity:1}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .34s var(--ease),transform .34s var(--ease),visibility .34s}
+.screen.active{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+.screen.behind{transform:scale(.97)}
+.screen.ahead{transform:translateY(3%)}
+
+/* ── верхняя панель ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px; flex:none; z-index:5;
+}
+.topbar .brand{display:flex;align-items:center;gap:9px}
+.topbar .brand svg{width:22px;height:22px}
+.topbar .brand b{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.20em;margin-left:.2em}
+.iconbtn{
+  width:40px;height:40px;display:grid;place-items:center;border-radius:50%;
+  color:var(--silver); transition:color .2s,background .2s,transform .3s var(--spring);
+}
+.iconbtn:hover{color:var(--paper);background:rgba(245,239,227,.06)}
+.iconbtn:active{transform:scale(.9)}
+.iconbtn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ── кадр: изображение в рамке плёнки с краевой печатью ── */
+.stage{
+  flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+  gap:6px; padding:4px 6px 6px; min-height:0;
+}
+/* рейка рядом с кадром: перфорация + краевая печать, как на рибейте 35 мм */
+.rail{
+  width:26px; flex:none; align-self:stretch; position:relative;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.rail::before{
+  content:""; position:absolute; top:4px; bottom:4px; width:8px; border-radius:2px; opacity:.55;
+  background:repeating-linear-gradient(180deg,transparent 0 7px,var(--edge) 7px 17px,transparent 17px 24px);
+}
+.rail.l::before{left:1px} .rail.r::before{right:1px}
+.rail .txt{
+  font-family:var(--mono); font-size:8.5px; font-weight:500; letter-spacing:.20em;
+  color:var(--amber-dim); text-transform:uppercase; white-space:nowrap;
+  writing-mode:vertical-rl; max-height:100%; overflow:hidden; transition:color .3s;
+}
+.rail.l .txt{transform:rotate(180deg)}
+.rail.hot .txt{color:var(--amber)}
+.frame{
+  position:relative; max-width:100%; max-height:100%;
+  border-radius:var(--r-sm); overflow:hidden; background:#000;
+  box-shadow:0 26px 70px rgba(0,0,0,.75), 0 0 0 1px rgba(245,239,227,.07);
+  transition:transform .5s var(--ease), opacity .4s var(--ease);
+}
+.frame canvas,.frame video{display:block;max-width:100%;max-height:100%;
+  width:auto;height:auto;object-fit:contain}
+.frame.busy{opacity:.55}
+.frame.pop{animation:framePop .55s var(--spring)}
+@keyframes framePop{0%{transform:scale(.94)}60%{transform:scale(1.012)}100%{transform:scale(1)}}
+/* проявление кадра — как в ванночке */
+.frame.develop canvas{animation:develop 1.1s var(--ease)}
+@keyframes develop{
+  0%{filter:brightness(.25) contrast(.5) saturate(.2)}
+  55%{filter:brightness(.9) contrast(.9) saturate(.75)}
+  100%{filter:none}
+}
+/* ── карусель плёнок ── */
+.stocks{
+  flex:none; position:relative;
+  padding:8px 0 4px;
+}
+.stockstrip{
+  display:flex; gap:10px; overflow-x:auto; overflow-y:hidden;
+  padding:6px 16px 10px; scroll-snap-type:x proximity;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.stockstrip::-webkit-scrollbar{display:none}
+.chip{
+  flex:none; width:70px; scroll-snap-align:center; position:relative;
+  display:flex; flex-direction:column; align-items:center; gap:7px;
+  transition:transform .35s var(--spring);
+}
+.chip canvas{
+  width:66px;height:66px;border-radius:var(--r-sm);display:block;background:var(--rebate);
+  box-shadow:0 0 0 1px rgba(245,239,227,.08); transition:box-shadow .3s,transform .35s var(--spring);
+}
+.chip .nm{font-family:var(--mono);font-size:9.5px;letter-spacing:.10em;color:var(--silver);
+  text-transform:uppercase;transition:color .25s;white-space:nowrap}
+.chip[aria-selected="true"]{transform:translateY(-5px)}
+.chip[aria-selected="true"] canvas{
+  box-shadow:0 0 0 2px var(--amber), 0 10px 26px rgba(233,161,59,.28);
+}
+.chip[aria-selected="true"] .nm{color:var(--amber)}
+.chip:active{transform:scale(.94)}
+/* метка выбранной плёнки под каруселью */
+.stockmeta{
+  display:flex;align-items:center;justify-content:center;gap:10px;height:22px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--silver);
+  text-transform:uppercase;
+}
+.stockmeta b{color:var(--paper);font-weight:500}
+.stockmeta .dot{width:3px;height:3px;border-radius:50%;background:var(--amber-dim)}
+.stockmeta.flash{animation:metaFlash .5s var(--ease)}
+@keyframes metaFlash{0%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:none}}
+
+/* ── нижняя палуба управления ── */
+.deck{
+  flex:none; background:linear-gradient(180deg,rgba(20,17,16,0) 0%,var(--emulsion) 14%);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.deckrow{display:flex;align-items:center;justify-content:space-between;padding:10px 26px 16px}
+
+/* спуск затвора */
+.shutter{
+  width:74px;height:74px;border-radius:50%;position:relative;display:grid;place-items:center;
+  transition:transform .18s var(--ease-in);
+}
+.shutter::before{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  border:2px solid rgba(245,239,227,.30);
+  transition:border-color .3s,transform .4s var(--ease);
+}
+.shutter::after{
+  content:"";position:absolute;inset:7px;border-radius:50%;
+  background:radial-gradient(circle at 40% 32%,#FFF3E4,var(--paper) 55%,#B9AFA0);
+  box-shadow:0 4px 16px rgba(0,0,0,.55), inset 0 -3px 8px rgba(0,0,0,.22);
+  transition:transform .18s var(--ease-in),background .3s;
+}
+.shutter:active{transform:scale(.96)}
+.shutter:active::after{transform:scale(.86);background:radial-gradient(circle at 40% 32%,#FFD9C4,var(--halation) 70%)}
+.shutter:active::before{border-color:var(--halation);transform:scale(1.08)}
+.shutter.rec::before{animation:recRing 1.6s linear infinite}
+@keyframes recRing{to{transform:rotate(360deg)}}
+
+.deckbtn{
+  min-width:62px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--silver);transition:color .2s,transform .3s var(--spring);
+}
+.deckbtn:active{transform:scale(.92)}
+.deckbtn:hover{color:var(--paper)}
+.deckbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round}
+.deckbtn small{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase}
+.deckbtn .thumb{width:26px;height:26px;border-radius:5px;object-fit:cover;
+  box-shadow:0 0 0 1px rgba(245,239,227,.18)}
+
+/* ── вспышка затвора ── */
+#flash{position:fixed;inset:0;z-index:800;background:var(--paper);opacity:0;pointer-events:none}
+#flash.fire{animation:shutterFlash .42s var(--ease)}
+@keyframes shutterFlash{0%{opacity:0}8%{opacity:.92}100%{opacity:0}}
+/* шторка затвора */
+#curtain{position:fixed;inset:0;z-index:801;pointer-events:none;display:none}
+#curtain.fire{display:block}
+#curtain i{position:absolute;left:0;right:0;height:50%;background:var(--ink)}
+#curtain i:first-child{top:0;animation:curtTop .34s var(--ease)}
+#curtain i:last-child{bottom:0;animation:curtBot .34s var(--ease)}
+@keyframes curtTop{0%{transform:translateY(-100%)}42%{transform:translateY(0)}100%{transform:translateY(-100%)}}
+@keyframes curtBot{0%{transform:translateY(100%)}42%{transform:translateY(0)}100%{transform:translateY(100%)}}
+
+/* ── лист настроек ── */
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:20;
+  background:var(--emulsion); border-top:1px solid var(--edge);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  padding:8px 0 calc(18px + env(safe-area-inset-bottom));
+  transform:translateY(100%); transition:transform .42s var(--ease);
+  box-shadow:0 -20px 50px rgba(0,0,0,.6); max-height:62%; display:flex; flex-direction:column;
+}
+.sheet.open{transform:none}
+/* при открытом листе кадр поднимается наверх — видно, что меняют ползунки */
+#scr-edit.tuning .stage{align-items:flex-start}
+#scr-edit.tuning .frame{transform:scale(.46);transform-origin:top center}
+#scr-edit.tuning .rail .txt{opacity:0}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--edge);margin:6px auto 12px;flex:none}
+.sheet h3{margin:0;padding:0 20px 10px;flex:none}
+.sheetbody{overflow-y:auto;padding:0 20px 4px;-webkit-overflow-scrolling:touch}
+
+/* ползунок */
+.ctl{padding:11px 0;border-bottom:1px solid rgba(51,43,35,.6)}
+.ctl:last-child{border-bottom:0}
+.ctl .lab{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.ctl .lab span{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--silver)}
+.ctl .lab var{font-family:var(--mono);font-size:12px;font-style:normal;color:var(--amber);
+  font-variant-numeric:tabular-nums}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:26px;background:none;display:block;
+}
+input[type=range]{--a:0%;--b:50%}
+input[type=range]::-webkit-slider-runnable-track{
+  height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--edge) 0 var(--a),var(--amber) var(--a) var(--b),
+                             var(--edge) var(--b) 100%);
+}
+input[type=range]::-moz-range-track{
+  height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--edge) 0 var(--a),var(--amber) var(--a) var(--b),
+                             var(--edge) var(--b) 100%);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:17px;height:17px;border-radius:50%;margin-top:-7.5px;
+  background:var(--paper); box-shadow:0 0 0 1px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.5);
+  transition:transform .25s var(--spring),box-shadow .25s;
+}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 0 8px rgba(233,161,59,.18)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:var(--paper)}
+
+/* переключатели-пилюли */
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{
+  padding:8px 14px;border-radius:999px;border:1px solid var(--edge);
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--silver);transition:all .25s var(--ease);
+}
+.pill[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:var(--ink);font-weight:700}
+.pill:active{transform:scale(.95)}
+
+/* ── галерея ── */
+.gal{flex:1;overflow-y:auto;padding:4px 14px calc(28px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling:touch}
+.galgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+.galitem{
+  position:relative;aspect-ratio:1;border-radius:var(--r-sm);overflow:hidden;background:var(--rebate);
+  opacity:0;transform:translateY(14px) scale(.97);
+  animation:galIn .55s var(--ease) forwards;
+  box-shadow:0 0 0 1px rgba(245,239,227,.06);
+}
+@keyframes galIn{to{opacity:1;transform:none}}
+.galitem img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s var(--ease)}
+.galitem:hover img{transform:scale(1.06)}
+.galitem .tag{position:absolute;left:6px;bottom:5px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--paper);
+  text-shadow:0 1px 6px rgba(0,0,0,.9)}
+.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  padding:70px 30px;text-align:center;color:var(--silver);
+}
+.empty svg{width:44px;height:44px;stroke:var(--edge);fill:none;stroke-width:1.2}
+
+/* ── просмотр одного кадра ── */
+#viewer{
+  position:fixed;inset:0;z-index:950;background:rgba(6,5,5,.985);backdrop-filter:blur(18px);
+  display:flex;flex-direction:column;opacity:0;visibility:hidden;
+  transition:opacity .35s var(--ease),visibility .35s;
+  padding:calc(10px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+}
+#viewer.open{opacity:1;visibility:visible}
+#viewer img{flex:1;min-height:0;object-fit:contain;width:100%;border-radius:var(--r-sm)}
+#viewer .vhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+#viewer .vfoot{padding-top:14px;text-align:center}
+
+/* ── заголовки и текст ── */
+h2{font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:.01em;margin:0}
+h3{font-family:var(--display);font-weight:400;font-size:20px;margin:0}
+.hint{font-size:12.5px;color:var(--silver);line-height:1.5;max-width:34ch}
+.btn{
+  display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:999px;
+  background:var(--paper);color:var(--ink);font-weight:600;font-size:14px;
+  transition:transform .3s var(--spring),background .25s;
+}
+.btn:active{transform:scale(.95)}
+.btn.ghost{background:none;color:var(--paper);border:1px solid var(--edge)}
+.btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ── всплывающая подсказка ── */
+#toast{
+  position:fixed;left:50%;bottom:calc(var(--deck) + 4px);z-index:980;
+  transform:translate(-50%,26px);opacity:0;pointer-events:none;
+  background:var(--rebate);border:1px solid var(--edge);border-radius:999px;
+  padding:11px 20px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  transition:opacity .3s var(--ease),transform .4s var(--spring);
+  box-shadow:0 12px 34px rgba(0,0,0,.6);max-width:88vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+  #uigrain{animation:none}
+}
+@media (min-width:760px){
+  .stage{padding:10px 60px}
+  .frame{max-height:min(74vh,760px)}
+  .chip{width:80px} .chip canvas{width:76px;height:76px}
+}
+</style>
+</head>
+<body>
+<div id="uigrain" aria-hidden="true"></div>
+<div id="vig" aria-hidden="true"></div>
+<div id="flash" aria-hidden="true"></div>
+<div id="curtain" aria-hidden="true"><i></i><i></i></div>
+
+<!-- ══════════ ЗАСТАВКА ══════════ -->
+<div id="splash">
+  <div class="splash-in">
+    <svg id="splashSvg" viewBox="0 0 100 100" role="img" aria-label="ЗЕРНО">
+      <defs>
+        <clipPath id="lensClip"><circle cx="50" cy="50" r="46"/></clipPath>
+        <radialGradient id="coreGrad" cx="50%" cy="50%" r="52%">
+          <stop offset="0%" stop-color="#FFF6E0"/>
+          <stop offset="45%" stop-color="#F0A94A"/>
+          <stop offset="100%" stop-color="#B73414"/>
+        </radialGradient>
+        <radialGradient id="bowlGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#1A1714"/><stop offset="100%" stop-color="#080707"/>
+        </radialGradient>
+        <filter id="halo" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="5"/>
+        </filter>
+      </defs>
+      <circle cx="50" cy="50" r="48" fill="#221E1A"/>
+      <circle cx="50" cy="50" r="46" fill="url(#bowlGrad)"/>
+      <g clip-path="url(#lensClip)">
+        <path id="halox" d="M50.00,74.00 L29.22,62.00 L29.22,38.00 L50.00,26.00 L70.78,38.00 L70.78,62.00 Z"
+              fill="#FF5C3A" filter="url(#halo)" opacity="0"/>
+        <path id="core" d="M50.00,74.00 L29.22,62.00 L29.22,38.00 L50.00,26.00 L70.78,38.00 L70.78,62.00 Z"
+              fill="url(#coreGrad)" opacity="0"/>
+        <g id="blades">
+          <path d="M50.00,74.00 L82.77,92.92 L80.22,94.75 L74.82,97.96 L69.08,100.52 L63.09,102.39 L56.92,103.55 L50.66,104.00 L44.38,103.71 L38.19,102.69 L32.15,100.96 L29.22,99.84 L29.22,62.00 Z" fill="#282421"/>
+          <path d="M29.22,62.00 L29.22,99.84 L26.35,98.55 L20.88,95.47 L15.79,91.78 L11.17,87.53 L7.08,82.77 L3.57,77.57 L0.68,71.99 L-1.54,66.11 L-3.06,60.02 L-3.55,56.92 L29.22,38.00 Z" fill="#3e3934"/>
+          <path d="M29.22,38.00 L-3.55,56.92 L-3.87,53.79 L-3.94,47.52 L-3.29,41.27 L-1.92,35.14 L0.16,29.22 L2.91,23.57 L6.30,18.28 L10.27,13.42 L14.79,9.06 L17.23,7.08 L50.00,26.00 Z" fill="#5a524b"/>
+          <path d="M50.00,26.00 L17.23,7.08 L19.78,5.25 L25.18,2.04 L30.92,-0.52 L36.91,-2.39 L43.08,-3.55 L49.34,-4.00 L55.62,-3.71 L61.81,-2.69 L67.85,-0.96 L70.78,0.16 L70.78,38.00 Z" fill="#5e564e"/>
+          <path d="M70.78,38.00 L70.78,0.16 L73.65,1.45 L79.12,4.53 L84.21,8.22 L88.83,12.47 L92.92,17.23 L96.43,22.43 L99.32,28.01 L101.54,33.89 L103.06,39.98 L103.55,43.08 L70.78,62.00 Z" fill="#47413b"/>
+          <path d="M70.78,62.00 L103.55,43.08 L103.87,46.21 L103.94,52.48 L103.29,58.73 L101.92,64.86 L99.84,70.78 L97.09,76.43 L93.70,81.72 L89.73,86.58 L85.21,90.94 L82.77,92.92 L50.00,74.00 Z" fill="#2c2824"/>
+        </g>
+        <path d="M50.00,74.00 L29.22,62.00 L29.22,38.00 L50.00,26.00 L70.78,38.00 L70.78,62.00 Z"
+              fill="none" stroke="#140C08" stroke-width="1.4" opacity=".9"/>
+      </g>
+      <circle cx="50" cy="50" r="47" fill="none" stroke="#F5EFE3" stroke-opacity=".18" stroke-width="1.1"/>
+    </svg>
+    <div class="wordmark" aria-hidden="true">
+      <span style="animation-delay:.42s">З</span><span style="animation-delay:.50s">Е</span
+      ><span style="animation-delay:.58s">Р</span><span style="animation-delay:.66s">Н</span
+      ><span style="animation-delay:.74s">О</span>
+    </div>
+    <div class="splash-sub eyebrow">Плёночная лаборатория · 12 эмульсий</div>
+  </div>
+</div>
+
+<!-- ══════════ ПРИЛОЖЕНИЕ ══════════ -->
+<div id="app">
+
+<!-- ── экран съёмки ── -->
+<section class="screen" id="scr-shoot" aria-label="Съёмка">
+  <div class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="#A79E90" stroke-width="7"/>
+        <path d="M50 72 L31 61 L31 39 L50 28 L69 39 L69 61 Z" fill="#E9A13B"/>
+      </svg>
+      <b>ЗЕРНО</b>
+    </div>
+    <div style="display:flex;gap:2px">
+      <button class="iconbtn" id="btnFlip" title="Переключить камеру" aria-label="Переключить камеру">
+        <svg viewBox="0 0 24 24"><path d="M21 8V6a2 2 0 0 0-2-2h-3"/><path d="M3 16v2a2 2 0 0 0 2 2h3"/>
+        <path d="M16 20h3a2 2 0 0 0 2-2v-2"/><path d="M8 4H5a2 2 0 0 0-2 2v2"/>
+        <circle cx="12" cy="12" r="3.2"/></svg>
+      </button>
+      <button class="iconbtn" id="btnGridToggle" title="Сетка кадра" aria-label="Сетка кадра" aria-pressed="false">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="rail l hot" aria-hidden="true"><span class="txt" id="rebateShootL">ЗЕРНО 400</span></div>
+    <div class="frame" id="shootFrame">
+      <canvas id="liveCanvas" width="1080" height="1440"></canvas>
+      <canvas id="gridCanvas" style="position:absolute;inset:0;width:100%;height:100%;
+        pointer-events:none;opacity:0;transition:opacity .3s"></canvas>
+    </div>
+    <div class="rail r" aria-hidden="true"><span class="txt" id="rebateShootR">ЖИВОЙ КАДР</span></div>
+  </div>
+
+  <div class="deck">
+    <div class="stocks">
+      <div class="stockstrip" id="stripShoot" role="tablist" aria-label="Плёнки"></div>
+      <div class="stockmeta" id="metaShoot"></div>
+    </div>
+    <div class="deckrow">
+      <button class="deckbtn" id="btnImport">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/>
+        <path d="M3 15.5l4.6-4.2a2 2 0 0 1 2.7 0L15 15.5"/><path d="M14 13.6l1.6-1.4a2 2 0 0 1 2.7 0L21 15"/>
+        <circle cx="9" cy="9" r="1.4"/></svg>
+        <small>Из галереи</small>
+      </button>
+      <button class="shutter" id="btnShoot" aria-label="Сделать снимок"></button>
+      <button class="deckbtn" id="btnRoll">
+        <span class="thumb" id="rollThumb" style="display:grid;place-items:center;
+          border-radius:5px;background:var(--rebate);overflow:hidden">
+          <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke-width:1.6"><rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/></svg>
+        </span>
+        <small id="rollCount">0 кадров</small>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ── экран проявки ── -->
+<section class="screen" id="scr-edit" aria-label="Проявка">
+  <div class="topbar">
+    <button class="iconbtn" id="btnEditBack" aria-label="Назад">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="eyebrow" id="editTitle">Проявка</div>
+    <button class="iconbtn" id="btnSheet" aria-label="Настройки плёнки">
+      <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h8M16 17h4"/>
+      <circle cx="16" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="14" cy="17" r="2"/></svg>
+    </button>
+  </div>
+
+  <div class="stage">
+    <div class="rail l hot" aria-hidden="true"><span class="txt" id="rebateEditL">ЗЕРНО</span></div>
+    <div class="frame" id="editFrame"><canvas id="editCanvas"></canvas></div>
+    <div class="rail r" aria-hidden="true"><span class="txt" id="rebateEditR">КАДР 01</span></div>
+  </div>
+
+  <div class="deck">
+    <div class="stocks">
+      <div class="stockstrip" id="stripEdit" role="tablist" aria-label="Плёнки"></div>
+      <div class="stockmeta" id="metaEdit"></div>
+    </div>
+    <div class="deckrow" style="justify-content:center;gap:12px;padding-bottom:18px">
+      <button class="btn ghost" id="btnRandom">
+        <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/>
+        <path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+        Наугад
+      </button>
+      <button class="btn" id="btnSave">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7.5 10.5L12 15l4.5-4.5"/>
+        <path d="M4 19h16"/></svg>
+        Сохранить
+      </button>
+    </div>
+  </div>
+
+  <!-- лист тонкой настройки -->
+  <div class="sheet" id="sheet" aria-hidden="true">
+    <div class="grab" id="grab"></div>
+    <h3>Настройка плёнки</h3>
+    <div class="sheetbody" id="sheetBody"></div>
+  </div>
+</section>
+
+<!-- ── экран плёнки (сохранённые кадры) ── -->
+<section class="screen" id="scr-roll" aria-label="Отснятая плёнка">
+  <div class="topbar">
+    <button class="iconbtn" id="btnRollBack" aria-label="Назад">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div style="text-align:center">
+      <h2 style="font-size:21px">Плёнка</h2>
+    </div>
+    <button class="iconbtn" id="btnClear" aria-label="Очистить плёнку">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/>
+      <path d="M6 7l1 13h10l1-13"/></svg>
+    </button>
+  </div>
+  <div class="gal">
+    <div class="eyebrow" style="padding:2px 2px 12px" id="rollMeta"></div>
+    <div class="galgrid" id="galGrid"></div>
+    <div class="empty" id="galEmpty">
+      <svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="13" rx="2.5"/>
+      <circle cx="12" cy="12.5" r="3.6"/><path d="M7 6l1.4-2.2h7.2L17 6"/></svg>
+      <div class="hint">Здесь появятся проявленные кадры.<br>Сними что-нибудь или загрузи фото из галереи.</div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- просмотр кадра -->
+<div id="viewer" aria-hidden="true">
+  <div class="vhead">
+    <span class="eyebrow" id="viewMeta"></span>
+    <button class="iconbtn" id="btnViewClose" aria-label="Закрыть">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <img id="viewImg" alt="Проявленный кадр">
+  <div class="vfoot hint" style="max-width:none">
+    Держи палец на снимке → «Сохранить в фото». На компьютере — правая кнопка мыши.
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="filePick" accept="image/*" hidden>
+
+<script>
+(() => {
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   ЗЕРНО — плёночная лаборатория
+   ══════════════════════════════════════════════════════════════ */
+
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const buzz = ms => { try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+
+let toastT;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ────────────────────────────────────────────────
+   ЭМУЛЬСИИ
+   Каждая плёнка — набор параметров цветокоррекции,
+   зерна, гало и виньетки. Значения подобраны так,
+   чтобы каждая читалась как отдельный характер.
+   ──────────────────────────────────────────────── */
+const BASE = {
+  exposure:0, contrast:1, saturation:1, temp:0, tint:0,
+  lift:[0,0,0], gamma:[1,1,1], gain:[1,1,1],
+  shadowTint:[0,0,0], highTint:[0,0,0],
+  fade:0, toe:.15, isMono:0, mono:[.299,.587,.114],
+  grain:.28, grainSize:1.6, halation:.18, bloom:.1,
+  vignette:.22, aberr:.15, leak:0, dust:0
+};
+
+const STOCKS = [
+  { id:'orig', name:'Оригинал', iso:'—',     kind:'без обработки',
+    p:{ grain:0, halation:0, vignette:.04, aberr:0, toe:0 } },
+
+  { id:'zarya', name:'Заря',    iso:'400',   kind:'портрет',
+    p:{ temp:.13, gain:[1.06,1,.93], lift:[.022,.014,.008], gamma:[1,1,1.03],
+        saturation:1.03, contrast:1.03, highTint:[.05,.028,-.022], shadowTint:[.008,.01,.03],
+        grain:.26, halation:.24, bloom:.12, vignette:.2 } },
+
+  { id:'tundra', name:'Тундра', iso:'160',   kind:'пейзаж',
+    p:{ temp:-.09, shadowTint:[-.022,.032,.018], gain:[.96,1.02,1], gamma:[1.02,1,.99],
+        saturation:.9, contrast:1.06, fade:.06, grain:.24, halation:.12, vignette:.26 } },
+
+  { id:'yantar', name:'Янтарь', iso:'200',   kind:'закат',
+    p:{ temp:.24, gain:[1.13,1,.84], highTint:[.09,.042,-.045], lift:[.026,.012,0],
+        saturation:1.12, contrast:1.07, grain:.3, halation:.48, bloom:.22,
+        vignette:.28, leak:.14 } },
+
+  { id:'mayak', name:'Маяк',    iso:'100',   kind:'слайд',
+    p:{ contrast:1.3, saturation:1.26, toe:.32, vignette:.32, grain:.2,
+        gain:[1.02,1,1.02], halation:.2, aberr:.2 } },
+
+  { id:'kino',  name:'Кино',    iso:'250D',  kind:'кинолента',
+    p:{ shadowTint:[-.055,.012,.085], highTint:[.085,.030,-.055], contrast:1.18,
+        gamma:[1.02,1,1.05], saturation:1.04, gain:[1.02,.99,1.02],
+        vignette:.34, aberr:.32, halation:.28, grain:.3, grainSize:1.8 } },
+
+  { id:'serebro', name:'Серебро', iso:'125', kind:'ч/б',
+    p:{ isMono:1, mono:[.32,.52,.16], contrast:1.14, toe:.26, grain:.34,
+        halation:.1, vignette:.26 } },
+
+  { id:'ugol',  name:'Уголь',   iso:'3200', kind:'ночь · ч/б',
+    p:{ isMono:1, mono:[.28,.60,.12], contrast:1.45, toe:.42, grain:.78, grainSize:2.7,
+        vignette:.4, halation:.12, fade:.04 } },
+
+  { id:'granat', name:'Гранат', iso:'—',    kind:'редскейл',
+    p:{ gain:[1.26,.72,.42], lift:[.035,.01,0], contrast:1.12, saturation:.95,
+        halation:.38, bloom:.16, grain:.34, vignette:.3, leak:.2 } },
+
+  { id:'iney',  name:'Иней',    iso:'400',  kind:'выцветшая',
+    p:{ fade:.24, contrast:.88, saturation:.8, temp:-.06, lift:[.03,.036,.052],
+        grain:.3, halation:.14, vignette:.16, toe:.05 } },
+
+  { id:'polden', name:'Полдень', iso:'100', kind:'дневная',
+    p:{ contrast:1.07, saturation:1.06, grain:.14, grainSize:1.2, halation:.1,
+        vignette:.12, gain:[1.01,1,1.01] } },
+
+  { id:'vecher', name:'Вечер',  iso:'800',  kind:'сумерки',
+    p:{ temp:-.13, gain:[.94,.97,1.09], lift:[.02,.026,.052], contrast:.96,
+        saturation:.86, grain:.44, grainSize:1.9, vignette:.32, halation:.16 } },
+
+  { id:'kosmos', name:'Космос', iso:'—',    kind:'кросс-процесс',
+    p:{ shadowTint:[-.075,.035,.14], highTint:[.13,.105,-.13], contrast:1.38,
+        saturation:1.45, gamma:[.92,1.0,1.12], gain:[1.04,1.02,.92],
+        leak:.2, halation:.32, grain:.32, vignette:.3, aberr:.25 } }
+];
+STOCKS.forEach(s => s.params = Object.assign({}, BASE, s.p));
+
+/* ────────────────────────────────────────────────
+   ШЕЙДЕРЫ
+   ──────────────────────────────────────────────── */
+const VS = `#version 300 es
+in vec2 a_pos;
+out vec2 v_uv;
+void main(){ v_uv = a_pos * .5 + .5; gl_Position = vec4(a_pos, 0., 1.); }`;
+
+const FS_BRIGHT = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 o;
+uniform sampler2D u_src;
+void main(){
+  vec3 c = texture(u_src, v_uv).rgb;
+  float l = max(max(c.r, c.g), c.b);
+  float t = smoothstep(.80, 1.0, l);
+  o = vec4(c * t, 1.);
+}`;
+
+const FS_BLUR = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 o;
+uniform sampler2D u_src;
+uniform vec2 u_dir;          // шаг в пикселях текстуры
+void main(){
+  // девятиточечный гаусс на линейной выборке
+  float w[5]; w[0]=.2270; w[1]=.1946; w[2]=.1216; w[3]=.0540; w[4]=.0162;
+  vec3 c = texture(u_src, v_uv).rgb * w[0];
+  for(int i = 1; i < 5; i++){
+    vec2 off = u_dir * float(i) * 1.35;
+    c += texture(u_src, v_uv + off).rgb * w[i];
+    c += texture(u_src, v_uv - off).rgb * w[i];
+  }
+  o = vec4(c, 1.);
+}`;
+
+const FS_MAIN = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 o;
+
+uniform sampler2D u_src, u_bloom;
+uniform vec2  u_res;
+uniform float u_seed, u_amount;
+uniform vec3  u_lift, u_gamma, u_gain, u_shadowTint, u_highTint, u_mono;
+uniform float u_isMono, u_exposure, u_contrast, u_saturation, u_temp, u_tint,
+              u_fade, u_toe, u_grain, u_grainSize, u_halation, u_bloomAmt,
+              u_vignette, u_aberr, u_leak, u_dust;
+
+const vec3 LUM = vec3(.2126, .7152, .0722);
+
+float hash21(vec2 p){
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3. - 2. * f);
+  float a = hash21(i),               b = hash21(i + vec2(1,0));
+  float c = hash21(i + vec2(0,1)),   d = hash21(i + vec2(1,1));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+}
+// зерно: две октавы, чтобы кристаллы сбивались в комки, как на настоящей эмульсии
+float grainAt(vec2 p){
+  return (vnoise(p) * .66 + vnoise(p * 2.17 + 19.3) * .34 - .5) * 2.;
+}
+
+void main(){
+  vec2 uv = v_uv;
+  vec2 ctr = uv - .5;
+  float rad = length(ctr * vec2(u_res.x / max(u_res.y,1.), 1.)) /
+              length(vec2(u_res.x / max(u_res.y,1.), 1.) * .5);
+
+  // хроматическая аберрация растёт к краям кадра
+  float ab = u_aberr * .0035 * rad * rad;
+  vec3 src;
+  src.r = texture(u_src, uv + ctr * ab).r;
+  src.g = texture(u_src, uv).g;
+  src.b = texture(u_src, uv - ctr * ab).b;
+
+  vec3 c = max(src, 0.);
+
+  c *= pow(2., u_exposure);                                   // экспозиция
+  c *= vec3(1. + u_temp * .30, 1. + u_tint * .12, 1. - u_temp * .30);  // баланс белого
+  c = c * u_gain + u_lift * (1. - c);                          // подъём и усиление
+  c = pow(max(c, 1e-5), 1. / u_gamma);                         // гамма по каналам
+
+  c = (c - .5) * u_contrast + .5;                              // контраст
+  c = mix(c, c * c * (3. - 2. * c), u_toe);                    // мягкая пятка и плечо
+
+  float lum = dot(clamp(c, 0., 1.), LUM);                      // раздельное тонирование
+  c += u_shadowTint * (1. - lum);
+  c += u_highTint * lum;
+
+  vec3 mono = vec3(dot(max(c,0.), u_mono));
+  c = mix(mix(vec3(dot(c, LUM)), c, u_saturation), mono, u_isMono);
+
+  c = c * (1. - u_fade) + u_fade * .11;                        // выцветание: чёрное сереет
+
+  c = mix(src, c, u_amount);                                   // сила фильтра
+
+  vec3 bl = texture(u_bloom, uv).rgb;
+  c += bl * vec3(1., .34, .16) * u_halation * 1.15;            // гало — красная кайма
+  c += bl * u_bloomAmt * .45;                                  // общий ореол
+
+  if(u_leak > 0.){                                             // засветка от неплотной кассеты
+    vec2 lp = (uv - vec2(1.02, .18)) * vec2(1.6, 1.);
+    float l = exp(-dot(lp, lp) * 2.6);
+    c += vec3(1., .44, .18) * l * u_leak * 1.5;
+    c += vec3(1., .62, .3) * pow(max(uv.x - .72, 0.) / .28, 2.) * u_leak * .35;
+  }
+
+  c *= 1. - u_vignette * pow(rad, 2.4);                        // виньетка
+
+  if(u_grain > 0.){                                            // зерно
+    vec2 gp = uv * u_res / max(u_grainSize, .4) + u_seed * 53.;
+    float gm = smoothstep(0., .22, dot(clamp(c,0.,1.), LUM)) *
+               (1. - smoothstep(.7, 1.05, dot(clamp(c,0.,1.), LUM)));
+    float g = grainAt(gp);
+    c += g * u_grain * .19 * (.35 + gm);
+    c.r += grainAt(gp + 7.7) * u_grain * .035;                 // цветной шум эмульсии
+    c.b += grainAt(gp - 4.1) * u_grain * .035;
+  }
+
+  if(u_dust > 0.){                                             // пыль и царапины
+    float col = floor(uv.x * u_res.x / 2.);
+    float scr = step(.99955, hash21(vec2(col, floor(u_seed * 97.))));
+    c += scr * .055 * u_dust * smoothstep(0., .25, uv.y);
+    vec2 dp = floor(uv * u_res / 2.5);
+    float sp = step(.99955, hash21(dp + u_seed * 31.));
+    c += sp * .5 * u_dust;
+  }
+
+  o = vec4(clamp(c, 0., 1.), 1.);
+}`;
+
+/* ────────────────────────────────────────────────
+   ДВИЖОК: один контекст WebGL2 обслуживает
+   и превью, и миниатюры, и экспорт.
+   ──────────────────────────────────────────────── */
+const Engine = (() => {
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl2', {
+    alpha:false, antialias:false, depth:false, stencil:false,
+    premultipliedAlpha:false, preserveDrawingBuffer:true,
+    powerPreference:'high-performance'
+  });
+  if(!gl) return null;
+
+  function compile(type, src){
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src); gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS))
+      throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  function program(fs){
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, VS));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+    gl.bindAttribLocation(p, 0, 'a_pos');
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS))
+      throw new Error(gl.getProgramInfoLog(p));
+    const loc = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for(let i=0;i<n;i++){ const u = gl.getActiveUniform(p,i); loc[u.name] = gl.getUniformLocation(p,u.name); }
+    return { p, loc };
+  }
+
+  const pMain = program(FS_MAIN), pBright = program(FS_BRIGHT), pBlur = program(FS_BLUR);
+
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  const vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  function mkTex(){
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return t;
+  }
+  function mkTarget(){
+    const tex = mkTex(), fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return { tex, fb, w:0, h:0 };
+  }
+  function resize(t, w, h){
+    if(t.w === w && t.h === h) return;
+    t.w = w; t.h = h;
+    gl.bindTexture(gl.TEXTURE_2D, t.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  }
+
+  const srcTex = mkTex();
+  const bloomA = mkTarget(), bloomB = mkTarget();
+  let srcW = 1, srcH = 1;
+
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+  function setSource(el){
+    const w = el.videoWidth || el.naturalWidth || el.width;
+    const h = el.videoHeight || el.naturalHeight || el.height;
+    if(!w || !h) return false;
+    srcW = w; srcH = h;
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+    return true;
+  }
+
+  function pass(prog, w, h, target){
+    gl.useProgram(prog.p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target ? target.fb : null);
+    gl.viewport(0, 0, w, h);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  /** Отрисовать текущий источник с параметрами p в буфер размером w×h. */
+  function render(p, w, h, seed){
+    w = Math.max(2, Math.round(w)); h = Math.max(2, Math.round(h));
+    if(canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
+
+    const needBloom = (p.halation > .001 || p.bloom > .001);
+    const bw = Math.max(2, Math.round(w / 4)), bh = Math.max(2, Math.round(h / 4));
+    if(needBloom){
+      resize(bloomA, bw, bh); resize(bloomB, bw, bh);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, srcTex);
+      gl.useProgram(pBright.p); gl.uniform1i(pBright.loc.u_src, 0);
+      pass(pBright, bw, bh, bloomA);
+
+      gl.useProgram(pBlur.p); gl.uniform1i(pBlur.loc.u_src, 0);
+      gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
+      gl.uniform2f(pBlur.loc.u_dir, 1 / bw, 0);
+      pass(pBlur, bw, bh, bloomB);
+      gl.bindTexture(gl.TEXTURE_2D, bloomB.tex);
+      gl.uniform2f(pBlur.loc.u_dir, 0, 1 / bh);
+      pass(pBlur, bw, bh, bloomA);
+      // второй, широкий проход — гало расходится далеко
+      gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
+      gl.uniform2f(pBlur.loc.u_dir, 2.2 / bw, 0);
+      pass(pBlur, bw, bh, bloomB);
+      gl.bindTexture(gl.TEXTURE_2D, bloomB.tex);
+      gl.uniform2f(pBlur.loc.u_dir, 0, 2.2 / bh);
+      pass(pBlur, bw, bh, bloomA);
+    }
+
+    const L = pMain.loc;
+    gl.useProgram(pMain.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.uniform1i(L.u_src, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, needBloom ? bloomA.tex : srcTex);
+    gl.uniform1i(L.u_bloom, 1);
+    gl.uniform2f(L.u_res, w, h);
+    gl.uniform1f(L.u_seed, seed ?? 0);
+    gl.uniform1f(L.u_amount, p.amount ?? 1);
+    gl.uniform3fv(L.u_lift, p.lift); gl.uniform3fv(L.u_gamma, p.gamma);
+    gl.uniform3fv(L.u_gain, p.gain); gl.uniform3fv(L.u_shadowTint, p.shadowTint);
+    gl.uniform3fv(L.u_highTint, p.highTint); gl.uniform3fv(L.u_mono, p.mono);
+    gl.uniform1f(L.u_isMono, p.isMono); gl.uniform1f(L.u_exposure, p.exposure);
+    gl.uniform1f(L.u_contrast, p.contrast); gl.uniform1f(L.u_saturation, p.saturation);
+    gl.uniform1f(L.u_temp, p.temp); gl.uniform1f(L.u_tint, p.tint);
+    gl.uniform1f(L.u_fade, p.fade); gl.uniform1f(L.u_toe, p.toe);
+    gl.uniform1f(L.u_grain, p.grain); gl.uniform1f(L.u_grainSize, p.grainSize);
+    gl.uniform1f(L.u_halation, needBloom ? p.halation : 0);
+    gl.uniform1f(L.u_bloomAmt, needBloom ? p.bloom : 0);
+    gl.uniform1f(L.u_vignette, p.vignette); gl.uniform1f(L.u_aberr, p.aberr);
+    gl.uniform1f(L.u_leak, p.leak); gl.uniform1f(L.u_dust, p.dust);
+    pass(pMain, w, h, null);
+    return canvas;
+  }
+
+  return { canvas, setSource, render, get srcW(){ return srcW; }, get srcH(){ return srcH; } };
+})();
+
+/* ────────────────────────────────────────────────
+   СБОРКА КАДРА: рамка, перфорация, дата
+   ──────────────────────────────────────────────── */
+const SEG = { // семисегментный индикатор, как на камерах с датировкой
+  '0':[1,1,1,1,1,1,0], '1':[0,1,1,0,0,0,0], '2':[1,1,0,1,1,0,1], '3':[1,1,1,1,0,0,1],
+  '4':[0,1,1,0,0,1,1], '5':[1,0,1,1,0,1,1], '6':[1,0,1,1,1,1,1], '7':[1,1,1,0,0,0,0],
+  '8':[1,1,1,1,1,1,1], '9':[1,1,1,1,0,1,1], ' ':[0,0,0,0,0,0,0]
+};
+function drawSeg(ctx, ch, x, y, w, h, t){
+  const s = SEG[ch]; if(!s) return;
+  const seg = [
+    [x+t, y, w-2*t, t],                 // верх
+    [x+w-t, y+t, t, h/2-1.5*t],         // правый верх
+    [x+w-t, y+h/2+.5*t, t, h/2-1.5*t],  // правый низ
+    [x+t, y+h-t, w-2*t, t],             // низ
+    [x, y+h/2+.5*t, t, h/2-1.5*t],      // левый низ
+    [x, y+t, t, h/2-1.5*t],             // левый верх
+    [x+t, y+h/2-.5*t, w-2*t, t]         // середина
+  ];
+  s.forEach((on, i) => { if(on) ctx.fillRect(...seg[i]); });
+}
+function drawDate(ctx, W, H, date){
+  const txt = String(date.getDate()).padStart(2,'0') + ' ' +
+              String(date.getMonth()+1).padStart(2,'0') + ' ' +
+              String(date.getFullYear()).slice(2);
+  const h = Math.max(11, Math.round(Math.min(W,H) * .034));
+  const w = h * .58, gap = h * .20, t = Math.max(1.4, h * .115);
+  const total = txt.length * (w + gap) - gap;
+  let x = W - total - Math.round(W * .052), y = H - h - Math.round(H * .048);
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,110,30,.95)';
+  ctx.shadowBlur = h * .75;
+  ctx.fillStyle = '#FF8A2E';
+  for(const ch of txt){ drawSeg(ctx, ch, x, y, w, h, t); x += w + gap; }
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.shadowBlur = h * 1.6; ctx.globalAlpha = .5;
+  x = W - total - Math.round(W * .052);
+  for(const ch of txt){ drawSeg(ctx, ch, x, y, w, h, t); x += w + gap; }
+  ctx.restore();
+}
+
+/** Собрать финальный кадр: изображение + рамка + дата. */
+function compose(img, opt){
+  const iw = img.width, ih = img.height;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const S = Math.min(iw, ih);
+
+  if(opt.frame === 'paper'){
+    const p = Math.round(S * .055), pb = Math.round(S * .16);
+    cv.width = iw + p*2; cv.height = ih + p + pb;
+    ctx.fillStyle = '#F3EDE1'; ctx.fillRect(0,0,cv.width,cv.height);
+    const g = ctx.createLinearGradient(0,0,0,cv.height);
+    g.addColorStop(0,'rgba(0,0,0,.05)'); g.addColorStop(.35,'rgba(0,0,0,0)');
+    g.addColorStop(1,'rgba(120,96,60,.09)');
+    ctx.fillStyle = g; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img, p, p);
+    ctx.strokeStyle = 'rgba(0,0,0,.14)'; ctx.lineWidth = Math.max(1, S*.002);
+    ctx.strokeRect(p, p, iw, ih);
+    if(opt.stamp){
+      ctx.save();
+      ctx.fillStyle = '#3A322A';
+      ctx.font = `${Math.round(S*.045)}px "Azeret Mono", monospace`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(opt.edge || '', p, p + ih + pb/2);
+      ctx.restore();
+    }
+  } else if(opt.frame === 'film'){
+    const p = Math.round(S * .028), pv = Math.round(S * .105);
+    cv.width = iw + p*2; cv.height = ih + pv*2;
+    ctx.fillStyle = '#100D0B'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img, p, pv);
+    // перфорация сверху и снизу
+    const hw = Math.round(S*.042), hh = Math.round(S*.030), r = hh*.28;
+    const step = hw * 1.95, n = Math.floor(cv.width / step);
+    const off = (cv.width - (n*step - (step-hw))) / 2;
+    ctx.fillStyle = '#F0EADE';
+    for(let i=0;i<n;i++){
+      const x = off + i*step;
+      for(const y of [Math.round(pv*.30 - hh/2), cv.height - Math.round(pv*.30 + hh/2)]){
+        ctx.beginPath(); ctx.roundRect(x, y, hw, hh, r); ctx.fill();
+      }
+    }
+    ctx.fillStyle = '#C98A31';
+    ctx.font = `500 ${Math.round(S*.028)}px "Azeret Mono", monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(opt.edge || '', off, Math.round(pv*.76));
+    ctx.fillText(opt.edgeRight || '', off, cv.height - Math.round(pv*.76));
+  } else {
+    cv.width = iw; cv.height = ih;
+    ctx.drawImage(img, 0, 0);
+  }
+  if(opt.date) drawDate(ctx, cv.width, cv.height, opt.date);
+  return cv;
+}
+
+/* ────────────────────────────────────────────────
+   ХРАНИЛИЩЕ ОТСНЯТОЙ ПЛЁНКИ
+   ──────────────────────────────────────────────── */
+const Store = (() => {
+  let dbp;
+  function db(){
+    return dbp || (dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('zerno', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('frames', { keyPath:'id' });
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    }));
+  }
+  const tx = async (mode, fn) => {
+    const d = await db();
+    return new Promise((res, rej) => {
+      const t = d.transaction('frames', mode);
+      const rq = fn(t.objectStore('frames'));
+      t.oncomplete = () => res(rq && rq.result);
+      t.onerror = () => rej(t.error);
+    });
+  };
+  return {
+    add: rec => tx('readwrite', s => s.put(rec)),
+    all: () => tx('readonly', s => s.getAll()),
+    del: id => tx('readwrite', s => s.delete(id)),
+    clear: () => tx('readwrite', s => s.clear())
+  };
+})();
+
+/* ────────────────────────────────────────────────
+   СОСТОЯНИЕ
+   ──────────────────────────────────────────────── */
+const S = {
+  screen : 'shoot',
+  stock  : 'zarya',
+  adj    : { amount:1, exposure:0, temp:0, contrast:0, fade:0, grain:0, halation:0, vignette:0 },
+  frame  : 'none',
+  date   : false,
+  dust   : false,
+  seed   : Math.random(),
+  source : null,          // canvas | img — исходник для проявки
+  facing : 'environment',
+  stream : null,
+  frames : []
+};
+const stockById = id => STOCKS.find(s => s.id === (id ?? S.stock)) || STOCKS[0];
+
+function effective(stockId){
+  const st = stockById(stockId ?? S.stock), b = st.params, a = S.adj;
+  return {
+    ...b,
+    amount   : a.amount,
+    exposure : b.exposure + a.exposure,
+    temp     : clamp(b.temp + a.temp, -1, 1),
+    contrast : clamp(b.contrast + a.contrast, .3, 2.2),
+    fade     : clamp(b.fade + a.fade, 0, .8),
+    grain    : clamp(b.grain + a.grain, 0, 1.6),
+    halation : clamp(b.halation + a.halation, 0, 1.4),
+    vignette : clamp(b.vignette + a.vignette, 0, .9),
+    dust     : S.dust ? 1 : 0
+  };
+}
+const edgeText = st => `ЗЕРНО ${st.name.toUpperCase()} ${st.iso !== '—' ? st.iso : ''}`.trim();
+
+/* ────────────────────────────────────────────────
+   ЭКРАНЫ
+   ──────────────────────────────────────────────── */
+const SCREENS = { shoot:'#scr-shoot', edit:'#scr-edit', roll:'#scr-roll' };
+function go(name){
+  if(S.screen === name) return;
+  const prev = S.screen; S.screen = name;
+  Object.entries(SCREENS).forEach(([k, sel]) => {
+    const el = $(sel);
+    el.classList.toggle('active', k === name);
+    el.classList.toggle('behind', k !== name && k === prev);
+    el.classList.toggle('ahead', k !== name && k !== prev);
+  });
+  closeSheet();
+  if(name === 'shoot') startCamera(); else stopCamera();
+  if(name === 'roll') renderRoll();
+  if(name === 'edit') requestEdit();
+}
+
+/* ────────────────────────────────────────────────
+   КАРУСЕЛЬ ПЛЁНОК
+   ──────────────────────────────────────────────── */
+const CHIP = 132;
+const chipRefs = { shoot:[], edit:[] };
+
+function buildStrip(where){
+  const strip = $(where === 'shoot' ? '#stripShoot' : '#stripEdit');
+  strip.innerHTML = '';
+  chipRefs[where] = STOCKS.map(st => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(st.id === S.stock));
+    b.innerHTML = `<canvas width="${CHIP}" height="${CHIP}"></canvas><span class="nm">${st.name}</span>`;
+    b.addEventListener('click', () => pickStock(st.id, where));
+    strip.appendChild(b);
+    return { el:b, cv:b.querySelector('canvas'), st };
+  });
+  return strip;
+}
+
+function pickStock(id, where){
+  if(S.stock !== id){ S.seed = Math.random(); buzz(8); }
+  S.stock = id;
+  ['shoot','edit'].forEach(w => {
+    chipRefs[w].forEach(c => c.el.setAttribute('aria-selected', String(c.st.id === id)));
+    updateMeta(w);
+  });
+  ['shoot','edit'].forEach(w => {
+    const c = chipRefs[w].find(x => x.st.id === id);
+    if(c) c.el.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block:'nearest', inline:'center' });
+  });
+  if(S.screen === 'edit') requestEdit();
+  syncSheet();
+}
+
+function updateMeta(where){
+  const st = stockById();
+  const el = $(where === 'shoot' ? '#metaShoot' : '#metaEdit');
+  el.innerHTML = `<b>${st.name}</b><i class="dot"></i>${st.iso !== '—' ? 'ISO ' + st.iso : 'спец'}<i class="dot"></i>${st.kind}`;
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  $('#rebateShootL').textContent = edgeText(st);
+  $('#rebateEditL').textContent  = edgeText(st);
+}
+
+/* миниатюры плёнок — тот же движок, квадратный кроп источника */
+let squareSrc = null;
+function makeSquare(src){
+  const w = src.videoWidth || src.naturalWidth || src.width;
+  const h = src.videoHeight || src.naturalHeight || src.height;
+  if(!w || !h) return null;
+  const s = Math.min(w, h);
+  squareSrc = squareSrc || document.createElement('canvas');
+  squareSrc.width = squareSrc.height = 256;
+  squareSrc.getContext('2d').drawImage(src, (w-s)/2, (h-s)/2, s, s, 0, 0, 256, 256);
+  return squareSrc;
+}
+let chipsBusy = false;
+function refreshChips(src, where){
+  if(!Engine || chipsBusy) return;
+  const sq = makeSquare(src); if(!sq) return;
+  chipsBusy = true;
+  Engine.setSource(sq);
+  const targets = where ? [where] : ['shoot','edit'];
+  targets.forEach(w => chipRefs[w].forEach(c => {
+    const p = effective(c.st.id);
+    Engine.render({ ...p, amount:1, dust:0 }, CHIP, CHIP, S.seed);
+    const g = c.cv.getContext('2d');
+    g.clearRect(0,0,CHIP,CHIP);
+    g.drawImage(Engine.canvas, 0, 0, CHIP, CHIP);
+  }));
+  chipsBusy = false;
+}
+
+/* ────────────────────────────────────────────────
+   ЛИСТ ТОНКОЙ НАСТРОЙКИ
+   ──────────────────────────────────────────────── */
+const SLIDERS = [
+  { k:'amount',   t:'Сила плёнки', min:0,   max:1,   step:.01, def:1, fmt:v => Math.round(v*100)+'%' },
+  { k:'exposure', t:'Экспозиция',  min:-1.5,max:1.5, step:.05, def:0, fmt:v => (v>0?'+':'')+v.toFixed(2)+' EV' },
+  { k:'temp',     t:'Тепло',       min:-.5, max:.5,  step:.01, def:0, fmt:v => (v>0?'+':'')+Math.round(v*100) },
+  { k:'contrast', t:'Контраст',    min:-.4, max:.5,  step:.01, def:0, fmt:v => (v>0?'+':'')+Math.round(v*100) },
+  { k:'fade',     t:'Выцветание',  min:0,   max:.6,  step:.01, def:0, fmt:v => Math.round(v/.6*100)+'%' },
+  { k:'grain',    t:'Зерно',       min:-.4, max:.9,  step:.01, def:0, fmt:v => (v>0?'+':'')+Math.round(v*100) },
+  { k:'halation', t:'Гало',        min:-.3, max:.9,  step:.01, def:0, fmt:v => (v>0?'+':'')+Math.round(v*100) },
+  { k:'vignette', t:'Виньетка',    min:-.3, max:.6,  step:.01, def:0, fmt:v => (v>0?'+':'')+Math.round(v*100) }
+];
+function buildSheet(){
+  const body = $('#sheetBody');
+  const slider = s => `
+    <div class="ctl">
+      <label class="lab" for="sl-${s.k}"><span>${s.t}</span><var id="v-${s.k}"></var></label>
+      <input type="range" id="sl-${s.k}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.def}">
+    </div>`;
+  body.innerHTML = slider(SLIDERS[0]) + `
+    <div class="ctl">
+      <div class="lab"><span>Рамка</span></div>
+      <div class="pills" id="pillFrame">
+        <button class="pill" data-v="none">Без рамки</button>
+        <button class="pill" data-v="paper">Бумага</button>
+        <button class="pill" data-v="film">Плёнка</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <div class="lab"><span>Отпечаток</span></div>
+      <div class="pills">
+        <button class="pill" id="pillDate">Дата на кадре</button>
+        <button class="pill" id="pillDust">Пыль и царапины</button>
+      </div>
+    </div>` + SLIDERS.slice(1).map(slider).join('') + `
+    <div class="ctl" style="border-bottom:0">
+      <div class="pills"><button class="pill" id="pillReset">Сбросить настройки</button></div>
+    </div>`;
+
+  SLIDERS.forEach(s => {
+    const el = $('#sl-' + s.k);
+    el.addEventListener('input', () => {
+      S.adj[s.k] = parseFloat(el.value);
+      paintSlider(s); requestEdit(); scheduleChips();
+    });
+  });
+  $('#pillFrame').addEventListener('click', e => {
+    const b = e.target.closest('.pill'); if(!b) return;
+    S.frame = b.dataset.v; syncSheet(); requestEdit(); buzz(6);
+  });
+  $('#pillDate').addEventListener('click', () => { S.date = !S.date; syncSheet(); requestEdit(); buzz(6); });
+  $('#pillDust').addEventListener('click', () => { S.dust = !S.dust; syncSheet(); requestEdit(); buzz(6); });
+  $('#pillReset').addEventListener('click', () => {
+    SLIDERS.forEach(s => { S.adj[s.k] = s.def; $('#sl-'+s.k).value = s.def; });
+    S.frame = 'none'; S.date = false; S.dust = false;
+    syncSheet(); requestEdit(); scheduleChips(); toast('Настройки сброшены');
+  });
+  syncSheet();
+}
+function paintSlider(s){
+  const el = $('#sl-'+s.k);
+  const pct = v => clamp((v - s.min) / (s.max - s.min) * 100, 0, 100);
+  const zero = pct(clamp(s.def, s.min, s.max)), now = pct(S.adj[s.k]);
+  el.style.setProperty('--a', Math.min(zero, now).toFixed(1) + '%');
+  el.style.setProperty('--b', Math.max(zero, now).toFixed(1) + '%');
+  $('#v-'+s.k).textContent = s.fmt(S.adj[s.k]);
+}
+function syncSheet(){
+  SLIDERS.forEach(s => { $('#sl-'+s.k).value = S.adj[s.k]; paintSlider(s); });
+  $$('#pillFrame .pill').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.frame)));
+  $('#pillDate').setAttribute('aria-pressed', String(S.date));
+  $('#pillDust').setAttribute('aria-pressed', String(S.dust));
+}
+let chipT;
+function scheduleChips(){
+  clearTimeout(chipT);
+  chipT = setTimeout(() => { if(S.source) refreshChips(S.source, 'edit'); }, 260);
+}
+const openSheet  = () => { $('#sheet').classList.add('open'); $('#sheet').setAttribute('aria-hidden','false');
+                           $('#scr-edit').classList.add('tuning'); };
+const closeSheet = () => { $('#sheet').classList.remove('open'); $('#sheet').setAttribute('aria-hidden','true');
+                           $('#scr-edit').classList.remove('tuning'); };
+
+/* ────────────────────────────────────────────────
+   КАМЕРА
+   ──────────────────────────────────────────────── */
+const video = document.createElement('video');
+video.playsInline = true; video.muted = true; video.autoplay = true;
+video.setAttribute('playsinline',''); video.setAttribute('muted','');
+
+let cameraOK = false, camWarned = false, demoImg = null, rafId = 0, lastChipTick = 0;
+const liveCanvas = $('#liveCanvas'), liveCtx = liveCanvas.getContext('2d');
+
+function liveSource(){ return cameraOK && video.readyState >= 2 ? video : demoImg; }
+
+async function startCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){ cameraOK = false; loop(); return; }
+  if(S.stream){ loop(); return; }
+  try{
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:S.facing, width:{ideal:1920}, height:{ideal:1920} }, audio:false
+    });
+    video.srcObject = S.stream;
+    await video.play();
+    cameraOK = true;
+    $('#rebateShootR').textContent = 'ЖИВОЙ КАДР';
+  }catch(err){
+    cameraOK = false;
+    $('#rebateShootR').textContent = 'ДЕМО-КАДР';
+    if(!camWarned){ camWarned = true; toast('Камера недоступна — показываю демо-кадр'); }
+  }
+  liveCanvas.style.transform = (cameraOK && S.facing === 'user') ? 'scaleX(-1)' : '';
+  loop();
+}
+function stopCamera(){ cancelAnimationFrame(rafId); rafId = 0; }
+
+async function flipCamera(){
+  if(!cameraOK){ toast('Камера недоступна'); return; }
+  S.facing = S.facing === 'user' ? 'environment' : 'user';
+  S.stream.getTracks().forEach(t => t.stop());
+  S.stream = null; buzz(10);
+  $('#shootFrame').classList.remove('pop'); void $('#shootFrame').offsetWidth;
+  $('#shootFrame').classList.add('pop');
+  await startCamera();
+}
+
+function loop(){
+  cancelAnimationFrame(rafId);
+  const step = ts => {
+    rafId = requestAnimationFrame(step);
+    if(S.screen !== 'shoot') return;
+    const src = liveSource();
+    if(!src || !Engine) return;
+    if(!Engine.setSource(src)) return;
+
+    const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const box = liveCanvas.parentElement.parentElement.getBoundingClientRect();
+    const cap = clamp(Math.round(Math.max(box.width, box.height) * dpr), 480, 1280);
+    const k = cap / Math.max(sw, sh);
+    const rw = Math.round(sw * k), rh = Math.round(sh * k);
+    if(liveCanvas.width !== rw || liveCanvas.height !== rh){ liveCanvas.width = rw; liveCanvas.height = rh; drawGrid(); }
+    Engine.render(effective(), rw, rh, S.seed);
+    liveCtx.drawImage(Engine.canvas, 0, 0);
+
+    if(ts - lastChipTick > 1100){ lastChipTick = ts; refreshChips(src, 'shoot'); }
+  };
+  rafId = requestAnimationFrame(step);
+}
+
+function drawGrid(){
+  const g = $('#gridCanvas');
+  g.width = liveCanvas.width; g.height = liveCanvas.height;
+  const c = g.getContext('2d');
+  c.clearRect(0,0,g.width,g.height);
+  c.strokeStyle = 'rgba(245,239,227,.26)';
+  c.lineWidth = Math.max(1, g.width/900);
+  for(let i=1;i<3;i++){
+    c.beginPath(); c.moveTo(g.width*i/3,0); c.lineTo(g.width*i/3,g.height); c.stroke();
+    c.beginPath(); c.moveTo(0,g.height*i/3); c.lineTo(g.width,g.height*i/3); c.stroke();
+  }
+}
+
+/* ────────────────────────────────────────────────
+   СПУСК ЗАТВОРА
+   ──────────────────────────────────────────────── */
+function capture(){
+  const src = liveSource();
+  if(!src){ toast('Нет кадра для съёмки'); return; }
+  buzz([12,40,18]);
+  $('#flash').classList.remove('fire'); void $('#flash').offsetWidth; $('#flash').classList.add('fire');
+  $('#curtain').classList.remove('fire'); void $('#curtain').offsetWidth; $('#curtain').classList.add('fire');
+  setTimeout(() => { $('#flash').classList.remove('fire'); $('#curtain').classList.remove('fire'); }, 460);
+
+  const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
+  const cv = document.createElement('canvas');
+  cv.width = sw; cv.height = sh;
+  const c = cv.getContext('2d');
+  if(cameraOK && S.facing === 'user'){ c.translate(sw, 0); c.scale(-1, 1); }
+  c.drawImage(src, 0, 0, sw, sh);
+
+  S.source = cv; S.seed = Math.random();
+  setTimeout(() => {
+    go('edit');
+    refreshChips(cv, 'edit');
+    $('#editFrame').classList.add('develop');
+    setTimeout(() => $('#editFrame').classList.remove('develop'), 1200);
+  }, 210);
+}
+
+/* ────────────────────────────────────────────────
+   ПРОЯВКА
+   ──────────────────────────────────────────────── */
+const editCanvas = $('#editCanvas'), editCtx = editCanvas.getContext('2d');
+let editPending = false;
+
+function requestEdit(){
+  if(editPending || S.screen !== 'edit') return;
+  editPending = true;
+  requestAnimationFrame(() => { editPending = false; drawEdit(); });
+}
+function composeOpts(){
+  const st = stockById();
+  return {
+    frame : S.frame,
+    date  : S.date ? new Date() : null,
+    stamp : true,
+    edge  : edgeText(st),
+    edgeRight : `${st.kind.toUpperCase()} · КАДР ${String(S.frames.length + 1).padStart(2,'0')}`
+  };
+}
+function drawEdit(){
+  if(!S.source || !Engine) return;
+  const sw = S.source.width, sh = S.source.height;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const box = editCanvas.parentElement.parentElement.getBoundingClientRect();
+  const cap = clamp(Math.round(Math.max(box.width, box.height) * dpr), 560, 1500);
+  const k = Math.min(cap / Math.max(sw, sh), 1);
+  Engine.setSource(S.source);
+  Engine.render(effective(), sw * k, sh * k, S.seed);
+  const out = compose(Engine.canvas, composeOpts());
+  if(editCanvas.width !== out.width || editCanvas.height !== out.height){
+    editCanvas.width = out.width; editCanvas.height = out.height;
+  }
+  editCtx.clearRect(0,0,out.width,out.height);
+  editCtx.drawImage(out, 0, 0);
+  $('#rebateEditR').textContent = `КАДР ${String(S.frames.length + 1).padStart(2,'0')}`;
+}
+
+async function saveFrame(){
+  if(!S.source){ toast('Сначала сними или загрузи кадр'); return; }
+  const btn = $('#btnSave'); btn.disabled = true;
+  $('#editFrame').classList.add('busy');
+  try{
+    const sw = S.source.width, sh = S.source.height;
+    const k = Math.min(2600 / Math.max(sw, sh), 1);
+    Engine.setSource(S.source);
+    Engine.render(effective(), sw * k, sh * k, S.seed);
+    const full = compose(Engine.canvas, composeOpts());
+    const blob = await new Promise(r => full.toBlob(r, 'image/jpeg', .92));
+
+    const tc = document.createElement('canvas');
+    const tk = 420 / Math.max(full.width, full.height);
+    tc.width = Math.round(full.width * tk); tc.height = Math.round(full.height * tk);
+    tc.getContext('2d').drawImage(full, 0, 0, tc.width, tc.height);
+    const thumb = await new Promise(r => tc.toBlob(r, 'image/jpeg', .8));
+
+    const rec = { id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+                  blob, thumb, stock: stockById().name, ts: Date.now() };
+    await Store.add(rec);
+    S.frames.unshift(rec);
+    updateRollBadge();
+    buzz([10,30,10]);
+    $('#editFrame').classList.remove('pop'); void $('#editFrame').offsetWidth;
+    $('#editFrame').classList.add('pop');
+    toast('Кадр проявлен и лежит в плёнке');
+  }catch(e){
+    toast('Не удалось сохранить кадр');
+  }finally{
+    btn.disabled = false; $('#editFrame').classList.remove('busy');
+  }
+}
+
+/* ────────────────────────────────────────────────
+   ПЛЁНКА (сохранённые кадры)
+   ──────────────────────────────────────────────── */
+let urls = [];
+function freeUrls(){ urls.forEach(URL.revokeObjectURL); urls = []; }
+const objUrl = b => { const u = URL.createObjectURL(b); urls.push(u); return u; };
+
+function updateRollBadge(){
+  const n = S.frames.length;
+  $('#rollCount').textContent = n === 0 ? '0 кадров'
+    : n % 10 === 1 && n % 100 !== 11 ? `${n} кадр`
+    : [2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100) ? `${n} кадра` : `${n} кадров`;
+  const t = $('#rollThumb');
+  if(n) t.innerHTML = `<img alt="" src="${objUrl(S.frames[0].thumb)}"
+      style="width:100%;height:100%;object-fit:cover;display:block">`;
+}
+function renderRoll(){
+  const grid = $('#galGrid');
+  grid.innerHTML = '';
+  $('#galEmpty').style.display = S.frames.length ? 'none' : 'flex';
+  $('#rollMeta').textContent = S.frames.length ? `${S.frames.length} · отснято` : '';
+  S.frames.forEach((f, i) => {
+    const d = document.createElement('button');
+    d.className = 'galitem'; d.type = 'button';
+    d.style.animationDelay = Math.min(i * 40, 500) + 'ms';
+    d.innerHTML = `<img alt="Кадр, плёнка ${f.stock}" src="${objUrl(f.thumb)}"><span class="tag">${f.stock}</span>`;
+    d.addEventListener('click', () => openViewer(f));
+    grid.appendChild(d);
+  });
+}
+function openViewer(f){
+  $('#viewImg').src = objUrl(f.blob);
+  $('#viewMeta').textContent = `${f.stock} · ${new Date(f.ts).toLocaleDateString('ru-RU')}`;
+  $('#viewer').classList.add('open');
+  $('#viewer').setAttribute('aria-hidden','false');
+}
+function closeViewer(){
+  $('#viewer').classList.remove('open');
+  $('#viewer').setAttribute('aria-hidden','true');
+}
+
+/* ────────────────────────────────────────────────
+   ЗАГРУЗКА ФАЙЛА
+   ──────────────────────────────────────────────── */
+function loadFile(file){
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    const k = Math.min(3200 / Math.max(im.naturalWidth, im.naturalHeight), 1);
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k);
+    cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+    URL.revokeObjectURL(url);
+    S.source = cv; S.seed = Math.random();
+    go('edit');
+    refreshChips(cv, 'edit');
+    $('#editFrame').classList.add('develop');
+    setTimeout(() => $('#editFrame').classList.remove('develop'), 1200);
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); toast('Не получилось открыть файл'); };
+  im.src = url;
+}
+
+/* ────────────────────────────────────────────────
+   ЗАСТАВКА
+   ──────────────────────────────────────────────── */
+function playSplash(){
+  const blades = $('#blades'), core = $('#core'), halo = $('#halox');
+  [blades, core, halo].forEach(el => {
+    el.style.transformBox = 'view-box';
+    el.style.transformOrigin = '50% 50%';
+  });
+  if(REDUCED){
+    core.style.opacity = 1; halo.style.opacity = .8;
+  }else{
+    blades.animate(
+      [{ transform:'rotate(-30deg) scale(1.22)' }, { transform:'rotate(0deg) scale(1)' }],
+      { duration:1250, easing:'cubic-bezier(.22,1,.36,1)', fill:'both' });
+    core.animate(
+      [{ opacity:0, transform:'scale(.25)' }, { opacity:1, transform:'scale(1)' }],
+      { duration:900, delay:250, easing:'cubic-bezier(.22,1,.36,1)', fill:'both' });
+    halo.animate([{ opacity:0 }, { opacity:.8 }],
+      { duration:900, delay:400, easing:'ease-out', fill:'both' });
+  }
+  const hold = REDUCED ? 500 : 2050;
+  setTimeout(() => {
+    $('#splash').classList.add('gone');
+    $('#app').classList.add('ready');
+    setTimeout(() => $('#splash').remove(), 900);
+  }, hold);
+}
+
+/* зерно поверх интерфейса — генерируем текстуру один раз */
+function makeGrainTexture(){
+  const n = 128, cv = document.createElement('canvas');
+  cv.width = cv.height = n;
+  const c = cv.getContext('2d'), d = c.createImageData(n, n);
+  for(let i = 0; i < d.data.length; i += 4){
+    const v = Math.random() * 255;
+    d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 255;
+  }
+  c.putImageData(d, 0, 0);
+  document.documentElement.style.setProperty('--grain-url', `url(${cv.toDataURL()})`);
+}
+
+/* ────────────────────────────────────────────────
+   ЗАПУСК
+   ──────────────────────────────────────────────── */
+function wire(){
+  $('#btnShoot').addEventListener('click', capture);
+  $('#btnFlip').addEventListener('click', flipCamera);
+  $('#btnImport').addEventListener('click', () => $('#filePick').click());
+  $('#filePick').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+  $('#btnRoll').addEventListener('click', () => go('roll'));
+  $('#btnRollBack').addEventListener('click', () => go(S.source ? 'edit' : 'shoot'));
+  $('#btnEditBack').addEventListener('click', () => go('shoot'));
+  $('#btnSave').addEventListener('click', saveFrame);
+  $('#btnSheet').addEventListener('click', () =>
+    $('#sheet').classList.contains('open') ? closeSheet() : openSheet());
+  $('#grab').addEventListener('click', closeSheet);
+  $('#scr-edit').addEventListener('pointerdown', e => {
+    if($('#sheet').classList.contains('open') && !e.target.closest('#sheet') &&
+       !e.target.closest('#btnSheet')) closeSheet();
+  });
+  $('#btnViewClose').addEventListener('click', closeViewer);
+  $('#viewer').addEventListener('click', e => { if(e.target.id === 'viewer') closeViewer(); });
+  $('#btnRandom').addEventListener('click', () => {
+    const pool = STOCKS.filter(s => s.id !== 'orig' && s.id !== S.stock);
+    pickStock(pool[Math.floor(Math.random() * pool.length)].id, 'edit');
+    S.seed = Math.random(); requestEdit(); scheduleChips();
+  });
+  $('#btnGridToggle').addEventListener('click', e => {
+    const on = $('#gridCanvas').style.opacity !== '1';
+    $('#gridCanvas').style.opacity = on ? '1' : '0';
+    e.currentTarget.setAttribute('aria-pressed', String(on));
+    drawGrid(); buzz(6);
+  });
+  $('#btnClear').addEventListener('click', async () => {
+    if(!S.frames.length){ toast('Плёнка и так пустая'); return; }
+    if(!confirm('Стереть все кадры? Это не отменить.')) return;
+    await Store.clear(); freeUrls(); S.frames = [];
+    renderRoll(); updateRollBadge(); toast('Плёнка очищена');
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){
+      if($('#viewer').classList.contains('open')) closeViewer();
+      else if($('#sheet').classList.contains('open')) closeSheet();
+    }
+    if(e.key === ' ' && S.screen === 'shoot'){ e.preventDefault(); capture(); }
+    if((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && S.screen !== 'roll'){
+      const i = STOCKS.findIndex(s => s.id === S.stock);
+      const j = (i + (e.key === 'ArrowRight' ? 1 : STOCKS.length - 1)) % STOCKS.length;
+      pickStock(STOCKS[j].id);
+    }
+  });
+  addEventListener('resize', () => { requestEdit(); });
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) stopCamera(); else if(S.screen === 'shoot') loop();
+  });
+}
+
+async function init(){
+  makeGrainTexture();
+  playSplash();
+
+  if(!Engine){
+    toast('Браузер не поддерживает WebGL2 — фильтры недоступны');
+    return;
+  }
+  buildStrip('shoot'); buildStrip('edit'); buildSheet();
+  updateMeta('shoot'); updateMeta('edit');
+  wire();
+
+  // демо-кадр: он же запасной вариант, если камеры нет
+  demoImg = new Image();
+  demoImg.decoding = 'async';
+  demoImg.src = 'img/demo.jpg';
+  demoImg.onload = () => { refreshChips(demoImg); if(S.screen === 'shoot') loop(); };
+  demoImg.onerror = () => { demoImg = null; };
+
+  try{
+    S.frames = (await Store.all()).sort((a,b) => b.ts - a.ts);
+    updateRollBadge();
+  }catch(e){ /* приватный режим — плёнка просто не сохранится */ }
+
+  $('#scr-shoot').classList.add('active');
+  ['shoot','edit'].forEach(w => {
+    const c = chipRefs[w].find(x => x.st.id === S.stock);
+    if(c) c.el.scrollIntoView({ block:'nearest', inline:'center' });
+  });
+  startCamera();
+}
+
+if('serviceWorker' in navigator && location.protocol === 'https:')
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+})();
+</script>
+</body>
+</html>
