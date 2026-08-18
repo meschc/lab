@@ -20,7 +20,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Выбрать Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_16.app
+        # Берём самый свежий Xcode на раннере: у более старого SDK не совпадают
+        # версии с установленными runtime симулятора, и actool отказывается
+        # собирать каталог ассетов.
+        run: |
+          latest=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Xcode: $latest"
+          sudo xcode-select -switch "$latest"
+          xcodebuild -version
 
       - name: Поставить XcodeGen
         run: brew install xcodegen
