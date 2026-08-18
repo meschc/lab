@@ -17,7 +17,7 @@ final class FrameStore: ObservableObject {
 
     @Published private(set) var frames: [DevelopedFrame] = []
 
-    static let directory: URL = {
+    nonisolated static let directory: URL = {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("Roll", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
