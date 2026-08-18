@@ -15,7 +15,7 @@ BODY_LO    = (26, 23, 20)
 BLADE_HI   = (92, 84, 75)
 BLADE_LO   = (34, 30, 27)
 AMBER      = (233, 161, 59)
-HALATION   = (255, 92, 58)
+HALATION   = (255, 112, 92)
 PAPER      = (245, 239, 227)
 
 SS = 4  # суперсэмплинг
@@ -25,8 +25,10 @@ def lerp(a, b, t):
     return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
 
 
-def radial_gradient(size, inner, outer, cx=0.5, cy=0.5, power=1.0, radius=0.7071):
-    """RGB-изображение с радиальным градиентом. radius — доля стороны, на которой цвет = outer."""
+def radial_gradient(size, inner, outer, cx=0.5, cy=0.5, power=1.0, radius=0.7071,
+                    mid=None, mid_at=0.45):
+    """RGB-изображение с радиальным градиентом. radius — доля стороны, на которой цвет = outer.
+    mid — необязательная промежуточная точка на расстоянии mid_at."""
     y, x = np.mgrid[0:size, 0:size].astype(np.float32)
     x = (x + .5) / size - cx
     y = (y + .5) / size - cy
@@ -34,7 +36,14 @@ def radial_gradient(size, inner, outer, cx=0.5, cy=0.5, power=1.0, radius=0.7071
     r = np.clip(r, 0, 1) ** power
     arr = np.zeros((size, size, 3), np.float32)
     for c in range(3):
-        arr[..., c] = inner[c] + (outer[c] - inner[c]) * r
+        if mid is None:
+            arr[..., c] = inner[c] + (outer[c] - inner[c]) * r
+        else:
+            t1 = np.clip(r / mid_at, 0, 1)
+            t2 = np.clip((r - mid_at) / (1 - mid_at), 0, 1)
+            arr[..., c] = np.where(r < mid_at,
+                                   inner[c] + (mid[c] - inner[c]) * t1,
+                                   mid[c] + (outer[c] - mid[c]) * t2)
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), 'RGB')
 
 
@@ -136,16 +145,16 @@ def render(size, *, rounded=False, bleed=1.0, open_amount=0.50, rot=0.0, glow=1.
     barr[..., :3] = np.clip(barr[..., :3] * (0.30 + 1.05 * sarr), 0, 255)
     # тёплый оттенок отражённого света
     warm = sarr[..., 0] ** 2.2
-    barr[..., 0] = np.clip(barr[..., 0] * (1.0 + 0.55 * warm), 0, 255)
-    barr[..., 1] = np.clip(barr[..., 1] * (1.0 + 0.14 * warm), 0, 255)
-    barr[..., 2] = np.clip(barr[..., 2] * (1.0 - 0.22 * warm), 0, 255)
+    barr[..., 0] = np.clip(barr[..., 0] * (1.0 + 0.46 * warm), 0, 255)
+    barr[..., 1] = np.clip(barr[..., 1] * (1.0 + 0.10 * warm), 0, 255)
+    barr[..., 2] = np.clip(barr[..., 2] * (1.0 + 0.34 * warm), 0, 255)
     blades = Image.fromarray(barr.astype(np.uint8), 'RGBA')
 
     # тонкий светящийся шов вдоль каждого лепестка
     seams = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     sd = ImageDraw.Draw(seams)
     for poly in polys:
-        sd.line([poly[0], poly[1]], fill=(255, 226, 178, 210), width=max(1, int(S / 420)))
+        sd.line([poly[0], poly[1]], fill=(255, 222, 214, 210), width=max(1, int(S / 420)))
     seams = seams.filter(ImageFilter.GaussianBlur(S / 1600))
     blades = Image.alpha_composite(blades, seams)
     blades.putalpha(ImageChops.multiply(blades.split()[3], bowl_mask))
@@ -155,15 +164,18 @@ def render(size, *, rounded=False, bleed=1.0, open_amount=0.50, rot=0.0, glow=1.
     hexa = hexagon(cx, cy, r_in, rot)
     hmask = Image.new('L', (S, S), 0)
     ImageDraw.Draw(hmask).polygon(hexa, fill=255)
-    core = radial_gradient(S, (255, 246, 224), (183, 52, 20), power=1.25, radius=r_in / S * 1.18)
+    core = radial_gradient(S, (255, 247, 231), (108, 52, 178), power=0.95,
+                           radius=r_in / S * 0.94, mid=(255, 136, 118), mid_at=0.34)
     base.paste(core, (0, 0), hmask)
 
     # halation: красно-оранжевое свечение, выходящее за кромку лепестков
     hal = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(hal).polygon(hexagon(cx, cy, r_in * 1.06, rot), fill=HALATION + (255,))
-    hal = hal.filter(ImageFilter.GaussianBlur(r_in * 0.20))
+    hd = ImageDraw.Draw(hal)
+    hd.polygon(hexagon(cx, cy, r_in * 1.10, rot), fill=HALATION + (255,))
+    hd.polygon(hexagon(cx, cy, r_in * 0.80, rot), fill=(0, 0, 0, 0))
+    hal = hal.filter(ImageFilter.GaussianBlur(r_in * 0.16))
     harr = np.asarray(hal, np.float32)
-    harr[..., 3] *= 1.0 * glow
+    harr[..., 3] *= 0.85 * glow
     hal = Image.fromarray(harr.astype(np.uint8), 'RGBA')
     base = Image.fromarray(np.clip(
         np.asarray(base, np.float32)[..., :3] +
@@ -173,11 +185,11 @@ def render(size, *, rounded=False, bleed=1.0, open_amount=0.50, rot=0.0, glow=1.
 
     # bloom: мягкое тёплое свечение поверх
     bl = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(bl).polygon(hexagon(cx, cy, r_in * 0.80, rot), fill=(255, 196, 120, 255))
+    ImageDraw.Draw(bl).polygon(hexagon(cx, cy, r_in * 0.62, rot), fill=(255, 186, 158, 255))
     bl = bl.filter(ImageFilter.GaussianBlur(r_in * 0.55))
     base = Image.fromarray(np.clip(
         np.asarray(base, np.float32)[..., :3] +
-        np.asarray(bl, np.float32)[..., :3] * (np.asarray(bl, np.float32)[..., 3:4] / 255.0) * 0.30 * glow,
+        np.asarray(bl, np.float32)[..., :3] * (np.asarray(bl, np.float32)[..., 3:4] / 255.0) * 0.10 * glow,
         0, 255).astype(np.uint8), 'RGB').convert('RGBA')
 
     # снова маскируем всё кругом корпуса
