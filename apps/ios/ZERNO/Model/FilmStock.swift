@@ -51,8 +51,8 @@ struct FilmStock: Identifiable, Equatable {
     var subtitle: String { iso == "—" ? kind : "ISO \(iso) · \(kind)" }
 }
 
-private func stock(_ id: String, _ name: String, _ iso: String, _ kind: String,
-                   _ build: (inout FilmParams) -> Void) -> FilmStock {
+private func makeStock(_ id: String, _ name: String, _ iso: String, _ kind: String,
+                       _ build: (inout FilmParams) -> Void) -> FilmStock {
     var p = FilmParams()
     build(&p)
     return FilmStock(id: id, name: name, iso: iso, kind: kind, params: p)
@@ -60,71 +60,71 @@ private func stock(_ id: String, _ name: String, _ iso: String, _ kind: String,
 
 enum FilmLibrary {
     static let all: [FilmStock] = [
-        stock("orig", "Оригинал", "—", "без обработки") {
+        makeStock("orig", "Оригинал", "—", "без обработки") {
             $0.grain = 0; $0.halation = 0; $0.bloom = 0
             $0.vignette = 0.04; $0.aberration = 0; $0.toe = 0
         },
-        stock("zarya", "Заря", "400", "портрет") {
+        makeStock("zarya", "Заря", "400", "портрет") {
             $0.temp = 0.13
             $0.gain = [1.06, 1, 0.93]; $0.lift = [0.022, 0.014, 0.008]; $0.gamma = [1, 1, 1.03]
             $0.saturation = 1.03; $0.contrast = 1.03
             $0.highTint = [0.05, 0.028, -0.022]; $0.shadowTint = [0.008, 0.01, 0.03]
             $0.grain = 0.26; $0.halation = 0.24; $0.bloom = 0.12; $0.vignette = 0.20
         },
-        stock("tundra", "Тундра", "160", "пейзаж") {
+        makeStock("tundra", "Тундра", "160", "пейзаж") {
             $0.temp = -0.09
             $0.shadowTint = [-0.022, 0.032, 0.018]; $0.gain = [0.96, 1.02, 1]; $0.gamma = [1.02, 1, 0.99]
             $0.saturation = 0.90; $0.contrast = 1.06; $0.fade = 0.06
             $0.grain = 0.24; $0.halation = 0.12; $0.vignette = 0.26
         },
-        stock("yantar", "Янтарь", "200", "закат") {
+        makeStock("yantar", "Янтарь", "200", "закат") {
             $0.temp = 0.24
             $0.gain = [1.13, 1, 0.84]; $0.highTint = [0.09, 0.042, -0.045]; $0.lift = [0.026, 0.012, 0]
             $0.saturation = 1.12; $0.contrast = 1.07
             $0.grain = 0.30; $0.halation = 0.48; $0.bloom = 0.22; $0.vignette = 0.28; $0.leak = 0.14
         },
-        stock("mayak", "Маяк", "100", "слайд") {
+        makeStock("mayak", "Маяк", "100", "слайд") {
             $0.contrast = 1.30; $0.saturation = 1.26; $0.toe = 0.32
             $0.gain = [1.02, 1, 1.02]
             $0.vignette = 0.32; $0.grain = 0.20; $0.halation = 0.20; $0.aberration = 0.20
         },
-        stock("kino", "Кино", "250D", "кинолента") {
+        makeStock("kino", "Кино", "250D", "кинолента") {
             $0.shadowTint = [-0.055, 0.012, 0.085]; $0.highTint = [0.085, 0.030, -0.055]
             $0.contrast = 1.18; $0.gamma = [1.02, 1, 1.05]; $0.saturation = 1.04
             $0.gain = [1.02, 0.99, 1.02]
             $0.vignette = 0.34; $0.aberration = 0.32; $0.halation = 0.28
             $0.grain = 0.30; $0.grainSize = 1.8
         },
-        stock("serebro", "Серебро", "125", "ч/б") {
+        makeStock("serebro", "Серебро", "125", "ч/б") {
             $0.isMono = 1; $0.mono = [0.32, 0.52, 0.16]
             $0.contrast = 1.14; $0.toe = 0.26
             $0.grain = 0.34; $0.halation = 0.10; $0.vignette = 0.26
         },
-        stock("ugol", "Уголь", "3200", "ночь · ч/б") {
+        makeStock("ugol", "Уголь", "3200", "ночь · ч/б") {
             $0.isMono = 1; $0.mono = [0.28, 0.60, 0.12]
             $0.contrast = 1.45; $0.toe = 0.42; $0.fade = 0.04
             $0.grain = 0.78; $0.grainSize = 2.7; $0.vignette = 0.40; $0.halation = 0.12
         },
-        stock("granat", "Гранат", "—", "редскейл") {
+        makeStock("granat", "Гранат", "—", "редскейл") {
             $0.gain = [1.26, 0.72, 0.42]; $0.lift = [0.035, 0.01, 0]
             $0.contrast = 1.12; $0.saturation = 0.95
             $0.halation = 0.38; $0.bloom = 0.16; $0.grain = 0.34; $0.vignette = 0.30; $0.leak = 0.20
         },
-        stock("iney", "Иней", "400", "выцветшая") {
+        makeStock("iney", "Иней", "400", "выцветшая") {
             $0.fade = 0.24; $0.contrast = 0.88; $0.saturation = 0.80; $0.temp = -0.06
             $0.lift = [0.030, 0.036, 0.052]; $0.toe = 0.05
             $0.grain = 0.30; $0.halation = 0.14; $0.vignette = 0.16
         },
-        stock("polden", "Полдень", "100", "дневная") {
+        makeStock("polden", "Полдень", "100", "дневная") {
             $0.contrast = 1.07; $0.saturation = 1.06; $0.gain = [1.01, 1, 1.01]
             $0.grain = 0.14; $0.grainSize = 1.2; $0.halation = 0.10; $0.vignette = 0.12
         },
-        stock("vecher", "Вечер", "800", "сумерки") {
+        makeStock("vecher", "Вечер", "800", "сумерки") {
             $0.temp = -0.13; $0.gain = [0.94, 0.97, 1.09]; $0.lift = [0.020, 0.026, 0.052]
             $0.contrast = 0.96; $0.saturation = 0.86
             $0.grain = 0.44; $0.grainSize = 1.9; $0.vignette = 0.32; $0.halation = 0.16
         },
-        stock("kosmos", "Космос", "—", "кросс-процесс") {
+        makeStock("kosmos", "Космос", "—", "кросс-процесс") {
             $0.shadowTint = [-0.075, 0.035, 0.14]; $0.highTint = [0.13, 0.105, -0.13]
             $0.contrast = 1.38; $0.saturation = 1.45
             $0.gamma = [0.92, 1.0, 1.12]; $0.gain = [1.04, 1.02, 0.92]
