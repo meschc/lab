@@ -46,7 +46,7 @@ struct RootView: View {
             guard state.screen == .shoot else { return }
             while !Task.isCancelled {
                 state.refreshThumbnailsFromCamera()
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                try? await Task.sleep(nanoseconds: 2_400_000_000)
             }
         }
         .onChange(of: scenePhase) { _, phase in

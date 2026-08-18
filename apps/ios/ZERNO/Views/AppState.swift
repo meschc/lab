@@ -132,14 +132,14 @@ final class AppState: ObservableObject {
         guard let renderer = FilmRenderer.shared,
               let buffer = camera.takeLatestBuffer(),
               let texture = renderer.texture(from: buffer) else { return }
-        if Date().timeIntervalSince(lastThumbnailUpdate) < 1.2 { return }
+        if Date().timeIntervalSince(lastThumbnailUpdate) < 2.4 { return }
         lastThumbnailUpdate = Date()
 
         var result: [String: UIImage] = [:]
         for stock in FilmLibrary.all {
             var p = stock.params
             p.seed = seed
-            if let img = renderer.develop(source: texture, params: p, width: 160, height: 213) {
+            if let img = renderer.develop(source: texture, params: p, width: 132, height: 176) {
                 result[stock.id] = img
             }
         }
