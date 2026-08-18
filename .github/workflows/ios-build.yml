@@ -31,14 +31,14 @@ jobs:
           ZERNO_TEAM_ID: ""
         run: xcodegen generate
 
-      - name: Скомпилировать под симулятор
+      - name: Скомпилировать под устройство
         working-directory: apps/ios
         run: |
           xcodebuild build \
             -project ZERNO.xcodeproj \
             -scheme ZERNO \
             -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
