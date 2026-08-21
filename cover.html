@@ -423,6 +423,61 @@
             reader.readAsDataURL(file);
         });
 
+        // ===== Готовый файл: ужимаем и отдаём в webp =====
+        // В библиотеке обложка показывается шириной ~200px, с запасом на retina
+        // хватает 600px. Раньше отсюда уезжал PNG в оригинальном разрешении —
+        // до 3376x5150 и 9 МБ на одну книгу.
+        const MAX_COVER_WIDTH = 600;
+        const COVER_QUALITY = 0.8;
+        let coverMime = '';
+
+        // webp умеют все современные браузеры; на старых откатываемся на jpeg.
+        function coverMimeType() {
+            if (coverMime) return coverMime;
+            const probe = document.createElement('canvas');
+            probe.width = probe.height = 1;
+            coverMime = probe.toDataURL('image/webp').indexOf('data:image/webp') === 0
+                ? 'image/webp'
+                : 'image/jpeg';
+            return coverMime;
+        }
+
+        // Целевой размер: только уменьшаем, маленькие обложки не растягиваем.
+        function coverTargetSize(img) {
+            const w = img.naturalWidth || img.width;
+            const h = img.naturalHeight || img.height;
+            if (!w || !h || w <= MAX_COVER_WIDTH) return { width: w, height: h };
+            return { width: MAX_COVER_WIDTH, height: Math.round(h * MAX_COVER_WIDTH / w) };
+        }
+
+        // Обложку и мокап рисуем сразу в целевом размере — так мокап получается
+        // чётче, чем если рисовать в оригинале и потом ужимать всё разом.
+        function drawCover(canvasEl, ctxEl, coverImg, mockupImage) {
+            const size = coverTargetSize(coverImg);
+            canvasEl.width = size.width;
+            canvasEl.height = size.height;
+            ctxEl.imageSmoothingEnabled = true;
+            ctxEl.imageSmoothingQuality = 'high';
+            ctxEl.clearRect(0, 0, size.width, size.height);
+            ctxEl.drawImage(coverImg, 0, 0, size.width, size.height);
+
+            const scale = Math.max(size.width / mockupImage.naturalWidth,
+                                   size.height / mockupImage.naturalHeight);
+            const mockupWidth = mockupImage.naturalWidth * scale;
+            const mockupHeight = mockupImage.naturalHeight * scale;
+            ctxEl.drawImage(mockupImage,
+                (size.width - mockupWidth) / 2, (size.height - mockupHeight) / 2,
+                mockupWidth, mockupHeight);
+            console.log(`Обложка ${coverImg.width}x${coverImg.height} -> ${size.width}x${size.height}`);
+        }
+
+        // Расширение приводим к реальному формату файла: раньше PNG-байты
+        // сохранялись под именем .jpg, потому что бралось имя исходника.
+        function processedFileName(originalName, mime) {
+            const ext = mime === 'image/webp' ? 'webp' : 'jpg';
+            return 'processed_' + originalName.replace(/\.[^.]+$/, '') + '.' + ext;
+        }
+
         function processImage(coverImg, mockupImage) {
             console.log("Обработка изображения...");
 
@@ -433,33 +488,7 @@
                 return;
             }
 
-            // Используем размер загруженного изображения для canvas
-            canvas.width = coverImg.width;
-            canvas.height = coverImg.height;
-
-            console.log(`Размер обложки: ${coverImg.width}x${coverImg.height}`);
-            
-            // Очищаем canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Рисуем обложку в оригинальном размере
-            ctx.drawImage(coverImg, 0, 0, canvas.width, canvas.height);
-            
-            // Масштабируем мокап под размер изображения
-            const scaleX = canvas.width / mockupImage.naturalWidth;
-            const scaleY = canvas.height / mockupImage.naturalHeight;
-            const scale = Math.max(scaleX, scaleY);
-            
-            const mockupWidth = mockupImage.naturalWidth * scale;
-            const mockupHeight = mockupImage.naturalHeight * scale;
-            const offsetX = (canvas.width - mockupWidth) / 2;
-            const offsetY = (canvas.height - mockupHeight) / 2;
-
-            console.log(`Размер мокапа: ${mockupImage.naturalWidth}x${mockupImage.naturalHeight}`);
-            console.log(`Масштаб: ${scale}, Позиция: (${offsetX}, ${offsetY})`);
-
-            // Накладываем мокап с масштабированием
-            ctx.drawImage(mockupImage, offsetX, offsetY, mockupWidth, mockupHeight);
+            drawCover(canvas, ctx, coverImg, mockupImage);
 
             // Показываем результат
             canvas.style.display = 'block';
@@ -469,11 +498,19 @@
             downloadBtn.classList.remove('hidden');
         }
 
-        downloadBtn.addEventListener('click', function() {
-            const link = document.createElement('a');
-            link.download = 'book-mockup.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+        downloadBtn.addEventListener('click', function () {
+            const mime = coverMimeType();
+            canvas.toBlob(function (blob) {
+                if (!blob) {
+                    alert('Не удалось подготовить файл для скачивания');
+                    return;
+                }
+                const link = document.createElement('a');
+                link.download = 'book-mockup.' + (mime === 'image/webp' ? 'webp' : 'jpg');
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            }, mime, COVER_QUALITY);
         });
 
         document.querySelector('.upload-overlay').addEventListener('click', () => fileInput.click());
@@ -516,44 +553,14 @@
         function processImageBatch(coverImg, mockupImage, tempCanvas, tempCtx) {
             return new Promise((resolve, reject) => {
                 try {
-                    console.log("Пакетная обработка изображения...");
-                    
-                    // Используем размер загруженного изображения для canvas
-                    tempCanvas.width = coverImg.width;
-                    tempCanvas.height = coverImg.height;
-                    
-                    console.log(`Размер обложки: ${coverImg.width}x${coverImg.height}`);
-                    
-                    // Очищаем canvas
-                    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    
-                    // Рисуем обложку в оригинальном размере
-                    tempCtx.drawImage(coverImg, 0, 0, tempCanvas.width, tempCanvas.height);
-                    
-                    // Масштабируем мокап под размер изображения
-                    const scaleX = tempCanvas.width / mockupImage.naturalWidth;
-                    const scaleY = tempCanvas.height / mockupImage.naturalHeight;
-                    const scale = Math.max(scaleX, scaleY);
-                    
-                    const mockupWidth = mockupImage.naturalWidth * scale;
-                    const mockupHeight = mockupImage.naturalHeight * scale;
-                    const offsetX = (tempCanvas.width - mockupWidth) / 2;
-                    const offsetY = (tempCanvas.height - mockupHeight) / 2;
-                    
-                    console.log(`Размер мокапа: ${mockupImage.naturalWidth}x${mockupImage.naturalHeight}`);
-                    console.log(`Масштаб: ${scale}, Позиция: (${offsetX}, ${offsetY})`);
-                    
-                    // Накладываем мокап с масштабированием
-                    tempCtx.drawImage(mockupImage, offsetX, offsetY, mockupWidth, mockupHeight);
-                    
-                    // Конвертируем canvas в Blob
-                    tempCanvas.toBlob(function(blob) {
+                    drawCover(tempCanvas, tempCtx, coverImg, mockupImage);
+                    tempCanvas.toBlob(function (blob) {
                         if (blob) {
                             resolve(blob);
                         } else {
                             reject(new Error('Ошибка при создании Blob из canvas'));
                         }
-                    }, 'image/png');
+                    }, coverMimeType(), COVER_QUALITY);
                 } catch (error) {
                     reject(error);
                 }
@@ -666,7 +673,8 @@
                     const processedBlob = await processImageBatch(coverImg, mockupImage, tempCanvas, tempCtx);
                     
                     // Создаем новый файл с обработанным изображением
-                    const processedFile = new File([processedBlob], `processed_${file.name}`, { type: 'image/png' });
+                    const processedFile = new File([processedBlob],
+                        processedFileName(file.name, processedBlob.type), { type: processedBlob.type });
                     
                     // Загружаем обработанный файл на GitHub
                     const url = await uploadToGitHub(processedFile, globalToken);
