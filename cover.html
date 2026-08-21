@@ -78,42 +78,6 @@
         .hidden {
             display: none;
         }
-        .admin-panel {
-            width: 100%;
-            padding: 20px;
-            background: #f8f8f8;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .admin-panel h2 {
-            margin-top: 0;
-        }
-        .file-list {
-            margin-top: 10px;
-            width: 100%;
-        }
-        .upload-progress {
-            margin-top: 10px;
-            width: 100%;
-            height: 20px;
-            background: #eee;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            background: #2291FF;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        #uploadResults {
-            margin-top: 10px;
-            width: 100%;
-            max-height: 200px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.9em;
-        }
         button {
             height: fit-content;
             width: 100%;
@@ -285,17 +249,6 @@
     </div>
         <input type="file" id="coverUpload" class="hidden">
         
-        <!-- Добавляем админ-панель -->
-        <div id="adminPanel" class="admin-panel hidden">
-            <h2>Панель администратора</h2>
-            <input type="file" id="bulkUpload" multiple class="hidden">
-            <button id="bulkUploadBtn">Загрузить несколько обложек</button>
-            <div class="upload-progress hidden">
-                <div class="progress-bar"></div>
-            </div>
-            <div id="uploadResults"></div>
-        </div>
-
         <!-- Переключатель режимов: из изображения / из названия+автора -->
         <div class="tabs" id="modeTabs">
           <button type="button" class="tab is-active" data-mode="image">Из изображения</button>
@@ -329,8 +282,6 @@
         const mockupTemplate = document.getElementById('mockupTemplate');
         const fileInput = document.getElementById('coverUpload');
         const downloadBtn = document.getElementById('downloadBtn');
-
-        let globalToken; // Глобальная переменная для токена
 
         async function loadSVG() {
             console.log("Загрузка SVG...");
@@ -514,189 +465,6 @@
         });
 
         document.querySelector('.upload-overlay').addEventListener('click', () => fileInput.click());
-
-        // Добавляем проверку админского доступа
-        function checkAdminAccess() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('token');
-        }
-
-        // Показываем админ-панель если есть доступ
-        document.addEventListener('DOMContentLoaded', function() {
-            if (checkAdminAccess()) {
-                document.getElementById('adminPanel').classList.remove('hidden');
-            }
-        });
-
-        // Функция для загрузки изображения из файла
-        function loadImage(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        resolve(img);
-                    };
-                    img.onerror = function() {
-                        reject(new Error('Ошибка при загрузке изображения'));
-                    };
-                    img.src = event.target.result;
-                };
-                reader.onerror = function() {
-                    reject(new Error('Ошибка чтения файла'));
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // Функция для обработки изображения для пакетной загрузки
-        function processImageBatch(coverImg, mockupImage, tempCanvas, tempCtx) {
-            return new Promise((resolve, reject) => {
-                try {
-                    drawCover(tempCanvas, tempCtx, coverImg, mockupImage);
-                    tempCanvas.toBlob(function (blob) {
-                        if (blob) {
-                            resolve(blob);
-                        } else {
-                            reject(new Error('Ошибка при создании Blob из canvas'));
-                        }
-                    }, coverMimeType(), COVER_QUALITY);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        }
-
-        function initialize() {
-            // Получаем токен из URL
-            const urlParams = new URLSearchParams(window.location.search);
-            globalToken = urlParams.get('token'); // Сохраняем токен в глобальной переменной
-
-            if (!globalToken) {
-                return;
-            }
-
-            console.log("Токен GitHub:", globalToken);
-        }
-
-        // Вызываем функцию инициализации при загрузке страницы
-        document.addEventListener('DOMContentLoaded', initialize);
-
-        // Функция для загрузки файла на GitHub
-        async function uploadToGitHub(file, token) {
-            const reader = new FileReader();
-            
-            const content = await new Promise((resolve, reject) => {
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-
-            const path = `assets/covers/${file.name}`;
-            
-            // Получаем SHA текущего файла, если он существует
-            let sha = '';
-            try {
-                const response = await fetch(`https://api.github.com/repos/meschc/create.kirmesch.ru/contents/${path}`, {
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    sha = data.sha;
-                }
-            } catch (error) {
-                console.log('Файл не существует, создаём новый');
-            }
-
-            // Загружаем файл
-            const response = await fetch(`https://api.github.com/repos/meschc/create.kirmesch.ru/contents/${path}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `Upload processed cover: ${file.name}`,
-                    content: content,
-                    branch: 'main',
-                    sha: sha || undefined
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.statusText}`);
-            }
-
-            return `https://raw.githubusercontent.com/meschc/create.kirmesch.ru/main/${path}`;
-        }
-
-        // Обработчик для массовой загрузки
-        document.getElementById('bulkUploadBtn').addEventListener('click', function() {
-            document.getElementById('bulkUpload').click();
-        });
-
-        document.getElementById('bulkUpload').addEventListener('change', async function(e) {
-            const files = Array.from(e.target.files);
-            console.log("Загружено файлов для пакетной обработки:", files.length);
-            const progressBar = document.querySelector('.progress-bar');
-            const progressContainer = document.querySelector('.upload-progress');
-            const resultsContainer = document.getElementById('uploadResults');
-            
-            progressContainer.classList.remove('hidden');
-            resultsContainer.innerHTML = '';
-            
-            const results = [];
-            let processed = 0;
-
-            // Загружаем мокап один раз для всех файлов
-            const mockupImage = await loadSVG();
-            if (!mockupImage) {
-                alert('Не удалось загрузить мокап');
-                return;
-            }
-
-            // Создаем временный canvas для обработки каждого изображения
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-
-            for (const file of files) {
-                console.log("Обработка файла:", file.name);
-                try {
-                    // Загружаем изображение
-                    const coverImg = await loadImage(file);
-                    
-                    // Обрабатываем изображение (накладываем мокап)
-                    const processedBlob = await processImageBatch(coverImg, mockupImage, tempCanvas, tempCtx);
-                    
-                    // Создаем новый файл с обработанным изображением
-                    const processedFile = new File([processedBlob],
-                        processedFileName(file.name, processedBlob.type), { type: processedBlob.type });
-                    
-                    // Загружаем обработанный файл на GitHub
-                    const url = await uploadToGitHub(processedFile, globalToken);
-                    
-                    processed++;
-                    const progress = (processed / files.length) * 100;
-                    progressBar.style.width = `${progress}%`;
-                    
-                    results.push(url);
-                    resultsContainer.innerHTML += `✔︎ ${url}<br>`;
-                } catch (error) {
-                    console.error('Ошибка обработки файла:', file.name, error);
-                    resultsContainer.innerHTML += `✗ Ошибка обработки ${file.name}: ${error.message}<br>`;
-                }
-            }
-
-            // Копируем все URL в буфер обмена
-            const urlsList = results.join('\n');
-            navigator.clipboard.writeText(urlsList).then(() => {
-                alert('Все URL скопированы в буфер обмена');
-            });
-        });
 
         // ===== Режим «из названия и автора» (свитч-таб) =====
         const textPanel = document.getElementById('textPanel');
