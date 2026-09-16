@@ -1,6 +1,7 @@
 'use strict';
 
 const DATA_URL = 'data.json';
+const LOGLINE_URL = 'loglines.json';
 const PAGE_SIZE = 45;
 const RECENT_LIMIT = 25;
 const SPIN_FRAMES = 12;
@@ -33,6 +34,7 @@ const state = {
   shown: PAGE_SIZE,
   current: null,
   spinning: false,
+  sheet: null,
 };
 
 /* ——— утилиты ——— */
@@ -160,11 +162,16 @@ const metaLine = (m) => {
   return parts.filter(Boolean).join(' · ');
 };
 
-const cardMarkup = (m) => {
+const ratesMarkup = (m) => {
   const rates = [];
   if (m.kp) rates.push(`<span class="rate"><i></i>КП <b>${m.kp.toFixed(1)}</b></span>`);
   if (m.im) rates.push(`<span class="rate"><i></i>IMDb <b>${m.im.toFixed(1)}</b></span>`);
   if (m.v) rates.push(`<span class="rate rate--mine"><i></i>моя <b>${m.v}</b></span>`);
+  return rates.length ? `<div class="rates">${rates.join('')}</div>` : '';
+};
+
+const cardMarkup = (m) => {
+  const rates = ratesMarkup(m);
   return `
     <div class="poster">
       <img src="${posterUrl(m, '600x900')}" alt="" loading="eager"
@@ -175,7 +182,7 @@ const cardMarkup = (m) => {
       <h2 class="film">${esc(m.t)}</h2>
       ${m.e ? `<p class="orig">${esc(m.e)}</p>` : ''}
       <p class="meta">${metaLine(m)}</p>
-      ${rates.length ? `<div class="rates">${rates.join('')}</div>` : ''}
+      ${rates}
     </div>`;
 };
 
@@ -264,7 +271,7 @@ const updatePoolInfo = () => {
 /* ——— каталог ——— */
 
 const tileMarkup = (m) => `
-  <a class="tile${isDone(m) ? ' is-done' : ''}" href="${kpUrl(m)}" target="_blank" rel="noopener">
+  <a class="tile${isDone(m) ? ' is-done' : ''}" data-id="${m.i}" href="${kpUrl(m)}" target="_blank" rel="noopener">
     <span class="tile__art">
       ${isDone(m) ? '<span class="tile__done">✓</span>' : ''}
       <span class="tile__ph">${esc(m.t)}</span>
@@ -294,6 +301,61 @@ const renderList = () => {
   $('#grid').innerHTML = slice.map(tileMarkup).join('');
   $('#listMeta').textContent = `${list.length} ${plural(list.length, ['фильм', 'фильма', 'фильмов'])} · по рейтингу КП`;
   $('#moreBtn').hidden = slice.length >= list.length;
+};
+
+/* ——— шторка с карточкой фильма ——— */
+
+const SHEET_ANIM_MS = 340;
+
+const sheetMarkup = (m) => {
+  const tags = (m.tg || []).map((t) => `<span class="sheet__tag">${MOOD_EMOJI[t] || ''} ${t}</span>`).join('');
+  return `
+    <div class="sheet__top">
+      <img class="sheet__art" src="${posterUrl(m, '300x450')}" alt=""
+           onerror="this.onerror=null;this.src='${fallbackUrl(m)}'">
+      <div class="sheet__head">
+        <h3 class="sheet__title">${esc(m.t)}</h3>
+        ${m.e ? `<p class="sheet__orig">${esc(m.e)}</p>` : ''}
+        <p class="sheet__meta">${metaLine(m)}</p>
+        ${ratesMarkup(m)}
+      </div>
+    </div>
+    ${m.o ? `<p class="sheet__text">${esc(m.o)}</p>` : ''}
+    ${tags ? `<div class="sheet__tags">${tags}</div>` : ''}
+    <div class="sheet__acts">
+      <button class="btn btn--fill${isDone(m) ? ' is-on' : ''}" id="sheetSeen">${isDone(m) ? 'Просмотрено' : 'Смотрел'}</button>
+      <a class="btn btn--fill" href="${kpUrl(m)}" target="_blank" rel="noopener">Открыть</a>
+    </div>`;
+};
+
+const openSheet = (m) => {
+  if (!m) return;
+  state.sheet = m;
+  $('#sheetBody').innerHTML = sheetMarkup(m);
+  const sheet = $('#sheet');
+  sheet.hidden = false;
+  document.body.classList.add('is-sheet');
+  requestAnimationFrame(() => sheet.classList.add('is-in'));
+  buzz(8);
+};
+
+const closeSheet = () => {
+  const sheet = $('#sheet');
+  if (sheet.hidden) return;
+  sheet.classList.remove('is-in');
+  document.body.classList.remove('is-sheet');
+  state.sheet = null;
+  setTimeout(() => {
+    if (!sheet.classList.contains('is-in')) sheet.hidden = true;
+  }, SHEET_ANIM_MS);
+};
+
+/* пересчёт всего, что зависит от отметок «смотрел» */
+const refreshDoneViews = () => {
+  syncSeenBtn();
+  renderMoods();
+  updatePoolInfo();
+  renderList();
 };
 
 /* ——— профиль ——— */
@@ -376,11 +438,39 @@ const bindEvents = () => {
   $('#seenBtn').addEventListener('click', () => {
     if (!state.current) return;
     toggleDone(state.current);
-    syncSeenBtn();
-    renderMoods();
-    updatePoolInfo();
-    renderList();
+    refreshDoneViews();
     buzz(isDone(state.current) ? [14, 30, 14] : 10);
+  });
+
+  /* тап по фильму — карточка с логлайном: и по плитке в списке, и по карточке рулетки */
+  document.addEventListener('click', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    e.preventDefault();
+    openSheet(state.movies.find((m) => m.i === Number(tile.dataset.id)));
+  });
+
+  $('#card').addEventListener('click', () => {
+    if (state.current && !state.spinning) openSheet(state.current);
+  });
+
+  $('#sheet').addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]')) {
+      closeSheet();
+      return;
+    }
+    const btn = e.target.closest('#sheetSeen');
+    if (!btn || !state.sheet) return;
+    toggleDone(state.sheet);
+    const on = isDone(state.sheet);
+    btn.classList.toggle('is-on', on);
+    btn.textContent = on ? 'Просмотрено' : 'Смотрел';
+    refreshDoneViews();
+    buzz(on ? [14, 30, 14] : 10);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSheet();
   });
 
   $('#kpBtn').addEventListener('click', () => {
@@ -431,6 +521,22 @@ const bindEvents = () => {
   $$('.tabbar__btn').forEach((btn) => btn.addEventListener('click', () => switchScreen(btn.dataset.screen)));
 };
 
+/* описания живут отдельным файлом — грузим фоном, старт не ждёт */
+const loadLoglines = async () => {
+  try {
+    const res = await fetch(LOGLINE_URL);
+    if (!res.ok) return;
+    const map = await res.json();
+    state.movies.forEach((m) => {
+      const text = map[m.i];
+      if (text) m.o = text;
+    });
+    if (state.sheet) openSheet(state.sheet);
+  } catch (err) {
+    /* нет файла — карточка просто без описания */
+  }
+};
+
 const showError = (message) => {
   $('#poolInfo').textContent = message;
   $('#card').innerHTML = `<div class="card__hint"><p>${message}</p></div>`;
@@ -454,6 +560,7 @@ const init = async () => {
   updatePoolInfo();
   renderList();
   bindEvents();
+  loadLoglines();
 };
 
 init();
