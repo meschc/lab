@@ -43,7 +43,8 @@ const posterUrl = (m, size) =>
 
 const fallbackUrl = (m) => `https://st.kp.yandex.net/images/film_iphone/iphone360_${m.i}.jpg`;
 
-const kpUrl = (m) => `https://www.kinopoisk.ru/${m.s ? 'series' : 'film'}/${m.i}/`;
+/* зеркало Кинопоиска — открывается без VPN, структура путей та же */
+const kpUrl = (m) => `https://sspoisk.ru/${m.s ? 'series' : 'film'}/${m.i}/`;
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
