@@ -30,13 +30,15 @@ SYSTEM_PROMPT = """Ты — {name}, личный голосовой ИИ-асс�
 - Каждый ответ начинай меткой настроения (её не озвучивают): [ok] — всё нормально; [warn] — предупреждение, риск, неприятная новость или что-то не вышло; [bad] — ошибка, серьёзная проблема, плохая новость или пользователь расстроен.
 
 Как действовать:
-- Если можно сделать инструментом — делай сразу, без лишних вопросов; многошаговые задачи — по шагам.
+- Если можно сделать инструментом — делай сразу, без лишних вопросов.
+- Сложная задача (3 и больше действий) — сначала plan set: короткие конкретные шаги; затем выполняй по одному и после каждого plan done. Шаг не удался — попробуй другой способ, а если никак — скажи, что мешает.
 - После действия кратко подтверди результат и, если уместно, одной фразой предложи следующий шаг.
 - Если команда неясна — задай один короткий уточняющий вопрос.
 - Факты, новости, цены, погода — только через web_search / read_webpage / weather, не выдумывай.
 - Что на экране — look (screen); «посмотри на меня» — look (camera).
 - Мышь: click — нажать элемент по описанию («кнопка Войти»); mouse — прокрутка, перетаскивание. Для полей ввода: click по полю, затем type_text.
-- Узнал о пользователе что-то долговременное — memory remember; спрашивает о прошлом — memory recall.
+- Узнал о пользователе что-то долговременное — memory remember. Вопросы о прошлом («что я говорил/думал про…») — memory recall: он ищет по смыслу в заметках, фактах и всех разговорах.
+- Просят записать мысль, идею, информацию — notes add; дело на потом — notes add с kind task. «Что у меня в заметках/задачах» — notes list или search.
 - Файлы: таблицы — create_table (можно с диаграммой); страницы, документы, код — write_file с полным содержимым (HTML сразу красивый, стили внутри). Данные сначала собери инструментами. Потом скажи, где файл.
 - Опасные действия система подтверждает у пользователя сама: просто вызывай инструмент.
 - Речь распознаётся автоматически и может содержать ошибки — угадывай смысл по контексту."""
@@ -103,6 +105,7 @@ class Brain:
         self._lock = threading.Lock()
         self._images: list[str] = []
         self._live: list[dict] | None = None  # сообщения текущего ответа (для locate с тем же началом)
+        self._session_start = time.time()      # записи журнала новее — уже есть в истории диалога
 
     # ------------------------------------------------------------ служебное
     def _kwargs(self) -> dict:
@@ -179,6 +182,25 @@ class Brain:
         idle = float(self.cfg.assistant.session_idle_minutes) * 60
         if self.history and time.time() - self.last_active > idle:
             self.history.clear()
+        if not self.history:
+            self._session_start = time.time()
+
+    def _recall_block(self, user_text: str) -> str:
+        """Связанные воспоминания к команде — в конец сообщения (начало промпта не трогаем, кэш живёт)."""
+        m = self.cfg.get("memory", {}) or {}
+        if not m.get("auto_recall", True) or len(user_text) < 6:
+            return ""
+        try:
+            hits = self.memory.relevant(user_text, k=int(m.get("recall_top_k", 3)),
+                                        min_sim=float(m.get("recall_min_similarity", 0.55)),
+                                        exclude_after=self._session_start)
+        except Exception as e:
+            log.warning("автопоиск в памяти не удался: %s", e)
+            return ""
+        if not hits:
+            return ""
+        return ("\n\n(Система: возможно, связанные записи из памяти — используй, только если относятся к делу)\n"
+                + "\n".join(f"- {h.line()}" for h in hits))
 
     def _trim_history(self) -> None:
         # Режем пачками, а не по одному сообщению: начало диалога реже меняется → кэш живёт дольше
@@ -193,14 +215,18 @@ class Brain:
         with self._lock:
             self.reset_if_idle()
             self._trim_history()
+            recall = self._recall_block(user_text)
             self.last_active = time.time()
             self.memory.log("user", user_text)
+            ctx.plan = []
+            nudged = False
             separate_vision = bool(self.llm.vision_model and self.llm.vision_model != self.llm.model)
             ctx.attach_image = None if separate_vision else self.attach_image
             ctx.locate = self.locate
             if separate_vision:
                 ctx.vision = self.vision
-            messages = self._prefix() + self.history + [{"role": "user", "content": f"{now_context()} {user_text}"}]
+            messages = self._prefix() + self.history + [
+                {"role": "user", "content": f"{now_context()} {user_text}{recall}"}]
             self._live = messages
             schemas = self.tools.schemas()
             spoken_all: list[str] = []
@@ -227,6 +253,15 @@ class Brain:
                         if tool_calls:
                             content = re.split(r"<tool_call|<function=|\{\s*\"name\"", content)[0].strip()
                     if not tool_calls:
+                        left = [s["text"] for s in ctx.plan if not s["done"]]
+                        if left and not nudged and "?" not in content:
+                            # остановился посреди плана — один раз напоминаем довести дело до конца
+                            nudged = True
+                            messages += [{"role": "assistant", "content": content},
+                                         {"role": "user", "content": "(Система: в плане остались шаги: "
+                                          + "; ".join(left) + ". Выполни их инструментами или честно скажи, "
+                                          "что мешает.)"}]
+                            continue
                         final = content
                         break
                     messages.append({"role": "assistant", "content": content,

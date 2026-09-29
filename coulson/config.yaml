@@ -44,7 +44,7 @@ llm:
   temperature: 0.6
   keep_alive: 60m             # после часа простоя модель выгружается (~7 ГБ памяти)
   unload_on_game: true        # запустил игру — модель выгружается, память отдаётся игре
-  max_tool_rounds: 8
+  max_tool_rounds: 20         # шагов (вызовов инструментов) на одну просьбу — для задач по плану
   history_turns: 10
 
 tts:
@@ -81,6 +81,13 @@ vpn:
 
 safety:
   confirm_risky: true         # опасные действия только после голосового «да»
+
+memory:
+  max_facts: 40
+  embed_model: qwen3-embedding:0.6b   # поиск по смыслу (~0.6 ГБ); null — только поиск по словам
+  auto_recall: true           # подмешивать к каждой команде похожие записи из памяти
+  recall_top_k: 3
+  recall_min_similarity: 0.55 # 0..1: ниже — считаем не относящимся к делу
 
 vision:
   max_width: 1440

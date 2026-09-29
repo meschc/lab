@@ -6,8 +6,8 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 
 git pull --ff-only
 uv sync
-MODEL="$(uv run python -c 'from coulson import config; print(config.load().llm.model)')"
-ollama pull "$MODEL"
+uv run python -c 'from coulson import config; c = config.load(); print(c.llm.model); print((c.get("memory") or {}).get("embed_model") or "")' |
+  while read -r m; do [[ -n "$m" ]] && ollama pull "$m"; done
 uv run --group dev pytest -q
 
 if pgrep -f "python -m coulson" >/dev/null; then

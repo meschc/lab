@@ -71,6 +71,10 @@ def cmd_check(cfg) -> int:
         row("Ollama запущен", True, cfg.llm.host)
         row(f"Модель {cfg.llm.model}", any(m.startswith(cfg.llm.model) for m in models),
             f"есть: {', '.join(models) or 'нет'}")
+        emb = (cfg.get("memory") or {}).get("embed_model")
+        if emb:
+            row(f"Модель поиска по смыслу {emb}", any(m.startswith(emb) for m in models),
+                "" if any(m.startswith(emb) for m in models) else f"ollama pull {emb}")
     except Exception as e:
         row("Ollama запущен", False, f"{e} (brew services start ollama)")
     try:
@@ -161,10 +165,10 @@ def main() -> None:
         s.wait_idle()
         return
     if args.tool:
-        from .memory import Memory
+        from .memory import open_memory
         from .tools import Context, load_all
         reg = load_all()
-        ctx = Context(cfg, memory=Memory(config.DATA_DIR / "memory.db"),
+        ctx = Context(cfg, memory=open_memory(cfg, config.DATA_DIR),
                       confirm=lambda d: input(f"Подтвердить «{d}»? [y/N] ").lower().startswith(("y", "д")))
         if args.tool[0] in ("look", "click"):
             from .brain import Brain

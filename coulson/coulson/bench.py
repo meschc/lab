@@ -114,6 +114,36 @@ def bench_llm(cfg) -> None:
            f"вызвал {calls or 'ничего'} за {ttft3:.2f} с")
 
 
+def bench_semantic(cfg) -> None:
+    """Поиск по смыслу на русском: находит ли «куда я хотел в отпуск» запись про Грузию."""
+    from .memory import Embedder, Memory
+
+    model = (cfg.get("memory", {}) or {}).get("embed_model")
+    if not model:
+        report("Память: поиск по смыслу", WARN, "выключен (memory.embed_model: null)")
+        return
+    emb = Embedder(cfg.llm.host, model, cfg.llm.keep_alive)
+    t = time.monotonic()
+    if emb.embed(["проверка"]) is None:
+        report("Память: поиск по смыслу", BAD, f"модель {model} недоступна — ollama pull {model}")
+        return
+    report("Память: модель эмбеддингов", OK, f"{model}, загрузка {time.monotonic() - t:.1f} с")
+    with tempfile.TemporaryDirectory() as d:
+        mem = Memory(Path(d) / "bench.db", emb)
+        target = mem.add_note("Хочу в мае съездить в Грузию, посмотреть Тбилиси и горы")
+        for text in ("Купить молоко и хлеб", "Созвон с Андреем по проекту в четверг",
+                     "Идея: сделать бота для заметок", "Поменять масло в машине", "Прочитать книгу про стоицизм"):
+            mem.add_note(text)
+        mem.wait_embedded(60)
+        t = time.monotonic()
+        hits = mem.search("куда я хотел поехать в отпуск?", kinds=("notes",), limit=3)
+        dt = time.monotonic() - t
+    ok = bool(hits) and hits[0].id == target
+    report("Память: поиск по смыслу", OK if ok and dt < 0.5 else (WARN if ok else BAD),
+           f"{dt * 1000:.0f} мс, первым найдено: «{hits[0].text if hits else '—'}»"
+           + (f" (сходство {hits[0].sim:.2f})" if hits else ""))
+
+
 def bench_tts(cfg) -> None:
     from .tts import Speaker
 
@@ -140,6 +170,7 @@ def bench_memory() -> None:
 def run(cfg) -> int:
     print("Замер скорости Колсона на этом Маке…\n", flush=True)
     for name, fn in (("распознавание", lambda: bench_stt(cfg)), ("мозг", lambda: bench_llm(cfg)),
+                     ("поиск в памяти", lambda: bench_semantic(cfg)),
                      ("голос", lambda: bench_tts(cfg)), ("память", bench_memory)):
         try:
             fn()

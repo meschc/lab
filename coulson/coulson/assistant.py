@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 
 from . import config
-from .memory import Memory
+from .memory import open_memory
 from .textutil import find_wake, is_stop_command, normalize, parse_yes_no, strip_honorifics
 from .tools import Context, load_all
 
@@ -51,6 +51,7 @@ TOOL_LABELS = {
     "press_keys": "нажимаю клавиши", "find_files": "ищу файлы", "open_path": "открываю", "memory": "память",
     "vpn": "VPN", "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл",
     "list_dir": "смотрю папку", "disk_usage": "считаю место на диске", "click": "кликаю", "mouse": "мышь",
+    "notes": "заметки", "plan": "планирую",
 }
 
 _FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
@@ -69,7 +70,7 @@ class Assistant:
     def __init__(self, cfg: config.Config, ui=None):
         self.cfg = cfg
         self.ui = ui or NullUI()
-        self.memory = Memory(config.DATA_DIR / "memory.db")
+        self.memory = open_memory(cfg, config.DATA_DIR)
         self.tools = load_all()
         self.utterances: queue.Queue[Utterance] = queue.Queue()
         self.cancel = threading.Event()
@@ -90,7 +91,8 @@ class Assistant:
         self.brain = Brain(cfg, self.tools, self.memory)
         self.ctx = Context(cfg, memory=self.memory, speak=self.say, confirm=self.confirm,
                            vision=self.brain.vision, notify=self.ui.show_assistant,
-                           attach_image=self.brain.attach_image, locate=self.brain.locate)
+                           attach_image=self.brain.attach_image, locate=self.brain.locate,
+                           progress=lambda text: self.ui.set_state("thinking", text))
         self._mood_timer: threading.Timer | None = None
         self.listener = None
         self.stt = None

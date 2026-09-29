@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS
 from coulson.brain import Brain
 from coulson.config import load
 from coulson.memory import Memory
-from coulson.tools import Context, Registry
+from coulson.tools import Context, Registry, load_all
 
 
 def chunk(content="", tool_calls=None):
@@ -131,3 +131,30 @@ def test_facts_go_after_system_prompt(tmp_path):
     m1, m2 = (c["messages"] for c in b.client.calls)
     assert m1[0] == m2[0] and m2[0]["role"] == "system" and "Dota" not in m2[0]["content"]
     assert m2[1]["role"] == "user" and "Dota 2" in m2[1]["content"] and m2[2]["role"] == "assistant"
+
+
+def test_unfinished_plan_gets_one_nudge(tmp_path):
+    b, ctx, opened = make(tmp_path, [
+        [chunk(tool_calls=[tc("plan", {"action": "set", "steps": ["Открыть Стим", "Запустить игру"]})])],
+        [chunk("[ok] Готово.")],                 # остановился посреди плана
+        [chunk("[ok] Запускаю игру.")],          # после напоминания продолжил
+    ])
+    from coulson.tools import plan as P
+
+    b.tools.tools["plan"] = load_all().tools["plan"]
+    spoken = []
+    b.respond("открой стим и запусти игру", ctx, spoken.append)
+    third = b.client.calls[2]["messages"][-1]
+    assert third["role"] == "user" and "остались шаги" in third["content"] and "Открыть Стим" in third["content"]
+    assert len(b.client.calls) == 3 and spoken[-1] == "Запускаю игру."
+
+
+def test_auto_recall_goes_to_end_of_user_message(tmp_path):
+    from coulson.memory import Hit
+
+    b, ctx, opened = make(tmp_path, [[chunk("[ok] Грузия, в мае.")]])
+    b.memory.relevant = lambda q, **kw: [Hit("note", 7, "Хочу в Грузию в мае", 0.0, sim=0.9)]
+    b.respond("куда я хотел в отпуск", ctx, lambda s: None)
+    msgs = b.client.calls[0]["messages"]
+    assert "Хочу в Грузию в мае" in msgs[-1]["content"] and "Грузию" not in msgs[0]["content"]
+    assert b.history[-2]["content"] == "куда я хотел в отпуск"  # в истории — без подсказок

@@ -22,7 +22,8 @@ brew list ollama >/dev/null 2>&1 || brew install ollama
 brew upgrade ollama >/dev/null 2>&1 || true
 
 say_step "Настройки Ollama для 16 ГБ (переживают перезагрузку)"
-# Flash Attention + кэш контекста в q8_0 (вдвое меньше памяти), один слот, одна модель в памяти.
+# Flash Attention + кэш контекста в q8_0 (вдвое меньше памяти), один слот,
+# две модели в памяти одновременно: мозг + маленькая модель поиска по смыслу (иначе они вытесняют друг друга).
 ENV_PLIST="$HOME/Library/LaunchAgents/local.coulson.ollama-env.plist"
 mkdir -p "$HOME/Library/LaunchAgents"
 cat > "$ENV_PLIST" <<PLIST
@@ -32,7 +33,7 @@ cat > "$ENV_PLIST" <<PLIST
   <key>Label</key><string>local.coulson.ollama-env</string>
   <key>ProgramArguments</key><array>
     <string>/bin/sh</string><string>-c</string>
-    <string>launchctl setenv OLLAMA_FLASH_ATTENTION 1; launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0; launchctl setenv OLLAMA_NUM_PARALLEL 1; launchctl setenv OLLAMA_MAX_LOADED_MODELS 1</string>
+    <string>launchctl setenv OLLAMA_FLASH_ATTENTION 1; launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0; launchctl setenv OLLAMA_NUM_PARALLEL 1; launchctl setenv OLLAMA_MAX_LOADED_MODELS 2</string>
   </array>
   <key>RunAtLoad</key><true/>
 </dict></plist>
@@ -52,8 +53,9 @@ for i in {1..60}; do curl -s http://127.0.0.1:11434/api/version >/dev/null && br
 curl -s http://127.0.0.1:11434/api/version >/dev/null || { echo "Ollama не запустилась — см. brew services list"; exit 1; }
 ollama --version
 
-say_step "Модель $MODEL (~6 ГБ, один раз)"
+say_step "Модели: $MODEL (~6 ГБ) и поиск по смыслу (~0.6 ГБ), один раз"
 ollama pull "$MODEL"
+ollama pull "${COULSON_EMBED_MODEL:-qwen3-embedding:0.6b}"
 
 say_step "Python-окружение"
 uv sync
