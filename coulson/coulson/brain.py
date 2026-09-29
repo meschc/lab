@@ -223,9 +223,9 @@ class Brain:
                     final = final or "[warn] Слишком много шагов, я остановился."
                     on_sentence(_MOOD_RE.sub("", final))
             finally:
-                self._images.clear()
-                for p in used_images:
+                for p in used_images + self._images:  # и те снимки, что не успели попасть в диалог
                     Path(p).unlink(missing_ok=True)
+                self._images.clear()
 
             final = final.strip()
             clean = _MOOD_RE.sub("", final).strip()

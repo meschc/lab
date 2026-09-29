@@ -131,6 +131,7 @@
       <button id="mic" title="Микрофон">●</button>
       <button id="stop" title="Замолчать">■</button>
       <button id="collapse" title="Свернуть">–</button>
+      <button id="quit" title="Выключить Колсона">×</button>
     </div>
   </div>
 <script>
@@ -173,6 +174,7 @@
   $("orb").ondblclick = () => { micOn = !micOn; api()?.toggle_mic(micOn); };
   $("stop").onclick = () => api()?.stop();
   $("collapse").onclick = () => api()?.collapse(true);
+  $("quit").onclick = () => api()?.quit();
   document.querySelector(".panel").onclick = (e) => {
     if (document.body.classList.contains("collapsed")) api()?.collapse(false);
   };

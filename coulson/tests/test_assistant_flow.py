@@ -84,3 +84,21 @@ def test_filler_not_during_confirmation(asst, monkeypatch):
     monkeypatch.setattr(asst.brain, "respond", slow_plain)
     A.Assistant.handle(asst, "напиши страницу")
     assert len(said) == 1
+
+
+def test_followup_ignores_speech_from_before_reply_end(asst):
+    now = time.monotonic()
+    asst.followup_from, asst.followup_until = now, now + 5
+    old = A.Utterance("это я не тебе", "это я не тебе", False, False, now - 2)  # сказано, пока Колсон думал
+    asst._handle_utterance(old)
+    assert asst.handled == []
+    asst._handle_utterance(A.Utterance("а громче", "а громче", False, False, now + 0.5))
+    assert asst.handled == ["а громче"]
+
+
+def test_local_commands():
+    assert A._QUIT_RE.search("выключись") and A._GAME_MODE_RE.search("включи игровой режим")
+    for cmd in ["выключи свет", "quit steam", "закрой стим", "выключись когда закончишь загрузку"]:
+        assert not A._QUIT_RE.search(cmd), cmd
+    assert A._is_connection_error(ConnectionError("Connection refused"))
+    assert not A._is_connection_error(ValueError("model not found"))

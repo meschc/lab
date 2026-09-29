@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import queue
 import random
 import re
@@ -23,7 +24,12 @@ class Utterance:
     rest: str
     wake: bool
     during_tts: bool
-    t: float
+    t: float  # monotonic-время ЗАПИСИ конца фразы
+
+
+def _is_connection_error(e: Exception) -> bool:
+    text = f"{type(e).__name__} {e}".lower()
+    return any(k in text for k in ("connect", "refused", "timed out", "timeout", "unavailable"))
 
 
 class NullUI:
@@ -39,19 +45,21 @@ TOOL_LABELS = {
     "open_app": "запускаю", "quit_app": "закрываю", "find_app": "ищу приложение", "running_apps": "смотрю процессы",
     "open_url": "открываю сайт", "browser_search": "открываю поиск", "web_search": "ищу в интернете",
     "read_webpage": "читаю страницу", "browser_tab": "смотрю вкладку", "weather": "узнаю погоду",
-    "look_at_screen": "смотрю на экран", "look_at_camera": "смотрю в камеру", "run_shell": "выполняю команду",
-    "run_applescript": "управляю приложением", "run_shortcut": "запускаю команду", "volume": "громкость",
-    "media": "медиа", "system_status": "проверяю систему", "system_action": "выполняю", "set_timer": "ставлю таймер",
-    "clipboard": "буфер обмена", "type_text": "печатаю", "find_files": "ищу файлы", "open_path": "открываю",
-    "remember": "запоминаю", "forget": "забываю", "recall": "вспоминаю", "vpn": "VPN",
-    "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл", "list_dir": "смотрю папку",
-    "memory": "память", "look": "смотрю", "sound": "звук",
-    "disk_usage": "считаю место на диске", "press_keys": "нажимаю клавиши",
+    "look": "смотрю", "run_shell": "выполняю команду", "run_applescript": "управляю приложением",
+    "run_shortcut": "запускаю команду", "sound": "звук", "system_status": "проверяю систему",
+    "system_action": "выполняю", "set_timer": "ставлю таймер", "clipboard": "буфер обмена", "type_text": "печатаю",
+    "press_keys": "нажимаю клавиши", "find_files": "ищу файлы", "open_path": "открываю", "memory": "память",
+    "vpn": "VPN", "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл",
+    "list_dir": "смотрю папку", "disk_usage": "считаю место на диске",
 }
 
 _FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
 
 _GAME_MODE_RE = re.compile(r"\b(игровой режим|освободи память|выгрузи модель|game mode|free memory)\b")
+
+# Только команда целиком: «закрой Стим» / «quit Steam» не должны выключать самого Колсона
+_QUIT_RE = re.compile(r"^(пожалуйста )?(выключись|отключись|заверши работу|завершай работу|закройся|"
+                      r"turn yourself off|shut yourself down)( пожалуйста)?$")
 
 _SLEEP_RE = re.compile(r"\b(не слушай|перестань слушать|режим сна|спи|отдыхай|stop listening|go to sleep)\b")
 _WAKE_UP_RE = re.compile(r"\b(проснись|слушай|просыпайся|я здесь|wake up|start listening)\b")
@@ -69,7 +77,9 @@ class Assistant:
         self.sleeping = False
         self.ready = threading.Event()
         self.awaiting_until = 0.0
+        self.awaiting_from = 0.0   # после «Колсон» принимаем только фразы, сказанные ПОСЛЕ сигнала
         self.followup_until = 0.0
+        self.followup_from = 0.0   # продолжение без имени — только для фраз, сказанных после ответа
         self.confirming = False
 
         from .brain import Brain
@@ -98,11 +108,20 @@ class Assistant:
             jobs.insert(0, ("слух", self.stt.warmup))
         for name, job in jobs:
             self.ui.set_state("loading", f"загружаю {name}…")
-            try:
-                job()
-            except Exception as e:
-                log.exception("Не удалось загрузить %s", name)
-                self.ui.show_assistant(f"Ошибка загрузки ({name}): {e}")
+            # При входе в систему Ollama может подниматься дольше Колсона — даём ей до минуты
+            attempts = 12 if name == "мозг" else 1
+            for attempt in range(attempts):
+                try:
+                    job()
+                    break
+                except Exception as e:
+                    if attempt < attempts - 1 and _is_connection_error(e):
+                        time.sleep(5)
+                        continue
+                    log.exception("Не удалось загрузить %s", name)
+                    self.ui.show_assistant(f"Ошибка загрузки ({name}): {e}")
+                    self.set_mood(1.0, hold_seconds=30)
+                    break
         self.ready.set()
         self.ui.set_state("idle")
 
@@ -134,8 +153,24 @@ class Assistant:
             return "listening"
         return "thinking" if self.busy else "idle"
 
+    def quit(self) -> None:
+        """Корректно завершить работу (лаунчер Coulson.app не перезапускает при коде 0)."""
+        log.info("Завершение работы по команде")
+        self.speaker.interrupt()
+        self.say("До связи.")
+        self.speaker.wait_idle(timeout=5)
+        os._exit(0)
+
     # ------------------------------------------------------------ слух
     def _listen_loop(self) -> None:
+        while True:  # сбой в распознавании не должен оставить Колсона глухим
+            try:
+                self._listen_once()
+            except Exception:
+                log.exception("Поток прослушивания упал — перезапускаю")
+                time.sleep(1)
+
+    def _listen_once(self) -> None:
         a = self.cfg.assistant
         for seg in self.listener.segments():
             try:
@@ -153,7 +188,7 @@ class Assistant:
             if wake and (self.speaker.is_speaking or self.busy) and self.cfg.audio.barge_in:
                 self.cancel.set()
                 self.speaker.interrupt()
-            self.utterances.put(Utterance(text, rest, wake, during_tts, time.monotonic()))
+            self.utterances.put(Utterance(text, rest, wake, during_tts, seg.t_end))
 
     # ------------------------------------------------------------ диалог
     def _agent_loop(self) -> None:
@@ -174,7 +209,8 @@ class Assistant:
                 self.say("Я снова слушаю.")
             return
 
-        accepted = u.wake or now < self.awaiting_until or now < self.followup_until
+        accepted = (u.wake or (now < self.awaiting_until and u.t >= self.awaiting_from)
+                    or (now < self.followup_until and u.t >= self.followup_from))
         self.ui.show_user(u.rest if u.wake else u.text, accepted)
         if not accepted:
             return
@@ -187,6 +223,9 @@ class Assistant:
             self.speaker.interrupt()
             self.followup_until = 0
             self.ui.set_state("idle")
+            return
+        if _QUIT_RE.search(normalize(command)) and len(command) < 40:
+            self.quit()
             return
         if _GAME_MODE_RE.search(normalize(command)) and len(command) < 40:
             self.brain.unload()
@@ -202,6 +241,7 @@ class Assistant:
 
     def _ack(self) -> None:
         a = self.cfg.assistant
+        self.awaiting_from = time.monotonic() - 0.3
         self.awaiting_until = time.monotonic() + float(a.listen_after_wake_seconds)
         self.ui.set_state("listening")
         if a.ack == "voice":
@@ -269,6 +309,7 @@ class Assistant:
             if timer:
                 timer.cancel()
         self.speaker.wait_idle()
+        self.followup_from = time.monotonic() - 0.3
         self.followup_until = time.monotonic() + float(self.cfg.assistant.followup_seconds)
         self.ui.set_state(self._idle_state())
         if mood_level[0] > 0:  # красноватый цвет держится немного после ответа и уходит

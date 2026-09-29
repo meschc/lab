@@ -12,7 +12,7 @@ _LAT_RE = re.compile(r"[A-Za-z]")
 
 def normalize(text: str) -> str:
     text = text.lower().replace("ё", "е")
-    return re.sub(r"[^\w\s-]", " ", text).strip()
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", text)).strip()
 
 
 # ---------------------------------------------------------------- слово-активатор
@@ -99,7 +99,20 @@ _SPOKEN = {"vpn": "ви пи эн", "steam": "стим", "youtube": "ютуб", 
            "yandex": "яндекс", "chrome": "хром", "discord": "дискорд", "spotify": "спотифай", "ok": "окей",
            "iphone": "айфон", "apple": "эппл", "ai": "эй ай", "epic": "эпик", "games": "геймс", "finder": "файндер",
            "terminal": "терминал", "whatsapp": "вотсап", "zoom": "зум", "notion": "ноушен", "email": "имейл",
-           "online": "онлайн", "usb": "ю эс би", "gpu": "джи пи ю", "cpu": "си пи ю", "ram": "рам"}
+           "online": "онлайн", "usb": "ю эс би", "gpu": "джи пи ю", "cpu": "си пи ю", "ram": "рам",
+           # игры и частые слова в названиях — как их произносят по-русски
+           "cyberpunk": "киберпанк", "counter": "каунтер", "strike": "страйк", "minecraft": "майнкрафт",
+           "fortnite": "фортнайт", "valorant": "валорант", "battlefield": "батлфилд", "world": "ворлд",
+           "warcraft": "варкрафт", "starcraft": "старкрафт", "call": "колл", "duty": "дьюти", "league": "лига",
+           "legends": "легенд", "apex": "апекс", "overwatch": "овервотч", "hogwarts": "хогвартс",
+           "legacy": "легаси", "elden": "элден", "ring": "ринг", "baldur": "балдур", "gate": "гейт",
+           "grand": "гранд", "theft": "тефт", "auto": "авто", "gta": "гта", "cs": "кс", "dota": "дота",
+           "witcher": "витчер", "stardew": "стардью", "valley": "вэлли", "terraria": "террария",
+           "rust": "раст", "roblox": "роблокс", "genshin": "геншин", "impact": "импакт", "office": "офис",
+           "word": "ворд", "excel": "эксель", "photoshop": "фотошоп", "premiere": "премьер", "notes": "заметки",
+           "music": "музыка", "photos": "фото", "settings": "настройки", "system": "систем", "code": "код",
+           "visual": "вижуал", "studio": "студио", "obs": "обс", "vlc": "влс", "whisky": "виски",
+           "crossover": "кроссовер", "outline": "аутлайн", "amnezia": "амнезия"}
 
 _LAT_DIGRAPHS = [("sch", "ш"), ("tion", "шн"), ("sh", "ш"), ("ch", "ч"), ("th", "т"), ("ph", "ф"), ("oo", "у"),
                  ("ee", "и"), ("ea", "и"), ("ck", "к"), ("qu", "кв"), ("kh", "х"), ("zh", "ж"), ("ya", "я"),

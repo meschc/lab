@@ -42,10 +42,16 @@ def bench_stt(cfg) -> None:
     t = time.monotonic()
     stt.warmup()
     report("Распознавание: загрузка", OK, f"{stt.engine}, {time.monotonic() - t:.1f} с")
-    cases = [(best_russian_say_voice(), "Колсон, открой Стим и включи музыку погромче."),
-             (best_russian_say_voice(), "Сделай таблицу, чем занят мой диск, с диаграммой."),
+    ru = best_russian_say_voice()
+    if not ru:
+        report("Распознавание ru", WARN, "нет русского голоса macOS для теста — установи «Юрий» или «Милена»: "
+               "Настройки → Универсальный доступ → Устный контент → Системный голос → Управление голосами")
+    cases = [(ru, "Колсон, открой Стим и включи музыку погромче."),
+             (ru, "Сделай таблицу, чем занят мой диск, с диаграммой."),
              (cfg.tts.say_en_voice, "Coulson, what is the weather like in London today?")]
     for voice, phrase in cases:
+        if not voice:
+            continue
         audio = _say_to_array(phrase, voice)
         t = time.monotonic()
         text, lang = stt.transcribe(audio)

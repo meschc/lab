@@ -73,7 +73,7 @@ class Registry:
                 args = json.loads(args) if args.strip() else {}
             except json.JSONDecodeError:
                 return "Ошибка: аргументы должны быть JSON-объектом"
-        args = {k: v for k, v in (args or {}).items() if k in tool.params}
+        args = {k: _coerce(v, tool.params[k]) for k, v in (args or {}).items() if k in tool.params}
         missing = [p for p in tool.required if p not in args]
         if missing:
             return f"Ошибка: не хватает параметров {missing}"
@@ -90,6 +90,24 @@ class Registry:
             return f"Ошибка: {type(e).__name__}: {e}"
         text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
         return text if len(text) <= MAX_RESULT else text[:MAX_RESULT] + "\n…(обрезано)"
+
+
+def _coerce(value: Any, spec) -> Any:
+    """Модель иногда присылает "false", "40", "2.5" строками — приводим к типу из схемы."""
+    kind = spec.get("type") if isinstance(spec, dict) else spec[0]
+    if isinstance(value, str):
+        v = value.strip()
+        if kind == "boolean":
+            return v.lower() not in ("false", "0", "no", "нет", "off", "")
+        if kind in ("integer", "number"):
+            try:
+                num = float(v.replace(",", "."))
+                return int(num) if kind == "integer" else num
+            except ValueError:
+                return value
+    if kind == "integer" and isinstance(value, float):
+        return int(value)
+    return value
 
 
 registry = Registry()

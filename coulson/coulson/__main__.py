@@ -14,15 +14,41 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import logging.handlers
+import os
 import sys
 import threading
 
-from . import config
+# Дочерние процессы (pbcopy, osascript, say) без UTF-8-локали портят кириллицу —
+# а у приложения, запущенного из Finder/автозапуска, LANG не задан
+os.environ.setdefault("LANG", "en_US.UTF-8")
+os.environ.setdefault("LC_ALL", "en_US.UTF-8")
+
+from . import config  # noqa: E402
+
+_lock_file = None  # держим открытым всё время работы
+
+
+def single_instance() -> bool:
+    """Не даём запустить второго Колсона (иначе оба будут слушать и отвечать)."""
+    import fcntl
+
+    global _lock_file
+    _lock_file = open(config.DATA_DIR / "coulson.lock", "w")
+    try:
+        fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return False
+    _lock_file.write(str(os.getpid()))
+    _lock_file.flush()
+    return True
 
 
 def setup_logging(verbose: bool) -> None:
     config.LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    handlers = [logging.StreamHandler(sys.stderr), logging.FileHandler(config.LOG_FILE, encoding="utf-8")]
+    handlers = [logging.StreamHandler(sys.stderr),
+                logging.handlers.RotatingFileHandler(config.LOG_FILE, maxBytes=5_000_000, backupCount=3,
+                                                     encoding="utf-8")]
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO, handlers=handlers,
                         format="%(asctime)s %(levelname).1s %(name)s: %(message)s", datefmt="%H:%M:%S")
     for noisy in ("httpx", "httpcore", "urllib3", "primp", "ddgs", "trafilatura", "PIL"):
@@ -65,16 +91,16 @@ def cmd_check(cfg) -> int:
     voices = subprocess.run(["say", "-v", "?"], capture_output=True, text=True).stdout
     row(f"Голос macOS {cfg.tts.say_en_voice}", cfg.tts.say_en_voice in voices)
     from .tts import best_russian_say_voice
-    row("Русский голос macOS (запасной)", True, best_russian_say_voice())
+    ru_voice = best_russian_say_voice()
+    row("Русский голос macOS (запасной)", True, ru_voice or "не установлен (не обязателен, основной — Silero)")
     print(f"\nДанные: {config.DATA_DIR}\nЛог: {config.LOG_FILE}")
     return 0 if ok else 1
 
 
 def cmd_prefetch(cfg) -> None:
-    import numpy as np
-    print("Whisper…")
+    print(f"Распознавание речи ({cfg.stt.engine})…")
     from .stt import STT
-    STT(cfg).transcribe(np.zeros(16000, dtype=np.float32))
+    STT(cfg).warmup()
     print("Silero VAD…")
     from silero_vad import load_silero_vad
     load_silero_vad()
@@ -147,6 +173,10 @@ def main() -> None:
         return
     if args.text:
         return cmd_text(cfg, args.mute)
+
+    if not single_instance():
+        logging.getLogger("coulson").warning("Колсон уже запущен — вторая копия не нужна")
+        sys.exit(0)  # код 0: лаунчер Coulson.app не будет перезапускать
 
     from .assistant import Assistant
 

@@ -72,7 +72,8 @@ def test_disk_usage_and_list_dir(env):
 
 
 def test_keys():
-    assert parse_keys("cmd+shift+t") == ('keystroke "t"', ["command down", "shift down"])
+    assert parse_keys("cmd+shift+t") == ("key code 17", ["command down", "shift down"])
+    assert parse_keys("cmd+е") == ("key code 17", ["command down"])  # русская раскладка
     assert parse_keys("esc") == ("key code 53", [])
     with pytest.raises(ValueError):
         parse_keys("cmd+банан")

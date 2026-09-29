@@ -10,7 +10,7 @@ from pathlib import Path
 
 from rapidfuzz import fuzz, process
 
-from ..textutil import normalize, ru_to_lat
+from ..textutil import lat_to_ru, normalize, ru_to_lat
 from . import osascript, registry, run
 
 log = logging.getLogger(__name__)
@@ -28,8 +28,13 @@ class AppIndex:
         key = normalize(name)
         if key and key not in self._entries:
             self._entries[key] = (name, target)
+            # кириллический ключ: «стим», «телеграм», «дискорд» находятся сразу
+            ru = normalize(re.sub(r"[A-Za-z][A-Za-z'-]*", lambda m: lat_to_ru(m.group()), name))
+            if ru and ru != key and ru not in self._entries:
+                self._entries[ru] = (name, target)
 
     def build(self) -> None:
+        entries: dict[str, tuple[str, str]] = {}
         paths: list[str] = []
         try:
             out = run(["mdfind", "kMDItemContentType == 'com.apple.application-bundle'"], timeout=20)
@@ -39,6 +44,7 @@ class AppIndex:
         for base in ("/Applications", "/System/Applications", "/System/Applications/Utilities",
                      str(HOME / "Applications"), "/Applications/Utilities"):
             paths += glob.glob(f"{base}/*.app") + glob.glob(f"{base}/*/*.app")
+        old, self._entries = self._entries, entries  # собираем заново, чтобы удалённые приложения исчезли
         with self._lock:
             # Steam: игры запускаем через steam:// — так работают и те, у кого нет .app
             for acf in glob.glob(str(STEAM / "appmanifest_*.acf")):
@@ -54,6 +60,8 @@ class AppIndex:
                     continue
                 self._add(Path(p).stem, p)
             self._built = time.time()
+        if not self._entries:
+            self._entries = old
         log.info("Индекс приложений: %d", len(self._entries))
 
     def ensure(self) -> None:
@@ -124,10 +132,11 @@ def open_app(ctx, name: str) -> str:
 
 @registry.add("quit_app", "Quit an app.", {"name": ("string", "")}, ["name"])
 def quit_app(ctx, name: str) -> str:
+    from .system import quit_if_running
+
     hit = index.resolve(name, ctx.cfg.apps.get("aliases", {}))
     app = hit[0] if hit and not hit[1].startswith("steam://") else name
-    res = osascript(f'tell application "{app}" to quit')
-    return f"Закрыто: {app}" if res == "OK" else res
+    return quit_if_running(app)
 
 
 @registry.add("find_app", "Search installed apps and games by name.", {"query": ("string", "")}, ["query"])

@@ -39,20 +39,33 @@ cat > "$APP/Contents/Resources/launcher.c" <<C
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 extern char **environ;
 static pid_t child = 0;
-static void forward(int sig) { if (child > 0) kill(child, sig); }
+static volatile sig_atomic_t stopping = 0;
+static void forward(int sig) { stopping = 1; if (child > 0) kill(child, sig); }
 int main(void) {
-  chdir("$PROJECT");
+  if (chdir("$PROJECT") != 0) return 1;
   setenv("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
   setenv("PYTHONUNBUFFERED", "1", 1);
+  setenv("PYTHONUTF8", "1", 1);
+  setenv("LANG", "en_US.UTF-8", 1);
+  setenv("LC_ALL", "en_US.UTF-8", 1);
   char *argv[] = {"$PY", "-m", "coulson", NULL};
   signal(SIGTERM, forward); signal(SIGINT, forward); signal(SIGHUP, forward);
-  if (posix_spawn(&child, argv[0], NULL, NULL, argv, environ) != 0) return 1;
-  int status = 0;
-  while (waitpid(child, &status, 0) < 0) {}
-  return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+  time_t window_start = time(NULL);
+  int crashes = 0;
+  for (;;) {  /* упал — перезапускаем; штатный выход (код 0) или 5 падений за 2 минуты — стоп */
+    if (posix_spawn(&child, argv[0], NULL, NULL, argv, environ) != 0) return 1;
+    int status = 0;
+    while (waitpid(child, &status, 0) < 0) {}
+    child = 0;
+    if (stopping || (WIFEXITED(status) && WEXITSTATUS(status) == 0)) return 0;
+    if (time(NULL) - window_start > 120) { window_start = time(NULL); crashes = 0; }
+    if (++crashes >= 5) return 1;
+    sleep(3);
+  }
 }
 C
 # Иконка: градиентный шар из assets/icon.png

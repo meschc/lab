@@ -167,7 +167,7 @@ def _write_xlsx(target: Path, title: str, columns: list, rows: list, chart: str)
 
 # ---------------------------------------------------------------- чтение и навигация
 
-@registry.add("read_file", "Read a file (text, code, CSV, Excel, Word/RTF/Pages).", {"path": ("string", "")}, ["path"])
+@registry.add("read_file", "Read a file (text, code, CSV, Excel, Word/RTF).", {"path": ("string", "")}, ["path"])
 def read_file(ctx, path: str) -> str:
     target = resolve(ctx, path)
     if not target.exists():
@@ -185,7 +185,7 @@ def read_file(ctx, path: str) -> str:
                     break
                 out.append(" | ".join("" if v is None else str(v) for v in row))
         return "\n".join(out)
-    if ext in (".docx", ".doc", ".rtf", ".pages", ".odt"):
+    if ext in (".docx", ".doc", ".rtf", ".rtfd", ".odt", ".webarchive"):
         return run(["textutil", "-convert", "txt", "-stdout", str(target)], timeout=30)[:8000]
     data = target.read_bytes()[:200_000]
     return data.decode("utf-8", errors="replace")[:8000]

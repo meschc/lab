@@ -33,6 +33,10 @@ class _Api:
     def collapse(self, on):
         self._ui.collapse(bool(on))
 
+    def quit(self):
+        if self._ui.assistant:
+            threading.Thread(target=self._ui.assistant.quit, daemon=True).start()
+
 
 class WindowUI:
     def __init__(self, cfg):

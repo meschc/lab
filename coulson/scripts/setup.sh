@@ -40,8 +40,16 @@ PLIST
 launchctl unload "$ENV_PLIST" >/dev/null 2>&1 || true
 launchctl load "$ENV_PLIST"
 sleep 1
-brew services restart ollama >/dev/null 2>&1 || brew services start ollama >/dev/null 2>&1 || true
-for i in {1..30}; do curl -s http://127.0.0.1:11434/api/version >/dev/null && break; sleep 1; done
+if pgrep -xq Ollama; then
+  # Уже работает приложение Ollama.app — перезапускаем его, чтобы оно подхватило настройки
+  osascript -e 'quit app "Ollama"' >/dev/null 2>&1 || true
+  sleep 3
+  open -a Ollama
+else
+  brew services restart ollama >/dev/null 2>&1 || brew services start ollama >/dev/null 2>&1 || true
+fi
+for i in {1..60}; do curl -s http://127.0.0.1:11434/api/version >/dev/null && break; sleep 1; done
+curl -s http://127.0.0.1:11434/api/version >/dev/null || { echo "Ollama не запустилась — см. brew services list"; exit 1; }
 ollama --version
 
 say_step "Модель $MODEL (~6 ГБ, один раз)"
@@ -49,7 +57,9 @@ ollama pull "$MODEL"
 
 say_step "Python-окружение"
 uv sync
-[[ "${COULSON_QWEN3TTS:-0}" == "1" ]] && uv sync --extra qwen3tts
+if [[ "${COULSON_QWEN3TTS:-0}" == "1" ]]; then
+  uv sync --extra qwen3tts
+fi
 
 say_step "Скачиваю модели распознавания речи и голоса"
 uv run python -m coulson --prefetch
@@ -68,6 +78,7 @@ cat <<MSG
 Готово. Дальше:
   1) Запусти:  open ~/Applications/Coulson.app
   2) Разреши доступ к Микрофону (и позже — Запись экрана, Камера, Универсальный доступ, Автоматизация).
+     Чтобы не было десятков запросов про папки: Настройки → Конфиденциальность → Полный доступ к диску → Колсон.
   3) Автозапуск при входе:  ./scripts/autostart.sh on
 Лог: ~/Library/Logs/Coulson.log
 MSG

@@ -30,3 +30,13 @@ def test_registry(tmp_path):
     assert "Кирилл" in reg.execute("memory", {"action": "recall", "text": "Кирилл"}, ctx)
     assert "нет" in reg.execute("nope", {}, ctx)
     assert "не хватает" in reg.execute("open_app", {}, ctx)
+
+
+def test_arg_coercion():
+    from coulson.tools import _coerce
+    assert _coerce("false", ("boolean", "")) is False
+    assert _coerce("true", ("boolean", "")) is True
+    assert _coerce("40", ("integer", "")) == 40
+    assert _coerce("2,5", ("number", "")) == 2.5
+    assert _coerce(3.0, ("integer", "")) == 3
+    assert _coerce("abc", ("integer", "")) == "abc"
