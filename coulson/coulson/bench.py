@@ -114,6 +114,70 @@ def bench_llm(cfg) -> None:
            f"вызвал {calls or 'ничего'} за {ttft3:.2f} с")
 
 
+TOOL_CASES = [  # (команда, ожидаемый инструмент[, ожидаемое action])
+    ("открой телеграм", "app", "open"), ("закрой дискорд", "app", "quit"),
+    ("какая погода в Москве", "web", "weather"), ("найди в интернете курс доллара", "web", "search"),
+    ("покажи на ютубе обзор айфона", "browser", "search"), ("открой сайт хабр", "browser", "open"),
+    ("что у меня на экране", "look"), ("нажми кнопку войти", "click"), ("прокрути страницу вниз", "mouse"),
+    ("напечатай привет как дела", "keyboard", "type"), ("нажми пробел", "keyboard", "keys"),
+    ("сделай громче", "sound"), ("следующий трек", "sound"),
+    ("заблокируй экран", "system"), ("сколько заряда батареи", "system", "status"),
+    ("включи тёмную тему", "system"), ("поставь таймер на 10 минут", "set_timer"),
+    ("напомни через час позвонить маме", "set_timer"),
+    ("запомни, что я люблю кофе без сахара", "memory", "remember"),
+    ("что я говорил про отпуск на прошлой неделе", "memory", "recall"),
+    ("запиши идею: приложение для пробежек", "notes", "add"), ("добавь задачу купить подарок", "notes", "add"),
+    ("какие у меня задачи", "notes", "list"),
+    ("сделай таблицу расходов: еда 5000, транспорт 1500, кафе 3000", "create_table"),
+    ("напиши html страницу-визитку для фотографа", "write_file"),
+    ("что лежит в загрузках", "files", "list"), ("чем занят мой диск", "files", "disk_usage"),
+    ("создай напоминание в приложении Напоминания купить молоко", "automation", "applescript"),
+    ("выполни в терминале команду uptime", "run_shell"),
+    ("подготовь всё к вечеру: открой стим, дискорд и сделай громче", "plan", "set"),
+]
+
+
+def bench_tools(cfg) -> None:
+    """Точность выбора инструмента: модели на 8B путаются, когда инструментов много (поэтому их 18)."""
+    import ollama
+
+    from .brain import Brain, now_context
+    from .memory import Memory
+    from .tools import load_all
+
+    reg = load_all()
+    with tempfile.TemporaryDirectory() as d:
+        brain = Brain(cfg, reg, Memory(Path(d) / "b.db"))  # чистая память — чтобы не влияли твои факты
+        client = ollama.Client(host=cfg.llm.host)
+        kw = brain._kwargs()
+        kw["options"]["num_predict"] = 1500
+        kw["options"]["temperature"] = 0.0
+        ok_tool = ok_action = 0
+        misses = []
+        t0 = time.monotonic()
+        for case in TOOL_CASES:
+            cmd, tool, action = case[0], case[1], (case[2] if len(case) > 2 else None)
+            r = client.chat(model=cfg.llm.model, tools=reg.schemas(), **kw,
+                            messages=brain._prefix() + [{"role": "user", "content": f"{now_context()} {cmd}"}])
+            calls = [(c.function.name, dict(c.function.arguments or {})) for c in r.message.tool_calls or []]
+            got = calls[0] if calls else (None, {})
+            if got[0] == tool:
+                ok_tool += 1
+                if action is None or got[1].get("action") == action:
+                    ok_action += 1
+                else:
+                    misses.append(f"«{cmd}» → {tool}.{got[1].get('action')} (ждал {action})")
+            else:
+                misses.append(f"«{cmd}» → {got[0] or 'без инструмента'} (ждал {tool})")
+        n = len(TOOL_CASES)
+    pct = ok_tool / n * 100
+    report("Выбор инструмента", OK if pct >= 85 else (WARN if pct >= 70 else BAD),
+           f"{ok_tool}/{n} ({pct:.0f}%), с правильным действием {ok_action}/{n}, "
+           f"~{(time.monotonic() - t0) / n:.1f} с на команду")
+    for m in misses:
+        print(f"      {m}")
+
+
 def bench_semantic(cfg) -> None:
     """Поиск по смыслу на русском: находит ли «куда я хотел в отпуск» запись про Грузию."""
     from .memory import Embedder, Memory
@@ -171,6 +235,7 @@ def run(cfg) -> int:
     print("Замер скорости Колсона на этом Маке…\n", flush=True)
     for name, fn in (("распознавание", lambda: bench_stt(cfg)), ("мозг", lambda: bench_llm(cfg)),
                      ("поиск в памяти", lambda: bench_semantic(cfg)),
+                     ("выбор инструментов", lambda: bench_tools(cfg)),
                      ("голос", lambda: bench_tts(cfg)), ("память", bench_memory)):
         try:
             fn()

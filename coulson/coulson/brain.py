@@ -32,11 +32,11 @@ SYSTEM_PROMPT = """Ты — {name}, личный голосовой ИИ-асс�
 Как действовать:
 - Если можно сделать инструментом — делай сразу, без лишних вопросов.
 - Сложная задача (3 и больше действий) — сначала plan set: короткие конкретные шаги; затем выполняй по одному и после каждого plan done. Шаг не удался — попробуй другой способ, а если никак — скажи, что мешает.
-- После действия кратко подтверди результат и, если уместно, одной фразой предложи следующий шаг.
+- После действия кратко подтверди результат. Следующий шаг предлагай, только если он действительно полезен, — не заканчивай каждый ответ вопросом.
 - Если команда неясна — задай один короткий уточняющий вопрос.
-- Факты, новости, цены, погода — только через web_search / read_webpage / weather, не выдумывай.
+- Факты, новости, цены, погода — только через web (search, потом read лучшей ссылки; weather), не выдумывай. Показать пользователю сайт или результаты — browser.
 - Что на экране — look (screen); «посмотри на меня» — look (camera).
-- Мышь: click — нажать элемент по описанию («кнопка Войти»); mouse — прокрутка, перетаскивание. Для полей ввода: click по полю, затем type_text.
+- Мышь: click — нажать элемент по описанию («кнопка Войти»); mouse — прокрутка, перетаскивание. Для полей ввода: click по полю, затем keyboard type.
 - Узнал о пользователе что-то долговременное — memory remember. Вопросы о прошлом («что я говорил/думал про…») — memory recall: он ищет по смыслу в заметках, фактах и всех разговорах.
 - Просят записать мысль, идею, информацию — notes add; дело на потом — notes add с kind task. «Что у меня в заметках/задачах» — notes list или search.
 - Файлы: таблицы — create_table (можно с диаграммой); страницы, документы, код — write_file с полным содержимым (HTML сразу красивый, стили внутри). Данные сначала собери инструментами. Потом скажи, где файл.
@@ -119,12 +119,14 @@ class Brain:
         """Неизменная часть диалога — её Ollama держит в кэше."""
         a = self.cfg.assistant
         msgs = [{"role": "system", "content": SYSTEM_PROMPT.format(name=a.name)}]
-        facts = self.memory.facts(int(self.cfg.get("memory", {}).get("max_facts", 40)))
+        facts = self.memory.facts_dated(int((self.cfg.get("memory") or {}).get("max_facts", 40)))
         if facts:
             # Парой реплик ПОСЛЕ системного промпта с инструментами (в любом шаблоне модели они идут дальше):
             # новый факт не сбрасывает кэш тяжёлой части промпта
             msgs += [{"role": "user", "content": "Что ты знаешь обо мне (память):\n" +
-                      "\n".join(f"- {t}" for _, t in reversed(facts))},
+                      # месяц записи: модель видит, какой факт свежее (урок Mem0 про устаревание)
+                      "\n".join(f"- ({time.strftime('%m.%Y', time.localtime(ts))}) {t}"
+                                for _, t, ts in reversed(facts))},
                      {"role": "assistant", "content": "[ok] Помню и учитываю."}]
         return msgs
 
@@ -177,6 +179,26 @@ class Brain:
         r = self.client.chat(model=model, messages=[{"role": "user", "content": VISION_PROMPT.format(question=question),
                                                      "images": [image_path]}], **self._kwargs())
         return r.message.content.strip() or "Ничего не разобрал на изображении."
+
+    def note_exchange(self, user_text: str, reply: str, mood: float = 0.0) -> None:
+        """Реплика, обработанная быстрым путём без модели, — в историю и память, чтобы модель знала контекст."""
+        with self._lock:
+            self.reset_if_idle()
+            self._trim_history()
+            tag = "[bad]" if mood >= 1 else "[warn]" if mood > 0 else "[ok]"
+            self.history += [{"role": "user", "content": user_text}, {"role": "assistant", "content": f"{tag} {reply}"}]
+            self.memory.log("user", user_text)
+            self.memory.log("assistant", reply)
+            self.last_active = time.time()
+
+    def mark_interrupted(self, heard: str) -> None:
+        """Пользователь перебил: модель должна считать услышанным только прозвучавшее (урок GLaDOS)."""
+        with self._lock:
+            if self.history and self.history[-1]["role"] == "assistant":
+                tag = self.history[-1]["content"][:6] if self.history[-1]["content"].startswith("[") else "[ok]"
+                tag = tag.split("]")[0] + "]"
+                self.history[-1]["content"] = (f"{tag} {heard} …(перебит пользователем)" if heard.strip()
+                                               else f"{tag} (ответ перебит, пользователь его не услышал)")
 
     def reset_if_idle(self) -> None:
         idle = float(self.cfg.assistant.session_idle_minutes) * 60

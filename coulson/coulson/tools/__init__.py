@@ -21,6 +21,7 @@ class Tool:
     func: Callable[..., Any]
     risk: Callable[..., str | None] | None = None  # risk(ctx, **args) -> описание, если нужно подтверждение
     enums: dict[str, list[str]] = field(default_factory=dict)
+    expose: bool = True  # False — внутренний: модель его не видит, вызывается из группового инструмента
 
     def schema(self) -> dict:
         props = {}
@@ -66,7 +67,10 @@ class Registry:
         return deco
 
     def schemas(self) -> list[dict]:
-        return [t.schema() for t in self.tools.values()]
+        return [t.schema() for t in self.tools.values() if t.expose]
+
+    def exposed(self) -> list[str]:
+        return [n for n, t in self.tools.items() if t.expose]
 
     def execute(self, name: str, args: Any, ctx: Context) -> str:
         tool = self.tools.get(name)
@@ -134,4 +138,5 @@ def osascript(script: str, timeout: float = 20) -> str:
 
 def load_all() -> Registry:
     from . import apps, files, memory_tools, mouse, plan, system, vision, web  # noqa: F401  регистрация через декораторы
+    from . import groups  # noqa: F401  группирует мелкие инструменты: модели на 8B легче выбрать из 18, чем из 34
     return registry

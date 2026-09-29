@@ -167,8 +167,23 @@ class Memory:
             return self._vec_cache[table]
 
     # ------------------------------------------------------------ факты
-    def add_fact(self, text: str) -> str:
+    def add_fact(self, text: str, supersede_sim: float = 0.85) -> str:
+        """Новый факт заменяет старый близкий по смыслу («любимая игра — Дота» → «…— CS2»), а не копится рядом."""
         text = text.strip()
+        vec = self.embedder.embed([text]) if self.embedder else None
+        if vec is not None and (vecs := self._vectors("facts")) is not None:
+            ids, mat = vecs
+            sims = mat @ vec[0]
+            best = int(np.argmax(sims))
+            if sims[best] >= supersede_sim:
+                fid = int(ids[best])
+                old = dict(self.facts()).get(fid, "")
+                with self._lock:
+                    self.db.execute("UPDATE facts SET text=?, created=?, emb=? WHERE id=?",
+                                    (text, time.time(), vec[0].tobytes(), fid))
+                    self.db.commit()
+                    self._vec_cache.pop("facts", None)
+                return f"Обновил в памяти (было: «{old}»)." if old and old != text else "Обновил в памяти."
         for fid, existing in self.facts():
             if fuzz.token_set_ratio(existing.lower(), text.lower()) >= 90:
                 with self._lock:
@@ -177,10 +192,18 @@ class Memory:
                 self._enqueue("facts", fid, text)
                 return "Обновил в памяти."
         with self._lock:
-            cur = self.db.execute("INSERT INTO facts(text, created) VALUES (?, ?)", (text, time.time()))
+            cur = self.db.execute("INSERT INTO facts(text, created, emb) VALUES (?, ?, ?)",
+                                  (text, time.time(), vec[0].tobytes() if vec is not None else None))
             self.db.commit()
-        self._enqueue("facts", cur.lastrowid, text)
+            self._vec_cache.pop("facts", None)
+        if vec is None:
+            self._enqueue("facts", cur.lastrowid, text)
         return "Запомнил."
+
+    def facts_dated(self, limit: int = 200) -> list[tuple[int, str, float]]:
+        with self._lock:
+            return self.db.execute("SELECT id, text, created FROM facts ORDER BY created DESC LIMIT ?",
+                                   (limit,)).fetchall()
 
     def facts(self, limit: int = 200) -> list[tuple[int, str]]:
         with self._lock:

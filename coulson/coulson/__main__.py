@@ -7,6 +7,8 @@
   python -m coulson --tool open_app '{"name": "Steam"}'   вызвать инструмент напрямую
   python -m coulson --check       диагностика
   python -m coulson --bench       замер скорости: распознавание, кэш промпта, задержка, токены/с, память
+  python -m coulson --bench-tools насколько точно модель выбирает инструмент (30 русских команд)
+  python -m coulson --calibrate   подстроить «Колсон» под свой голос
   python -m coulson --prefetch    заранее скачать модели распознавания и голоса
 """
 from __future__ import annotations
@@ -143,6 +145,8 @@ def main() -> None:
     p.add_argument("--tool", nargs="+", metavar=("NAME", "JSON"))
     p.add_argument("--check", action="store_true")
     p.add_argument("--bench", action="store_true")
+    p.add_argument("--bench-tools", action="store_true")
+    p.add_argument("--calibrate", action="store_true")
     p.add_argument("--prefetch", action="store_true")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
@@ -155,6 +159,13 @@ def main() -> None:
     if args.bench:
         from .bench import run as bench
         sys.exit(bench(cfg))
+    if args.bench_tools:
+        from .bench import bench_tools, rows
+        bench_tools(cfg)
+        sys.exit(1 if any(r[0].startswith("❌") for r in rows) else 0)
+    if args.calibrate:
+        from .calibrate import run as calibrate
+        return calibrate(cfg)
     if args.prefetch:
         return cmd_prefetch(cfg)
     if args.say:

@@ -33,8 +33,9 @@ def find_wake(text: str, wake_words: list[str], threshold: int = 85) -> tuple[bo
         if len(token) < 4:
             continue
         sk = _skeleton(token)
-        if (max(fuzz.ratio(token, w) for w in words) >= threshold
-                and "ls" in sk and max(fuzz.ratio(sk, s) for s in skeletons) >= 80):
+        best = max(fuzz.ratio(token, w) for w in words)
+        # точный вариант из списка (например, найденный калибровкой) срабатывает всегда
+        if best >= 97 or (best >= threshold and "ls" in sk and max(fuzz.ratio(sk, s) for s in skeletons) >= 80):
             rest = text[: m.start()] + text[m.end():]
             rest = re.sub(r"^\s*(эй|хей|hey|ok|окей|слушай)\b", "", rest.strip(" ,.!?;:—-"), flags=re.I)
             rest = re.sub(r"\s{2,}", " ", rest).strip(" ,.!?;:—-")

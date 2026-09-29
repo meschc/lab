@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from . import config
 from .memory import open_memory
 from .textutil import find_wake, is_stop_command, normalize, parse_yes_no, strip_honorifics
+from .intents import try_fast
 from .tools import Context, load_all
 
 log = logging.getLogger(__name__)
@@ -51,7 +52,8 @@ TOOL_LABELS = {
     "press_keys": "нажимаю клавиши", "find_files": "ищу файлы", "open_path": "открываю", "memory": "память",
     "vpn": "VPN", "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл",
     "list_dir": "смотрю папку", "disk_usage": "считаю место на диске", "click": "кликаю", "mouse": "мышь",
-    "notes": "заметки", "plan": "планирую",
+    "notes": "заметки", "plan": "планирую", "app": "приложения", "browser": "браузер", "web": "ищу в интернете",
+    "keyboard": "клавиатура", "system": "система", "automation": "автоматизация", "files": "файлы",
 }
 
 _FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
@@ -81,6 +83,7 @@ class Assistant:
         self.awaiting_from = 0.0   # после «Колсон» принимаем только фразы, сказанные ПОСЛЕ сигнала
         self.followup_until = 0.0
         self.followup_from = 0.0   # продолжение без имени — только для фраз, сказанных после ответа
+        self.followups_in_row = 0  # подряд без «Колсон» — не больше followup_max (иначе ТВ может зациклить)
         self.confirming = False
 
         from .brain import Brain
@@ -211,8 +214,12 @@ class Assistant:
                 self.say("Я снова слушаю.")
             return
 
-        accepted = (u.wake or (now < self.awaiting_until and u.t >= self.awaiting_from)
-                    or (now < self.followup_until and u.t >= self.followup_from))
+        via_followup = (not u.wake and not (now < self.awaiting_until and u.t >= self.awaiting_from)
+                        and now < self.followup_until and u.t >= self.followup_from
+                        and self.followups_in_row < int(a.get("followup_max", 2)))
+        accepted = u.wake or (now < self.awaiting_until and u.t >= self.awaiting_from) or via_followup
+        if accepted:
+            self.followups_in_row = self.followups_in_row + 1 if via_followup else 0
         self.ui.show_user(u.rest if u.wake else u.text, accepted)
         if not accepted:
             return
@@ -288,29 +295,48 @@ class Assistant:
             if self.busy and not spoken and not self.cancel.is_set() and not self.confirming:
                 self.speaker.say(random.choice(_FILLERS))
 
-        delay = float(self.cfg.assistant.get("filler_after_seconds", 6) or 0)
-        timer = threading.Timer(delay, filler) if delay > 0 else None
-        if timer:
-            timer.daemon = True
-            timer.start()
-        try:
-            def on_mood(level: float) -> None:
-                mood_level[0] = level
-                self.set_mood(level)
-
-            reply = self.brain.respond(command, self.ctx, on_sentence, cancel=self.cancel, on_mood=on_mood,
-                                       on_tool=lambda name: self.ui.set_state("thinking", TOOL_LABELS.get(name, name)))
-        except Exception as e:
-            log.exception("LLM error")
-            reply = ""
-            mood_level[0] = 1.0
-            self.set_mood(1.0)
-            on_sentence(f"Простите, мозг не отвечает: {type(e).__name__}.")
-        finally:
+        played_from = len(self.speaker.played)
+        fast = None
+        if self.cfg.assistant.get("fast_commands", True):
+            try:
+                fast = try_fast(command, self.tools, self.ctx)
+            except Exception:
+                log.exception("быстрый путь не сработал — передаю модели")
+        timer = None
+        if fast is not None:  # простая команда — без нейросети, мгновенно
+            log.info("⚡ %s → %s", command, fast.reply)
+            mood_level[0] = fast.mood
+            self.set_mood(fast.mood)
+            on_sentence(fast.reply)
+            self.brain.note_exchange(command, fast.reply, fast.mood)
+            reply = fast.reply
             self.busy = False
+        else:
+            delay = float(self.cfg.assistant.get("filler_after_seconds", 6) or 0)
+            timer = threading.Timer(delay, filler) if delay > 0 else None
             if timer:
-                timer.cancel()
+                timer.daemon = True
+                timer.start()
+            try:
+                def on_mood(level: float) -> None:
+                    mood_level[0] = level
+                    self.set_mood(level)
+
+                reply = self.brain.respond(command, self.ctx, on_sentence, cancel=self.cancel, on_mood=on_mood,
+                                           on_tool=lambda name: self.ui.set_state("thinking", TOOL_LABELS.get(name, name)))
+            except Exception as e:
+                log.exception("LLM error")
+                reply = ""
+                mood_level[0] = 1.0
+                self.set_mood(1.0)
+                on_sentence(f"Простите, мозг не отвечает: {type(e).__name__}.")
+            finally:
+                self.busy = False
+                if timer:
+                    timer.cancel()
         self.speaker.wait_idle()
+        if self.cancel.is_set():  # перебили — в истории только то, что реально прозвучало
+            self.brain.mark_interrupted(" ".join(self.speaker.played[played_from:]))
         self.followup_from = time.monotonic() - 0.3
         self.followup_until = time.monotonic() + float(self.cfg.assistant.followup_seconds)
         self.ui.set_state(self._idle_state())

@@ -77,6 +77,7 @@ class Speaker:
         self._cur_start = 0.0
         self._intervals: collections.deque[tuple[float, float]] = collections.deque(maxlen=30)
         self.on_speaking = None     # callback(bool) для UI
+        self.played: list[str] = []  # фразы, прозвучавшие ПОЛНОСТЬЮ (для истории при перебивании)
         threading.Thread(target=self._worker, daemon=True, name="tts").start()
 
     # ------------------------------------------------------------ загрузка
@@ -194,6 +195,9 @@ class Speaker:
             if gen == self._gen:
                 try:
                     self._speak_one(sentence, gen)
+                    if gen == self._gen:
+                        self.played.append(sentence)
+                        del self.played[:-500]
                 except Exception:
                     log.exception("Ошибка синтеза речи: %r", sentence)
             changed = False

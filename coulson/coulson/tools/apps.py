@@ -83,17 +83,27 @@ class AppIndex:
         ranked = sorted(best.items(), key=lambda kv: -kv[1])[:limit]
         return [(self._entries[k][0], self._entries[k][1], s) for k, s in ranked]
 
-    def resolve(self, name: str, aliases: dict) -> tuple[str, str] | None:
-        alias = {normalize(k): v for k, v in (aliases or {}).items()}.get(normalize(name))
-        if alias:
-            name = alias
+    def resolve(self, name: str, aliases: dict, threshold: float = 75,
+                rebuild: bool = True) -> tuple[str, str] | None:
+        name = _alias(name, aliases) or name
         found = self.search(name, 3)
-        if not found or found[0][2] < 75:
+        if rebuild and (not found or found[0][2] < threshold):
             self.build()  # вдруг поставили что-то новое
             found = self.search(name, 3)
-        if found and found[0][2] >= 75:
+        if found and found[0][2] >= threshold:
             return found[0][0], found[0][1]
         return None
+
+
+def _alias(name: str, aliases: dict) -> str | None:
+    """Псевдоним без учёта окончания: «музыку», «телегу», «настройках» → «музыка», «телега», «настройки»."""
+    n = normalize(name)
+    for key, target in (aliases or {}).items():
+        k = normalize(key)
+        if n == k or (len(k) >= 4 and len(n) >= 4 and n[:-1] == k[:-1]) or \
+                (len(k) >= 6 and n.startswith(k[:-2]) and len(n) - len(k) <= 2):
+            return target
+    return None
 
 
 index = AppIndex()
