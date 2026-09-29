@@ -155,3 +155,8 @@ class WindowUI:
 
     def set_mic(self, on: bool) -> None:
         self._js(f"ui.mic({json.dumps(on)})")
+
+    def set_mood(self, level: float) -> None:
+        if level > 0:
+            self._activity()
+        self._js(f"ui.mood({max(0.0, min(1.0, float(level))):.2f})")

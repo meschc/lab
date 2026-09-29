@@ -72,12 +72,10 @@ def _human(kb: float) -> str:
 
 # ---------------------------------------------------------------- создание
 
-@registry.add("write_file", "Create a text file of any kind: HTML page, Markdown/TXT document, code (py/js/css), JSON, "
-              "SVG, etc. Write the COMPLETE content. Relative paths go to Coulson's folder (~/Documents/Колсон); "
-              "'Рабочий стол/x.html' means Desktop. Opens the file afterwards (HTML in the browser).",
-              {"path": ("string", "File name or path with extension, e.g. 'landing.html'"),
-               "content": ("string", "Full file content"),
-               "open": ("boolean", "Open after creating (default true)")}, ["path", "content"],
+@registry.add("write_file", "Create a text file (HTML page, md/txt doc, code, JSON, SVG) with COMPLETE content. "
+              "Relative path = ~/Documents/Колсон; 'Рабочий стол/x.html' = Desktop. Opens it after.",
+              {"path": ("string", "name with extension"), "content": ("string", ""), "open": ("boolean", "")},
+              ["path", "content"],
               risk=lambda ctx, path, content="", open=True: _write_risk(resolve(ctx, path)))
 def write_file(ctx, path: str, content: str, open: bool = True) -> str:
     target = resolve(ctx, path)
@@ -96,15 +94,11 @@ def _cell(value):
     return value
 
 
-@registry.add("create_table", "Create a spreadsheet (Excel .xlsx, opens in Numbers/Excel) or .csv from data, "
-              "optionally with a bar/pie/line chart. Use for any tabular data the user wants as a table.",
-              {"title": ("string", "Table title (also used as file name if path is empty)"),
-               "columns": {"type": "array", "items": {"type": "string"}, "description": "Column headers"},
-               "rows": {"type": "array", "items": {"type": "array", "items": {}},
-                        "description": "Rows; numbers as numbers"},
-               "path": ("string", "Optional file name/path; .xlsx (default) or .csv"),
-               "chart": ("string", "Chart from 1st column (labels) and 2nd column (values)"),
-               "open": ("boolean", "Open after creating (default true)")},
+@registry.add("create_table", "Create an Excel (.xlsx) or .csv table, optionally with a chart "
+              "(labels = 1st column, values = 2nd).",
+              {"title": ("string", ""), "columns": {"type": "array", "items": {"type": "string"}},
+               "rows": {"type": "array", "items": {"type": "array", "items": {}}, "description": "numbers as numbers"},
+               "path": ("string", "optional; .xlsx or .csv"), "chart": ("string", ""), "open": ("boolean", "")},
               ["title", "columns", "rows"], enums={"chart": ["none", "bar", "pie", "line"]},
               risk=lambda ctx, title, columns=None, rows=None, path="", chart="none", open=True:
                   _write_risk(_table_path(ctx, title, path)))
@@ -173,8 +167,7 @@ def _write_xlsx(target: Path, title: str, columns: list, rows: list, chart: str)
 
 # ---------------------------------------------------------------- чтение и навигация
 
-@registry.add("read_file", "Read a file's content: text/code/HTML/Markdown, CSV, Excel, Word/RTF/Pages.",
-              {"path": ("string", "Path to the file")}, ["path"])
+@registry.add("read_file", "Read a file (text, code, CSV, Excel, Word/RTF/Pages).", {"path": ("string", "")}, ["path"])
 def read_file(ctx, path: str) -> str:
     target = resolve(ctx, path)
     if not target.exists():
@@ -198,8 +191,7 @@ def read_file(ctx, path: str) -> str:
     return data.decode("utf-8", errors="replace")[:8000]
 
 
-@registry.add("list_dir", "List a folder: files and subfolders with sizes and dates (newest first).",
-              {"path": ("string", "Folder path; default = Coulson's folder")})
+@registry.add("list_dir", "List a folder (newest first).", {"path": ("string", "default = Coulson's folder")})
 def list_dir(ctx, path: str = "") -> str:
     target = resolve(ctx, path) if path else workspace(ctx)
     if not target.is_dir():
@@ -221,10 +213,8 @@ def list_dir(ctx, path: str = "") -> str:
     return "\n".join(lines) if items else f"{target}: пусто"
 
 
-@registry.add("disk_usage", "Disk space: total/used/free and the biggest folders inside a path (sizes in GB). "
-              "Use before making a disk usage table or when the user asks what takes space.",
-              {"path": ("string", "Folder to analyse, default home folder"),
-               "top": ("integer", "How many biggest folders to return (default 15)")})
+@registry.add("disk_usage", "Disk total/used/free and biggest folders in a path (GB).",
+              {"path": ("string", "default home"), "top": ("integer", "")})
 def disk_usage(ctx, path: str = "~", top: int = 15) -> str:
     target = resolve(ctx, path or "~")
     st = os.statvfs(str(target))
@@ -248,8 +238,7 @@ def disk_usage(ctx, path: str = "~", top: int = 15) -> str:
     return "\n".join(lines)
 
 
-@registry.add("find_files", "Find files/folders by name using Spotlight.",
-              {"query": ("string", "Name or part of it"), "folder": ("string", "Limit to folder, default home")},
+@registry.add("find_files", "Find files by name (Spotlight).", {"query": ("string", ""), "folder": ("string", "")},
               ["query"])
 def find_files(ctx, query: str, folder: str = "") -> str:
     base = str(resolve(ctx, folder)) if folder else str(HOME)
@@ -258,8 +247,8 @@ def find_files(ctx, query: str, folder: str = "") -> str:
     return "\n".join(lines) or "Ничего не найдено"
 
 
-@registry.add("open_path", "Open a file or folder with its default app (or reveal in Finder).",
-              {"path": ("string", "Path"), "reveal": ("boolean", "Show in Finder instead of opening")}, ["path"])
+@registry.add("open_path", "Open a file/folder (reveal = show in Finder).",
+              {"path": ("string", ""), "reveal": ("boolean", "")}, ["path"])
 def open_path(ctx, path: str, reveal: bool = False) -> str:
     target = resolve(ctx, path)
     return run(["open", "-R", str(target)]) if reveal else _open(ctx, target)

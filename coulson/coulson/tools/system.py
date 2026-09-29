@@ -14,11 +14,15 @@ from . import osascript, registry, run
 
 # ---------------------------------------------------------------- звук и медиа
 
-@registry.add("volume", "Get or change system volume.",
-              {"action": ("string", "set | up | down | mute | unmute | get"),
-               "level": ("integer", "0-100 for 'set', step for up/down (default 15)")}, ["action"],
-              enums={"action": ["set", "up", "down", "mute", "unmute", "get"]})
-def volume(ctx, action: str, level: int | None = None) -> str:
+_MEDIA_KEYS = {"play_pause": 16, "next": 17, "previous": 18}
+
+
+@registry.add("sound", "Volume and media playback in any player.",
+              {"action": ("string", ""), "level": ("integer", "0-100 for set; step for up/down")}, ["action"],
+              enums={"action": ["set", "up", "down", "mute", "unmute", "get", "play_pause", "next", "previous"]})
+def sound(ctx, action: str, level: int | None = None) -> str:
+    if action in _MEDIA_KEYS:
+        return _media_key(_MEDIA_KEYS[action])
     cur = int(osascript("output volume of (get volume settings)") or 0) if action in ("up", "down", "get") else 0
     if action == "get":
         return f"Громкость {cur}%"
@@ -33,17 +37,10 @@ def volume(ctx, action: str, level: int | None = None) -> str:
     return f"Громкость {target}%"
 
 
-_MEDIA_KEYS = {"play_pause": 16, "next": 17, "previous": 18}
-
-
-@registry.add("media", "Control media playback in any player (Music, Spotify, YouTube in browser…).",
-              {"action": ("string", "play_pause | next | previous")}, ["action"],
-              enums={"action": list(_MEDIA_KEYS)})
-def media(ctx, action: str) -> str:
+def _media_key(key: int) -> str:
     import AppKit
     import Quartz
 
-    key = _MEDIA_KEYS[action]
     for down in (True, False):
         ev = AppKit.NSEvent.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
             14, (0, 0), 0xA00 if down else 0xB00, 0, 0, 0, 8, (key << 16) | ((0xA if down else 0xB) << 8), -1)
@@ -53,7 +50,7 @@ def media(ctx, action: str) -> str:
 
 # ---------------------------------------------------------------- состояние и действия
 
-@registry.add("system_status", "Battery, disk space, Wi-Fi network, uptime, current date/time.")
+@registry.add("system_status", "Battery, free disk, Wi-Fi, uptime, date/time.")
 def system_status(ctx) -> str:
     parts = [time.strftime("Сейчас %A, %d.%m.%Y %H:%M")]
     parts.append(run(["pmset", "-g", "batt"]).replace("Now drawing from", "Питание:"))
@@ -82,8 +79,8 @@ _ACTIONS = {
 }
 
 
-@registry.add("system_action", "Perform a system action.",
-              {"action": ("string", "What to do")}, ["action"],
+@registry.add("system_action", "System action.",
+              {"action": ("string", "")}, ["action"],
               risk=lambda ctx, action: _ACTIONS.get(action, (None, None))[1], enums={"action": list(_ACTIONS)})
 def system_action(ctx, action: str) -> str:
     if action not in _ACTIONS:
@@ -91,10 +88,8 @@ def system_action(ctx, action: str) -> str:
     return run(_ACTIONS[action][0], shell=True)
 
 
-@registry.add("set_timer", "Set a timer/reminder: after N minutes Coulson will say the message aloud "
-              "and show a notification.",
-              {"minutes": ("number", "Minutes from now (can be fractional)"), "message": ("string", "What to remind")},
-              ["minutes"])
+@registry.add("set_timer", "Timer/reminder: after N minutes say the message aloud and notify.",
+              {"minutes": ("number", ""), "message": ("string", "")}, ["minutes"])
 def set_timer(ctx, minutes: float, message: str = "") -> str:
     minutes = float(minutes)
     text = message or f"Таймер на {minutes:g} мин истёк"
@@ -111,7 +106,7 @@ def set_timer(ctx, minutes: float, message: str = "") -> str:
 
 
 @registry.add("clipboard", "Read or write the clipboard.",
-              {"action": ("string", "get | set"), "text": ("string", "Text for 'set'")}, ["action"],
+              {"action": ("string", ""), "text": ("string", "for set")}, ["action"],
               enums={"action": ["get", "set"]})
 def clipboard(ctx, action: str, text: str = "") -> str:
     if action == "get":
@@ -121,8 +116,7 @@ def clipboard(ctx, action: str, text: str = "") -> str:
     return "Скопировал в буфер обмена"
 
 
-@registry.add("type_text", "Type text into the currently focused field (as if from keyboard).",
-              {"text": ("string", "Text to type")}, ["text"])
+@registry.add("type_text", "Type text into the focused field.", {"text": ("string", "")}, ["text"])
 def type_text(ctx, text: str) -> str:
     return osascript(f'tell application "System Events" to keystroke {_as_str(text)}')
 
@@ -159,10 +153,9 @@ def _keys_risk(ctx, keys: str, app: str = "", times: int = 1) -> str | None:
     return None
 
 
-@registry.add("press_keys", "Press a key or keyboard shortcut in the active app (or in `app`): 'cmd+t', 'esc', "
-              "'space', 'cmd+shift+4', 'f5', 'right'. For games, browsers, players.",
-              {"keys": ("string", "Shortcut like cmd+shift+t"), "app": ("string", "Optional app to activate first"),
-               "times": ("integer", "Repeat count (default 1)")}, ["keys"], risk=_keys_risk)
+@registry.add("press_keys", "Press a key/shortcut in the active app or `app`: 'cmd+t', 'esc', 'space', 'f5'.",
+              {"keys": ("string", ""), "app": ("string", "activate first"), "times": ("integer", "")}, ["keys"],
+              risk=_keys_risk)
 def press_keys(ctx, keys: str, app: str = "", times: int = 1) -> str:
     action, mods = parse_keys(keys)
     using = f" using {{{', '.join(mods)}}}" if mods else ""
@@ -181,23 +174,21 @@ def _as_str(s: str) -> str:
 
 # ---------------------------------------------------------------- shell / AppleScript / Shortcuts
 
-@registry.add("run_shell", "Run a zsh command on the Mac and return output. Use for anything not covered by other "
-              "tools. Dangerous commands are confirmed with the user automatically.",
-              {"command": ("string", "zsh command")}, ["command"], risk=lambda ctx, command: shell_risk(command))
+@registry.add("run_shell", "Run a zsh command and return output (for anything other tools don't cover).",
+              {"command": ("string", "")}, ["command"], risk=lambda ctx, command: shell_risk(command))
 def run_shell(ctx, command: str) -> str:
     env_path = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     return run(f"export PATH={env_path}:$PATH; cd ~; {command}", shell=True, timeout=60)
 
 
-@registry.add("run_applescript", "Run AppleScript to automate macOS apps (Finder, Music, Notes, Reminders, Calendar, "
-              "System Events, browser…).",
-              {"script": ("string", "AppleScript source")}, ["script"], risk=lambda ctx, script: applescript_risk(script))
+@registry.add("run_applescript", "Run AppleScript (Finder, Notes, Reminders, Calendar, Music, System Events…).",
+              {"script": ("string", "")}, ["script"], risk=lambda ctx, script: applescript_risk(script))
 def run_applescript(ctx, script: str) -> str:
     return run(["osascript", "-e", script], timeout=30)
 
 
-@registry.add("run_shortcut", "Run a Shortcuts (Команды) shortcut by name, or list them with name='list'.",
-              {"name": ("string", "Shortcut name or 'list'"), "input": ("string", "Optional text input")}, ["name"])
+@registry.add("run_shortcut", "Run a Shortcuts shortcut by name ('list' to list them).",
+              {"name": ("string", ""), "input": ("string", "optional text")}, ["name"])
 def run_shortcut(ctx, name: str, input: str = "") -> str:
     if name == "list":
         return run(["shortcuts", "list"])
@@ -210,8 +201,7 @@ def run_shortcut(ctx, name: str, input: str = "") -> str:
 
 # ---------------------------------------------------------------- VPN
 
-@registry.add("vpn", "Turn VPN on/off or check status.",
-              {"action": ("string", "on | off | status")}, ["action"], enums={"action": ["on", "off", "status"]})
+@registry.add("vpn", "VPN on/off/status.", {"action": ("string", "")}, ["action"], enums={"action": ["on", "off", "status"]})
 def vpn(ctx, action: str) -> str:
     method, name = ctx.cfg.vpn.method, ctx.cfg.vpn.name
     if method == "none" or not name:

@@ -25,7 +25,10 @@ class Tool:
     def schema(self) -> dict:
         props = {}
         for pname, spec in self.params.items():
-            props[pname] = dict(spec) if isinstance(spec, dict) else {"type": spec[0], "description": spec[1]}
+            if isinstance(spec, dict):
+                props[pname] = dict(spec)
+            else:
+                props[pname] = {"type": spec[0], **({"description": spec[1]} if spec[1] else {})}
             if pname in self.enums:
                 props[pname]["enum"] = self.enums[pname]
         return {"type": "function", "function": {
@@ -36,13 +39,15 @@ class Tool:
 class Context:
     """То, что доступно инструментам: настройки, память, голос, зрение, подтверждение."""
 
-    def __init__(self, cfg, memory=None, speak=None, confirm=None, vision=None, notify=None):
+    def __init__(self, cfg, memory=None, speak=None, confirm=None, vision=None, notify=None, attach_image=None):
         self.cfg = cfg
         self.memory = memory
         self.speak = speak or (lambda text: None)
         self.confirm = confirm or (lambda desc: False)
-        self.vision = vision          # callable(question, image_path) -> str
+        self.vision = vision              # callable(question, image_path) -> str (отдельный запрос)
+        self.attach_image = attach_image  # callable(path): приложить картинку к текущему диалогу
         self.notify = notify or (lambda text: None)
+        self.game_launched = False        # open_app запустил игру → после ответа выгрузить модель
 
 
 class Registry:

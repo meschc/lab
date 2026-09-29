@@ -1,23 +1,16 @@
-"""Инструменты памяти."""
+"""Инструмент памяти."""
 from __future__ import annotations
 
 from . import registry
 
 
-@registry.add("remember", "Save a durable fact about the user or their preferences to long-term memory "
-              "(name, habits, favourite games, what 'моя игра' means, etc.). Write it as a short sentence in Russian.",
-              {"fact": ("string", "The fact")}, ["fact"])
-def remember(ctx, fact: str) -> str:
-    return ctx.memory.add_fact(fact)
-
-
-@registry.add("forget", "Remove a fact from long-term memory.",
-              {"query": ("string", "What to forget")}, ["query"])
-def forget(ctx, query: str) -> str:
-    return ctx.memory.forget(query)
-
-
-@registry.add("recall", "Search long-term memory and past conversations (what we talked about earlier).",
-              {"query": ("string", "Keywords")}, ["query"])
-def recall(ctx, query: str) -> str:
-    return ctx.memory.recall(query)
+@registry.add("memory", "Long-term memory. remember: save a durable fact about the user (short Russian sentence); "
+              "recall: search facts and past conversations; forget: delete a fact.",
+              {"action": ("string", ""), "text": ("string", "Fact or search query")}, ["action", "text"],
+              enums={"action": ["remember", "recall", "forget"]})
+def memory(ctx, action: str, text: str) -> str:
+    if action == "remember":
+        return ctx.memory.add_fact(text)
+    if action == "forget":
+        return ctx.memory.forget(text)
+    return ctx.memory.recall(text)

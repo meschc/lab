@@ -24,18 +24,26 @@ audio:
   barge_in: true              # «Колсон, стоп» перебивает ответ (лучше работает в наушниках)
 
 stt:
-  model: mlx-community/whisper-large-v3-turbo
+  engine: parakeet            # parakeet (быстро, почти не грузит GPU) | whisper (запасной)
+  parakeet_model: mlx-community/parakeet-tdt-0.6b-v3
+  min_confidence: 0.35        # ниже — считаем шумом (для parakeet)
   languages: [ru, en]
+  # --- whisper ---
+  model: mlx-community/whisper-large-v3-turbo
   initial_prompt: "Колсон, открой Стим. Колсон, включи ВПН. Coulson, open Safari."
 
 llm:
   host: http://127.0.0.1:11434
-  model: qwen3.5:9b           # запасной вариант полегче: qwen3.5:4b
+  # Qwen3-VL 8B Instruct: зрение + инструменты в одной модели, обычная архитектура внимания —
+  # Ollama кэширует постоянную часть промпта, поэтому ответ начинается ~за секунду.
+  # (qwen3.5:9b умнее, но гибридная архитектура ломает кэш → 15–25 с на каждую реплику на M1 Pro.)
+  model: qwen3-vl:8b-instruct
   vision_model: null          # null = та же модель (она мультимодальная)
-  think: false                # thinking у Qwen3.5 ломает tool calling в Ollama — не включать
-  num_ctx: 16384
+  think: null                 # null = не передавать; для qwen3.5 обязательно false
+  num_ctx: 12288
   temperature: 0.6
-  keep_alive: 15m             # потом модель выгружается и освобождает ~7 ГБ (важно для игр)
+  keep_alive: 60m             # после часа простоя модель выгружается (~7 ГБ памяти)
+  unload_on_game: true        # запустил игру — модель выгружается, память отдаётся игре
   max_tool_rounds: 8
   history_turns: 10
 
@@ -81,3 +89,4 @@ ui:
   enabled: true
   position: top-right         # top-right | bottom-right
   collapse_after_seconds: 6
+  mood_hold_seconds: 10       # сколько шар остаётся красноватым после плохой новости

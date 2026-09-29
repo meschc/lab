@@ -18,9 +18,7 @@ def _open_in_browser(ctx, url: str) -> str:
     return res
 
 
-@registry.add("open_url", "Open a website or URL in the user's browser (Yandex Browser). "
-              "Accepts full URLs or bare domains like 'youtube.com'.",
-              {"url": ("string", "URL or domain")}, ["url"])
+@registry.add("open_url", "Open a URL or domain in the browser.", {"url": ("string", "")}, ["url"])
 def open_url(ctx, url: str) -> str:
     url = url.strip()
     if not re.match(r"^[a-z][a-z0-9+.-]*://", url, re.I):
@@ -43,9 +41,8 @@ _ENGINES = {
 }
 
 
-@registry.add("browser_search", "Show search results to the user in the browser (when they want to SEE results, "
-              "e.g. 'найди на ютубе…', 'покажи на карте…').",
-              {"query": ("string", "Search query"), "engine": ("string", "Where to search")}, ["query"],
+@registry.add("browser_search", "Open search results in the browser for the user to SEE (YouTube, maps…).",
+              {"query": ("string", ""), "engine": ("string", "")}, ["query"],
               enums={"engine": list(_ENGINES)})
 def browser_search(ctx, query: str, engine: str = "yandex") -> str:
     url = _ENGINES.get(engine, _ENGINES["yandex"]).format(urllib.parse.quote(query))
@@ -53,9 +50,8 @@ def browser_search(ctx, query: str, engine: str = "yandex") -> str:
     return f"Открыл поиск «{query}» ({engine})" if res == "OK" else res
 
 
-@registry.add("web_search", "Search the internet and return results as text for YOU to read and answer from "
-              "(news, facts, prices, how-to). Follow up with read_webpage for details.",
-              {"query": ("string", "Search query"), "max_results": ("integer", "1-10, default 5")}, ["query"])
+@registry.add("web_search", "Search the internet; returns results for YOU to answer from (then read_webpage).",
+              {"query": ("string", ""), "max_results": ("integer", "")}, ["query"])
 def web_search(ctx, query: str, max_results: int = 5) -> str:
     from ddgs import DDGS
 
@@ -64,8 +60,7 @@ def web_search(ctx, query: str, max_results: int = 5) -> str:
     return "\n\n".join(lines) or "Ничего не найдено"
 
 
-@registry.add("read_webpage", "Download a web page and return its main text.",
-              {"url": ("string", "Full URL")}, ["url"])
+@registry.add("read_webpage", "Main text of a web page.", {"url": ("string", "")}, ["url"])
 def read_webpage(ctx, url: str) -> str:
     import httpx
     import trafilatura
@@ -76,15 +71,14 @@ def read_webpage(ctx, url: str) -> str:
     return (text or re.sub(r"<[^>]+>", " ", r.text))[:6000]
 
 
-@registry.add("browser_tab", "Get URL and title of the active tab in the browser (to know what user is looking at).")
+@registry.add("browser_tab", "URL and title of the active browser tab.")
 def browser_tab(ctx) -> str:
     app = ctx.cfg.browser.app
     return osascript(f'tell application "{app}" to return (URL of active tab of front window) & " | " & '
                      f'(title of active tab of front window)')
 
 
-@registry.add("weather", "Current weather and short forecast for a city.",
-              {"city": ("string", "City name; empty = by IP")})
+@registry.add("weather", "Weather now and 3-day forecast.", {"city": ("string", "empty = by IP")})
 def weather(ctx, city: str = "") -> str:
     import httpx
 

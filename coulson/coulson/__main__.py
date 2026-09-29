@@ -6,6 +6,7 @@
   python -m coulson --say "…"     проверить голос
   python -m coulson --tool open_app '{"name": "Steam"}'   вызвать инструмент напрямую
   python -m coulson --check       диагностика
+  python -m coulson --bench       замер скорости: распознавание, кэш промпта, задержка, токены/с, память
   python -m coulson --prefetch    заранее скачать модели распознавания и голоса
 """
 from __future__ import annotations
@@ -54,7 +55,7 @@ def cmd_check(cfg) -> int:
                                                  if d["max_input_channels"] > 0))
     except Exception as e:
         row("Микрофон", False, str(e))
-    for mod in ("mlx_whisper", "silero_vad", "torch", "webview", "ddgs", "trafilatura", "cv2", "Quartz"):
+    for mod in ("parakeet_mlx", "mlx_whisper", "silero_vad", "torch", "webview", "ddgs", "trafilatura", "cv2", "Quartz"):
         try:
             __import__(mod)
             row(f"python: {mod}", True)
@@ -111,6 +112,7 @@ def main() -> None:
     p.add_argument("--say")
     p.add_argument("--tool", nargs="+", metavar=("NAME", "JSON"))
     p.add_argument("--check", action="store_true")
+    p.add_argument("--bench", action="store_true")
     p.add_argument("--prefetch", action="store_true")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
@@ -120,6 +122,9 @@ def main() -> None:
 
     if args.check:
         sys.exit(cmd_check(cfg))
+    if args.bench:
+        from .bench import run as bench
+        sys.exit(bench(cfg))
     if args.prefetch:
         return cmd_prefetch(cfg)
     if args.say:
@@ -135,7 +140,7 @@ def main() -> None:
         reg = load_all()
         ctx = Context(cfg, memory=Memory(config.DATA_DIR / "memory.db"),
                       confirm=lambda d: input(f"Подтвердить «{d}»? [y/N] ").lower().startswith(("y", "д")))
-        if args.tool[0] in ("look_at_screen", "look_at_camera"):
+        if args.tool[0] == "look":
             from .brain import Brain
             ctx.vision = Brain(cfg, reg, ctx.memory).vision
         print(reg.execute(args.tool[0], json.loads(args.tool[1]) if len(args.tool) > 1 else {}, ctx))

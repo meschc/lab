@@ -66,7 +66,7 @@ def test_filler_not_during_confirmation(asst, monkeypatch):
     asst.cfg["assistant"]["filler_after_seconds"] = 0.05
     started = threading.Event()
 
-    def slow_respond(cmd, ctx, on_sentence, cancel=None, on_tool=None):
+    def slow_respond(cmd, ctx, on_sentence, cancel=None, on_tool=None, on_mood=None):
         asst.confirming = True
         started.set()
         time.sleep(0.2)
@@ -77,7 +77,7 @@ def test_filler_not_during_confirmation(asst, monkeypatch):
     A.Assistant.handle(asst, "удали файл")
     assert said == []
 
-    def slow_plain(cmd, ctx, on_sentence, cancel=None, on_tool=None):
+    def slow_plain(cmd, ctx, on_sentence, cancel=None, on_tool=None, on_mood=None):
         time.sleep(0.2)
         return "ok"
 

@@ -5,6 +5,7 @@ description = "Колсон — локальный голосовой ассис
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "ollama>=0.6",
+    "parakeet-mlx>=0.5",
     "mlx-whisper>=0.4",
     "sounddevice>=0.5",
     "numpy>=1.26",

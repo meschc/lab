@@ -32,6 +32,7 @@ class NullUI:
     def show_user(self, text: str, accepted: bool = True) -> None: ...
     def show_assistant(self, text: str) -> None: ...
     def set_mic(self, on: bool) -> None: ...
+    def set_mood(self, level: float) -> None: ...
 
 
 TOOL_LABELS = {
@@ -44,10 +45,13 @@ TOOL_LABELS = {
     "clipboard": "буфер обмена", "type_text": "печатаю", "find_files": "ищу файлы", "open_path": "открываю",
     "remember": "запоминаю", "forget": "забываю", "recall": "вспоминаю", "vpn": "VPN",
     "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл", "list_dir": "смотрю папку",
+    "memory": "память", "look": "смотрю", "sound": "звук",
     "disk_usage": "считаю место на диске", "press_keys": "нажимаю клавиши",
 }
 
 _FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
+
+_GAME_MODE_RE = re.compile(r"\b(игровой режим|освободи память|выгрузи модель|game mode|free memory)\b")
 
 _SLEEP_RE = re.compile(r"\b(не слушай|перестань слушать|режим сна|спи|отдыхай|stop listening|go to sleep)\b")
 _WAKE_UP_RE = re.compile(r"\b(проснись|слушай|просыпайся|я здесь|wake up|start listening)\b")
@@ -75,7 +79,9 @@ class Assistant:
         self.speaker.on_speaking = lambda on: self.ui.set_state("speaking" if on else self._idle_state())
         self.brain = Brain(cfg, self.tools, self.memory)
         self.ctx = Context(cfg, memory=self.memory, speak=self.say, confirm=self.confirm,
-                           vision=self.brain.vision, notify=self.ui.show_assistant)
+                           vision=self.brain.vision, notify=self.ui.show_assistant,
+                           attach_image=self.brain.attach_image)
+        self._mood_timer: threading.Timer | None = None
         self.listener = None
         self.stt = None
 
@@ -182,6 +188,10 @@ class Assistant:
             self.followup_until = 0
             self.ui.set_state("idle")
             return
+        if _GAME_MODE_RE.search(normalize(command)) and len(command) < 40:
+            self.brain.unload()
+            self.say("Игровой режим: освободил память. Модель загрузится снова при следующей просьбе.")
+            return
         if _SLEEP_RE.search(normalize(command)) and len(command) < 40:
             self.sleeping = True
             self.say(f"Хорошо. Скажите «{a.name}, проснись», когда понадоблюсь.")
@@ -200,9 +210,23 @@ class Assistant:
             from .audio import chime
             chime("wake")
 
+    # ------------------------------------------------------------ настроение → цвет шара
+    def set_mood(self, level: float, hold_seconds: float | None = None) -> None:
+        """0 — голубой, 0.5 — заметно краснее, 1 — красный. Через время плавно возвращается к голубому."""
+        self.ui.set_mood(level)
+        if self._mood_timer:
+            self._mood_timer.cancel()
+            self._mood_timer = None
+        if level > 0 and hold_seconds:
+            self._mood_timer = threading.Timer(hold_seconds, lambda: self.ui.set_mood(0.0))
+            self._mood_timer.daemon = True
+            self._mood_timer.start()
+
     def handle(self, command: str) -> str:
         """Выполнить команду (голосовую или текстовую)."""
         self.cancel.clear()
+        self.set_mood(0.0)
+        mood_level = [0.0]
         self.busy = True
         self.ui.set_state("thinking")
         spoken: list[str] = []
@@ -228,11 +252,17 @@ class Assistant:
             timer.daemon = True
             timer.start()
         try:
-            reply = self.brain.respond(command, self.ctx, on_sentence, cancel=self.cancel,
+            def on_mood(level: float) -> None:
+                mood_level[0] = level
+                self.set_mood(level)
+
+            reply = self.brain.respond(command, self.ctx, on_sentence, cancel=self.cancel, on_mood=on_mood,
                                        on_tool=lambda name: self.ui.set_state("thinking", TOOL_LABELS.get(name, name)))
         except Exception as e:
             log.exception("LLM error")
             reply = ""
+            mood_level[0] = 1.0
+            self.set_mood(1.0)
             on_sentence(f"Простите, мозг не отвечает: {type(e).__name__}.")
         finally:
             self.busy = False
@@ -241,6 +271,12 @@ class Assistant:
         self.speaker.wait_idle()
         self.followup_until = time.monotonic() + float(self.cfg.assistant.followup_seconds)
         self.ui.set_state(self._idle_state())
+        if mood_level[0] > 0:  # красноватый цвет держится немного после ответа и уходит
+            self.set_mood(mood_level[0], hold_seconds=float(self.cfg.ui.get("mood_hold_seconds", 10)))
+        if self.ctx.game_launched:
+            self.ctx.game_launched = False
+            if self.cfg.llm.get("unload_on_game", True):
+                self.brain.unload()
         return reply or " ".join(spoken)
 
     def say(self, text: str) -> None:
@@ -254,6 +290,7 @@ class Assistant:
             ans = input(f"\n⚠️  Подтвердите: {description}? [да/нет] ")
             return bool(parse_yes_no(ans))
         self.confirming = True
+        self.set_mood(0.5)  # опасное действие — шар краснеет, пока ждём ответа
         try:
             while not self.utterances.empty():
                 self.utterances.get_nowait()

@@ -91,16 +91,25 @@ class AppIndex:
 index = AppIndex()
 
 
+def is_game(target: str) -> bool:
+    if target.startswith("steam://"):
+        return True
+    try:
+        import plistlib
+        info = plistlib.loads((Path(target) / "Contents/Info.plist").read_bytes())
+        return "games" in str(info.get("LSApplicationCategoryType", ""))
+    except Exception:
+        return any(k in target for k in ("/Epic Games/", "/CrossOver/", "/Steam/", "/GOG"))
+
+
 def _launch(target: str) -> str:
     if target.startswith("steam://"):
         return run(["open", target])
     return run(["open", "-a", target])
 
 
-@registry.add("open_app",
-              "Open or focus any application or game on this Mac (Steam/Epic/CrossOver games included). "
-              "Pass the app name as the user said it, in any language (e.g. 'телеграм', 'Cyberpunk', 'настройки').",
-              {"name": ("string", "Application or game name")}, ["name"])
+@registry.add("open_app", "Open/focus any app or game (Steam, Epic, CrossOver). Name as the user said it.",
+              {"name": ("string", "")}, ["name"])
 def open_app(ctx, name: str) -> str:
     hit = index.resolve(name, ctx.cfg.apps.get("aliases", {}))
     if not hit:
@@ -108,11 +117,12 @@ def open_app(ctx, name: str) -> str:
         return f"Не нашёл приложение «{name}». Похожие: {close or 'нет'}"
     display, target = hit
     res = _launch(target)
+    if res == "OK" and is_game(target):
+        ctx.game_launched = True
     return f"Запущено: {display}" if res == "OK" else f"Пробовал запустить {display}: {res}"
 
 
-@registry.add("quit_app", "Quit (close) an application gracefully.",
-              {"name": ("string", "Application name")}, ["name"])
+@registry.add("quit_app", "Quit an app.", {"name": ("string", "")}, ["name"])
 def quit_app(ctx, name: str) -> str:
     hit = index.resolve(name, ctx.cfg.apps.get("aliases", {}))
     app = hit[0] if hit and not hit[1].startswith("steam://") else name
@@ -120,12 +130,11 @@ def quit_app(ctx, name: str) -> str:
     return f"Закрыто: {app}" if res == "OK" else res
 
 
-@registry.add("find_app", "Search installed applications and games by name; returns best matches.",
-              {"query": ("string", "Part of the name")}, ["query"])
+@registry.add("find_app", "Search installed apps and games by name.", {"query": ("string", "")}, ["query"])
 def find_app(ctx, query: str) -> str:
     return "\n".join(f"{n} — {t}" for n, t, s in index.search(query, 8)) or "Ничего не найдено"
 
 
-@registry.add("running_apps", "List applications that are currently running (visible ones).")
+@registry.add("running_apps", "Running apps.")
 def running_apps(ctx) -> str:
     return osascript('tell application "System Events" to get name of every process whose background only is false')

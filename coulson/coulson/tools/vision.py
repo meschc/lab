@@ -1,4 +1,4 @@
-"""Зрение: снимок экрана или камеры → мультимодальная модель."""
+"""Зрение: снимок экрана или камеры прикладывается к диалогу, и модель смотрит на него сама."""
 from __future__ import annotations
 
 import tempfile
@@ -14,36 +14,19 @@ def _shrink(path: Path, max_width: int) -> Path:
     img = Image.open(path)
     if img.width > max_width:
         img = img.resize((max_width, int(img.height * max_width / img.width)), Image.LANCZOS)
-    out = path.with_suffix(".jpg")
+    out = path.with_name(path.stem + "_s.jpg")
     img.convert("RGB").save(out, "JPEG", quality=85)
+    path.unlink(missing_ok=True)
     return out
 
 
-@registry.add("look_at_screen", "Take a screenshot and look at it to answer a question about what is on screen "
-              "(read text, find a button, describe a game/site, explain an error).",
-              {"question": ("string", "What to find out from the screen"),
-               "display": ("integer", "Display number, 1 = main (default)")}, ["question"])
-def look_at_screen(ctx, question: str, display: int = 1) -> str:
-    if ctx.vision is None:
-        return "Зрение недоступно"
-    tmp = Path(tempfile.gettempdir()) / f"coulson_screen_{int(time.time())}.png"
-    res = run(["screencapture", "-x", "-D", str(int(display)), str(tmp)], timeout=15)
-    if not tmp.exists():
-        return f"Не удалось сделать снимок экрана (нужно разрешение «Запись экрана»): {res}"
-    img = _shrink(tmp, int(ctx.cfg.vision.max_width))
-    try:
-        return ctx.vision(question, str(img))
-    finally:
-        tmp.unlink(missing_ok=True)
-        img.unlink(missing_ok=True)
+def _capture_screen(display: int) -> Path | str:
+    tmp = Path(tempfile.gettempdir()) / f"coulson_screen_{time.time_ns()}.png"
+    res = run(["screencapture", "-x", "-D", str(int(display or 1)), str(tmp)], timeout=15)
+    return tmp if tmp.exists() else f"Не удалось сделать снимок экрана (нужно разрешение «Запись экрана»): {res}"
 
 
-@registry.add("look_at_camera", "Take a photo with the Mac camera and look at it (what's in front of the Mac, "
-              "what the user is holding, how they look).",
-              {"question": ("string", "What to find out")}, ["question"])
-def look_at_camera(ctx, question: str) -> str:
-    if ctx.vision is None:
-        return "Зрение недоступно"
+def _capture_camera() -> Path | str:
     import cv2
 
     cam = cv2.VideoCapture(0)
@@ -58,11 +41,28 @@ def look_at_camera(ctx, question: str) -> str:
             return "Не удалось получить кадр"
     finally:
         cam.release()
-    tmp = Path(tempfile.gettempdir()) / f"coulson_cam_{int(time.time())}.jpg"
+    tmp = Path(tempfile.gettempdir()) / f"coulson_cam_{time.time_ns()}.jpg"
     cv2.imwrite(str(tmp), frame)
-    img = _shrink(tmp, 1280)
-    try:
-        return ctx.vision(question, str(img))
-    finally:
-        tmp.unlink(missing_ok=True)
-        img.unlink(missing_ok=True)
+    return tmp
+
+
+@registry.add("look", "See the screen (read text, find a button, explain an error, describe a game/site) or the "
+              "camera (what is in front of the Mac). The image is attached to the conversation for you.",
+              {"source": ("string", ""), "question": ("string", "What to find out"),
+               "display": ("integer", "Screen number, 1 = main")}, ["source", "question"],
+              enums={"source": ["screen", "camera"]})
+def look(ctx, source: str, question: str, display: int = 1) -> str:
+    shot = _capture_camera() if source == "camera" else _capture_screen(display)
+    if isinstance(shot, str):
+        return shot
+    img = _shrink(shot, int(ctx.cfg.vision.max_width) if source == "screen" else 1280)
+    if ctx.attach_image:
+        ctx.attach_image(str(img))
+        what = "Снимок экрана" if source == "screen" else "Кадр с камеры"
+        return f"{what} приложен следующим сообщением. Ответь по нему на вопрос: {question}"
+    if ctx.vision:
+        try:
+            return ctx.vision(question, str(img))
+        finally:
+            img.unlink(missing_ok=True)
+    return "Зрение недоступно"

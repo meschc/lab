@@ -56,6 +56,24 @@ def parse_yes_no(text: str) -> bool | None:
     return None
 
 
+# ---------------------------------------------------------------- настроение (для цвета шара)
+
+_BAD_RE = re.compile(r"(ошибк|сбой|не работает|сломал|слома|авари|критич|опасн|срочно|вирус|взлом|потерял|"
+                     r"безвозвратно|failed|error|crash|critical|danger|broken)", re.I)
+_WARN_RE = re.compile(r"(к сожалению|не удалось|не получилось|не могу|не смог|не нашёл|не нашел|не найден|проблем|"
+                      r"внимани|осторожн|предупрежд|мало места|почти заполнен|разряж|отказ|отмен|нет доступа|"
+                      r"недоступ|unfortunately|couldn'?t|can'?t|cannot|warning|not found|failed to)", re.I)
+
+
+def mood_of(text: str) -> float:
+    """0 — нейтрально, 0.5 — неприятность/предупреждение, 1 — ошибка/плохая новость."""
+    if _BAD_RE.search(text or ""):
+        return 1.0
+    if _WARN_RE.search(text or ""):
+        return 0.5
+    return 0.0
+
+
 _STOP_RE = re.compile(r"^(стоп|хватит|замолчи|тихо|отмена|отмени|stop|cancel|shut up|enough)$")
 
 

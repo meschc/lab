@@ -1,4 +1,9 @@
-"""Мозг: локальная LLM (Ollama) с вызовом инструментов, потоковой речью и памятью."""
+"""Мозг: локальная LLM (Ollama) с вызовом инструментов, потоковой речью и памятью.
+
+Скорость на M1 Pro держится на кэше префикса Ollama: системный промпт + описания инструментов
+(~3.5 тыс. токенов) обрабатываются один раз (~15 с), дальше — только новые реплики (~1 с).
+Поэтому всё, что меняется (время, картинки), идёт в КОНЕЦ диалога, а начало остаётся неизменным.
+"""
 from __future__ import annotations
 
 import json
@@ -6,44 +11,42 @@ import logging
 import re
 import threading
 import time
+from pathlib import Path
 from typing import Callable
 
-from .textutil import pop_sentences
+from .textutil import mood_of, pop_sentences
 from .tools import Context, Registry
 
 log = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """Ты — {name}, личный ИИ-ассистент в духе Джарвиса. Ты живёшь на Маке пользователя и управляешь им по голосовым командам.
-Характер: британская выдержка — спокойный, собранный, с лёгкой иронией, говоришь по делу.
-Никогда не используй обращения «сэр», «господин», «хозяин», «sir» — обращайся к пользователю просто на «вы», без титулов.
+SYSTEM_PROMPT = """Ты — {name}, личный голосовой ИИ-ассистент в духе Джарвиса и «второй мозг» пользователя. Ты живёшь на его Маке (MacBook Pro M1 Pro, macOS, браузер — Яндекс Браузер) и управляешь им по голосу.
+Характер: спокойный, собранный, с лёгкой иронией, по делу. Обращайся на «вы» и без титулов: никогда не говори «сэр», «господин», «sir».
 
-Твои ответы ОЗВУЧИВАЮТСЯ:
-- Говори коротко: обычно 1–2 предложения. Подробнее — только если просят рассказать или объяснить.
-- Никакого markdown, списков, эмодзи и ссылок.
-- Отвечай на языке пользователя (русский или английский).
-- В русской речи названия пиши кириллицей так, как они произносятся (Стим, Ютуб, Телеграм, Дискорд).
-- Никогда не произноси своё имя.
+Ответы озвучиваются:
+- Коротко: 1–2 предложения. Подробнее — только если просят рассказать или объяснить.
+- Без markdown, списков, эмодзи и ссылок.
+- На языке пользователя (русский или английский). Названия — кириллицей, как произносятся (Стим, Ютуб, Телеграм).
+- Своё имя не произноси.
+- Каждый ответ начинай меткой настроения (её не озвучивают): [ok] — всё нормально; [warn] — предупреждение, риск, неприятная новость или что-то не вышло; [bad] — ошибка, серьёзная проблема, плохая новость или пользователь расстроен.
 
 Как действовать:
-- Если просьбу можно выполнить инструментом — сразу вызывай его, не спрашивая разрешения. Многошаговые задачи выполняй по шагам.
-- После действия кратко подтверди результат («Готово, Стим запущен.») и, если это уместно, одной фразой предложи логичный следующий шаг.
+- Если можно сделать инструментом — делай сразу, без лишних вопросов; многошаговые задачи — по шагам.
+- После действия кратко подтверди результат и, если уместно, одной фразой предложи следующий шаг.
 - Если команда неясна — задай один короткий уточняющий вопрос.
-- Факты о мире, новости, цены, погода — только через web_search / read_webpage / weather, не выдумывай.
-- Вопросы про то, что на экране, — через look_at_screen. «Посмотри на меня» — look_at_camera.
-- Если пользователь рассказывает о себе что-то долговременное (предпочтения, привычки, имена, любимые игры) — вызови remember.
-- Файлы создаёшь сам: таблицы — create_table (Excel, можно с диаграммой), страницы, документы и код — write_file
-  с ПОЛНЫМ содержимым (HTML — сразу красивый и цельный, со стилями внутри). Данные для таблицы сначала собери
-  инструментами (disk_usage, web_search, system_status…), не выдумывай. После создания коротко скажи, где лежит файл.
+- Факты, новости, цены, погода — только через web_search / read_webpage / weather, не выдумывай.
+- Что на экране — look (screen); «посмотри на меня» — look (camera).
+- Узнал о пользователе что-то долговременное — memory remember; спрашивает о прошлом — memory recall.
+- Файлы: таблицы — create_table (можно с диаграммой); страницы, документы, код — write_file с полным содержимым (HTML сразу красивый, стили внутри). Данные сначала собери инструментами. Потом скажи, где файл.
 - Опасные действия система подтверждает у пользователя сама: просто вызывай инструмент.
-- Речь распознаётся автоматически и может содержать ошибки — угадывай смысл по контексту.
-
-Сейчас {now}. Компьютер: MacBook Pro M1 Pro, macOS. Браузер пользователя — Яндекс Браузер.
-{facts}"""
+- Речь распознаётся автоматически и может содержать ошибки — угадывай смысл по контексту."""
 
 VISION_PROMPT = ("Ты смотришь на изображение по просьбе голосового ассистента. Ответь кратко и по делу, на русском. "
                  "Если на изображении есть важный текст — процитируй его. Вопрос: {question}")
 
 _TOOL_TEXT_MARKERS = ("<tool_call", "<function=", '{"name"')
+_MOOD_RE = re.compile(r"\[(ok|warn|bad)\]\s*", re.I)
+MOOD_LEVEL = {"ok": 0.0, "warn": 0.5, "bad": 1.0}
+_WEEKDAYS = ("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
 
 
 def parse_text_tool_calls(text: str) -> list[dict]:
@@ -76,6 +79,11 @@ def parse_text_tool_calls(text: str) -> list[dict]:
     return calls
 
 
+def now_context() -> str:
+    t = time.localtime()
+    return f"(сейчас {time.strftime('%H:%M', t)}, {_WEEKDAYS[t.tm_wday]}, {time.strftime('%d.%m.%Y', t)})"
+
+
 class Brain:
     def __init__(self, cfg, tools: Registry, memory):
         import ollama
@@ -88,29 +96,54 @@ class Brain:
         self.history: list[dict] = []
         self.last_active = 0.0
         self._lock = threading.Lock()
+        self._images: list[str] = []
 
     # ------------------------------------------------------------ служебное
-    def warmup(self) -> None:
-        self.client.chat(model=self.llm.model, messages=[{"role": "user", "content": "привет"}],
-                         think=self.llm.think, keep_alive=self.llm.keep_alive, options={"num_predict": 1})
-        log.info("LLM загружена: %s", self.llm.model)
+    def _kwargs(self) -> dict:
+        kw = {"keep_alive": self.llm.keep_alive,
+              "options": {"num_ctx": int(self.llm.num_ctx), "temperature": float(self.llm.temperature)}}
+        if self.llm.get("think") is not None:
+            kw["think"] = bool(self.llm.think)
+        return kw
 
-    def _system(self) -> dict:
-        facts = self.memory.facts(int(self.cfg.get("memory", {}).get("max_facts", 40)))
-        facts_text = ("Что ты знаешь о пользователе:\n" + "\n".join(f"- {t}" for _, t in facts)) if facts else ""
-        now = time.strftime("%A, %d.%m.%Y, %H:%M")
+    def _prefix(self) -> list[dict]:
+        """Неизменная часть диалога — её Ollama держит в кэше."""
         a = self.cfg.assistant
-        return {"role": "system", "content": SYSTEM_PROMPT.format(name=a.name, now=now,
-                                                                  facts=facts_text)}
+        msgs = [{"role": "system", "content": SYSTEM_PROMPT.format(name=a.name)}]
+        facts = self.memory.facts(int(self.cfg.get("memory", {}).get("max_facts", 40)))
+        if facts:
+            # Парой реплик ПОСЛЕ системного промпта с инструментами (в любом шаблоне модели они идут дальше):
+            # новый факт не сбрасывает кэш тяжёлой части промпта
+            msgs += [{"role": "user", "content": "Что ты знаешь обо мне (память):\n" +
+                      "\n".join(f"- {t}" for _, t in reversed(facts))},
+                     {"role": "assistant", "content": "[ok] Помню и учитываю."}]
+        return msgs
 
-    def _options(self) -> dict:
-        return {"num_ctx": int(self.llm.num_ctx), "temperature": float(self.llm.temperature)}
+    def warmup(self) -> None:
+        """Загрузить модель и заранее просчитать системный промпт с инструментами."""
+        t = time.monotonic()
+        kw = self._kwargs()
+        kw["options"]["num_predict"] = 1
+        self.client.chat(model=self.llm.model, messages=self._prefix() + [{"role": "user", "content": "привет"}],
+                         tools=self.tools.schemas(), **kw)
+        log.info("LLM готова: %s (прогрев %.1f с)", self.llm.model, time.monotonic() - t)
+
+    def unload(self) -> None:
+        """Выгрузить модель из памяти (например, чтобы отдать память игре)."""
+        try:
+            self.client.generate(model=self.llm.model, prompt="", keep_alive=0)
+            log.info("LLM выгружена из памяти")
+        except Exception as e:
+            log.warning("Не удалось выгрузить модель: %s", e)
+
+    def attach_image(self, path: str) -> None:
+        self._images.append(path)
 
     def vision(self, question: str, image_path: str) -> str:
+        """Отдельный запрос с картинкой — только если зрение вынесено в другую модель."""
         model = self.llm.vision_model or self.llm.model
-        r = self.client.chat(model=model, think=False, keep_alive=self.llm.keep_alive, options=self._options(),
-                             messages=[{"role": "user", "content": VISION_PROMPT.format(question=question),
-                                        "images": [image_path]}])
+        r = self.client.chat(model=model, messages=[{"role": "user", "content": VISION_PROMPT.format(question=question),
+                                                     "images": [image_path]}], **self._kwargs())
         return r.message.content.strip() or "Ничего не разобрал на изображении."
 
     def reset_if_idle(self) -> None:
@@ -118,62 +151,113 @@ class Brain:
         if self.history and time.time() - self.last_active > idle:
             self.history.clear()
 
+    def _trim_history(self) -> None:
+        # Режем пачками, а не по одному сообщению: начало диалога реже меняется → кэш живёт дольше
+        keep = int(self.llm.history_turns) * 2
+        if len(self.history) > keep + 8:
+            self.history = self.history[-keep:]
+
     # ------------------------------------------------------------ основной цикл
     def respond(self, user_text: str, ctx: Context, on_sentence: Callable[[str], None],
-                cancel: threading.Event | None = None, on_tool: Callable[[str], None] | None = None) -> str:
+                cancel: threading.Event | None = None, on_tool: Callable[[str], None] | None = None,
+                on_mood: Callable[[float], None] | None = None) -> str:
         with self._lock:
             self.reset_if_idle()
+            self._trim_history()
             self.last_active = time.time()
             self.memory.log("user", user_text)
-            max_hist = int(self.llm.history_turns) * 2
-            messages = [self._system()] + self.history[-max_hist:] + [{"role": "user", "content": user_text}]
+            separate_vision = bool(self.llm.vision_model and self.llm.vision_model != self.llm.model)
+            ctx.attach_image = None if separate_vision else self.attach_image
+            if separate_vision:
+                ctx.vision = self.vision
+            messages = self._prefix() + self.history + [{"role": "user", "content": f"{now_context()} {user_text}"}]
             schemas = self.tools.schemas()
             spoken_all: list[str] = []
+            moods: list[float] = []
+            trouble = [0.0]  # проблемы, замеченные по результатам инструментов
             final = ""
+            used_images: list[str] = []
 
-            for _round in range(int(self.llm.max_tool_rounds)):
-                if cancel is not None and cancel.is_set():
-                    break
-                content, tool_calls = self._stream(messages, schemas, on_sentence, spoken_all, cancel)
-                if cancel is not None and cancel.is_set():
-                    final = content
-                    break
-                if not tool_calls:
-                    tool_calls = parse_text_tool_calls(content)
-                    if tool_calls:
-                        content = re.split(r"<tool_call|<function=|\{\s*\"name\"", content)[0].strip()
-                if not tool_calls:
-                    final = content
-                    break
-                messages.append({"role": "assistant", "content": content,
-                                 "tool_calls": [{"function": {"name": c["name"], "arguments": c["arguments"]}}
-                                                for c in tool_calls]})
-                for call in tool_calls:
-                    log.info("→ %s(%s)", call["name"], json.dumps(call["arguments"], ensure_ascii=False)[:300])
-                    if on_tool:
-                        on_tool(call["name"])
-                    result = self.tools.execute(call["name"], call["arguments"], ctx)
-                    log.info("← %s", result[:300].replace("\n", " "))
-                    messages.append({"role": "tool", "tool_name": call["name"], "content": result})
+            def mood(level: float) -> None:
+                moods.append(level)
+                if on_mood:
+                    on_mood(max(level, trouble[0]))
+
+            try:
+                for _round in range(int(self.llm.max_tool_rounds)):
                     if cancel is not None and cancel.is_set():
                         break
-            else:
-                final = final or "Слишком много шагов, я остановился."
-                on_sentence(final)
+                    content, tool_calls = self._stream(messages, schemas, on_sentence, spoken_all, cancel, mood)
+                    if cancel is not None and cancel.is_set():
+                        final = content
+                        break
+                    if not tool_calls:
+                        tool_calls = parse_text_tool_calls(content)
+                        if tool_calls:
+                            content = re.split(r"<tool_call|<function=|\{\s*\"name\"", content)[0].strip()
+                    if not tool_calls:
+                        final = content
+                        break
+                    messages.append({"role": "assistant", "content": content,
+                                     "tool_calls": [{"function": {"name": c["name"], "arguments": c["arguments"]}}
+                                                    for c in tool_calls]})
+                    for call in tool_calls:
+                        log.info("→ %s(%s)", call["name"], json.dumps(call["arguments"], ensure_ascii=False)[:300])
+                        if on_tool:
+                            on_tool(call["name"])
+                        result = self.tools.execute(call["name"], call["arguments"], ctx)
+                        log.info("← %s", result[:300].replace("\n", " "))
+                        if re.match(r"(Ошибка|\[код [1-9]|Не удалось|Не нашёл|Пользователь НЕ подтвердил)", result):
+                            trouble[0] = max(trouble[0], MOOD_LEVEL["warn"])
+                            if on_mood:
+                                on_mood(trouble[0])
+                        messages.append({"role": "tool", "tool_name": call["name"], "content": result})
+                        if cancel is not None and cancel.is_set():
+                            break
+                    if self._images:
+                        messages.append({"role": "user", "content": "Изображение от инструмента look:",
+                                         "images": list(self._images)})
+                        used_images += self._images
+                        self._images.clear()
+                else:
+                    final = final or "[warn] Слишком много шагов, я остановился."
+                    on_sentence(_MOOD_RE.sub("", final))
+            finally:
+                self._images.clear()
+                for p in used_images:
+                    Path(p).unlink(missing_ok=True)
 
             final = final.strip()
+            clean = _MOOD_RE.sub("", final).strip()
+            said = clean or " ".join(spoken_all)
+            if not moods and on_mood:  # модель забыла метку — оцениваем по словам
+                on_mood(max(mood_of(said), trouble[0]))
+            m = _MOOD_RE.match(final)
+            tag = f"[{m.group(1).lower()}]" if m else "[ok]"
+            # В истории оставляем метку: так модель не забывает её ставить в следующих ответах
             self.history += [{"role": "user", "content": user_text},
-                             {"role": "assistant", "content": final or " ".join(spoken_all) or "Готово."}]
-            self.memory.log("assistant", final or " ".join(spoken_all))
+                             {"role": "assistant", "content": f"{tag} {said or 'Готово.'}"}]
+            self.memory.log("assistant", said)
             self.last_active = time.time()
-            return final
+            return clean
 
-    def _stream(self, messages, schemas, on_sentence, spoken_all, cancel) -> tuple[str, list[dict]]:
+    def _stream(self, messages, schemas, on_sentence, spoken_all, cancel, on_mood) -> tuple[str, list[dict]]:
         content, buf = "", ""
         tool_calls: list[dict] = []
         muted = False  # модель начала печатать вызов инструмента текстом — это не озвучиваем
-        stream = self.client.chat(model=self.llm.model, messages=messages, tools=schemas, stream=True,
-                                  think=self.llm.think, keep_alive=self.llm.keep_alive, options=self._options())
+
+        def emit(text: str) -> None:
+            text = text.strip()
+            if text:
+                on_sentence(text)
+                spoken_all.append(text)
+
+        def take_moods(text: str) -> str:
+            for m in _MOOD_RE.finditer(text):
+                on_mood(MOOD_LEVEL[m.group(1).lower()])
+            return _MOOD_RE.sub("", text)
+
+        stream = self.client.chat(model=self.llm.model, messages=messages, tools=schemas, stream=True, **self._kwargs())
         for chunk in stream:
             if cancel is not None and cancel.is_set():
                 break
@@ -189,19 +273,20 @@ class Brain:
                 continue
             if any(mk in content for mk in _TOOL_TEXT_MARKERS):
                 muted = True
-                buf = re.split(r"<tool_call|<function=|\{\s*\"name\"", buf + piece)[0]
-                if buf.strip():
-                    on_sentence(buf.strip())
-                    spoken_all.append(buf.strip())
+                emit(take_moods(re.split(r"<tool_call|<function=|\{\s*\"name\"", buf + piece)[0]))
                 buf = ""
                 continue
-            buf += piece
+            buf = take_moods(buf + piece)
+            # незакрытая метка «[wa…» — ждём продолжения, не озвучиваем кусок
+            hold = ""
+            m = re.search(r"\[[a-zA-Z]{0,4}$", buf)
+            if m:
+                buf, hold = buf[:m.start()], buf[m.start():]
             sentences, buf = pop_sentences(buf)
             for s in sentences:
-                on_sentence(s)
-                spoken_all.append(s)
-        if buf.strip() and not muted and not (cancel is not None and cancel.is_set()):
-            on_sentence(buf.strip())
-            spoken_all.append(buf.strip())
+                emit(s)
+            buf += hold
+        if not muted and not (cancel is not None and cancel.is_set()):
+            emit(take_moods(buf))
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.S).strip()
         return content, tool_calls
