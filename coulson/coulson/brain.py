@@ -35,10 +35,15 @@ SYSTEM_PROMPT = """Ты — {name}, личный голосовой ИИ-асс�
 - Если команда неясна — задай один короткий уточняющий вопрос.
 - Факты, новости, цены, погода — только через web_search / read_webpage / weather, не выдумывай.
 - Что на экране — look (screen); «посмотри на меня» — look (camera).
+- Мышь: click — нажать элемент по описанию («кнопка Войти»); mouse — прокрутка, перетаскивание. Для полей ввода: click по полю, затем type_text.
 - Узнал о пользователе что-то долговременное — memory remember; спрашивает о прошлом — memory recall.
 - Файлы: таблицы — create_table (можно с диаграммой); страницы, документы, код — write_file с полным содержимым (HTML сразу красивый, стили внутри). Данные сначала собери инструментами. Потом скажи, где файл.
 - Опасные действия система подтверждает у пользователя сама: просто вызывай инструмент.
 - Речь распознаётся автоматически и может содержать ошибки — угадывай смысл по контексту."""
+
+LOCATE_PROMPT = ("Найди на этом снимке экрана элемент интерфейса: «{target}». Ответь ТОЛЬКО JSON "
+                 '{{"bbox_2d": [x1, y1, x2, y2], "label": "что это"}} в относительных координатах 0–1000. '
+                 'Если такого элемента нет — {{"bbox_2d": null}}. Инструменты не вызывай.')
 
 VISION_PROMPT = ("Ты смотришь на изображение по просьбе голосового ассистента. Ответь кратко и по делу, на русском. "
                  "Если на изображении есть важный текст — процитируй его. Вопрос: {question}")
@@ -97,6 +102,7 @@ class Brain:
         self.last_active = 0.0
         self._lock = threading.Lock()
         self._images: list[str] = []
+        self._live: list[dict] | None = None  # сообщения текущего ответа (для locate с тем же началом)
 
     # ------------------------------------------------------------ служебное
     def _kwargs(self) -> dict:
@@ -139,6 +145,29 @@ class Brain:
     def attach_image(self, path: str) -> None:
         self._images.append(path)
 
+    def locate(self, target: str, image_path: str, size: tuple[int, int] | None = None) -> tuple[float, float] | None:
+        """Найти элемент на снимке экрана (grounding Qwen3-VL) → точка в 0–1000.
+
+        Запрос повторяет начало текущего диалога (системный промпт, инструменты, историю), поэтому Ollama
+        берёт его из кэша и не «забывает» основной разговор — дописывается только снимок с вопросом.
+        """
+        from .tools.mouse import parse_point
+
+        separate = bool(self.llm.vision_model and self.llm.vision_model != self.llm.model)
+        ask = {"role": "user", "content": LOCATE_PROMPT.format(target=target), "images": [image_path]}
+        kw = self._kwargs()
+        kw["options"]["temperature"] = 0.0
+        if separate:
+            r = self.client.chat(model=self.llm.vision_model, messages=[ask], **kw)
+        else:
+            base = list(self._live) if self._live else self._prefix()
+            r = self.client.chat(model=self.llm.model, messages=base + [ask], tools=self.tools.schemas(), **kw)
+            if not (r.message.content or "").strip():  # модель попыталась вызвать инструмент — спросим без них
+                r = self.client.chat(model=self.llm.model, messages=[ask], **kw)
+        text = r.message.content or ""
+        log.info("locate «%s» → %s", target, text.strip()[:200])
+        return parse_point(text, size)
+
     def vision(self, question: str, image_path: str) -> str:
         """Отдельный запрос с картинкой — только если зрение вынесено в другую модель."""
         model = self.llm.vision_model or self.llm.model
@@ -168,9 +197,11 @@ class Brain:
             self.memory.log("user", user_text)
             separate_vision = bool(self.llm.vision_model and self.llm.vision_model != self.llm.model)
             ctx.attach_image = None if separate_vision else self.attach_image
+            ctx.locate = self.locate
             if separate_vision:
                 ctx.vision = self.vision
             messages = self._prefix() + self.history + [{"role": "user", "content": f"{now_context()} {user_text}"}]
+            self._live = messages
             schemas = self.tools.schemas()
             spoken_all: list[str] = []
             moods: list[float] = []
@@ -223,6 +254,7 @@ class Brain:
                     final = final or "[warn] Слишком много шагов, я остановился."
                     on_sentence(_MOOD_RE.sub("", final))
             finally:
+                self._live = None
                 for p in used_images + self._images:  # и те снимки, что не успели попасть в диалог
                     Path(p).unlink(missing_ok=True)
                 self._images.clear()

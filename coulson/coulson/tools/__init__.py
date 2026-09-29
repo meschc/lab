@@ -39,13 +39,15 @@ class Tool:
 class Context:
     """То, что доступно инструментам: настройки, память, голос, зрение, подтверждение."""
 
-    def __init__(self, cfg, memory=None, speak=None, confirm=None, vision=None, notify=None, attach_image=None):
+    def __init__(self, cfg, memory=None, speak=None, confirm=None, vision=None, notify=None, attach_image=None,
+                 locate=None):
         self.cfg = cfg
         self.memory = memory
         self.speak = speak or (lambda text: None)
         self.confirm = confirm or (lambda desc: False)
         self.vision = vision              # callable(question, image_path) -> str (отдельный запрос)
         self.attach_image = attach_image  # callable(path): приложить картинку к текущему диалогу
+        self.locate = locate              # callable(target, image_path, size) -> (x, y) в 0–1000 или None
         self.notify = notify or (lambda text: None)
         self.game_launched = False        # open_app запустил игру → после ответа выгрузить модель
 
@@ -129,5 +131,5 @@ def osascript(script: str, timeout: float = 20) -> str:
 
 
 def load_all() -> Registry:
-    from . import apps, files, memory_tools, system, vision, web  # noqa: F401  регистрация через декораторы
+    from . import apps, files, memory_tools, mouse, system, vision, web  # noqa: F401  регистрация через декораторы
     return registry

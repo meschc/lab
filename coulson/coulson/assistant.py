@@ -50,7 +50,7 @@ TOOL_LABELS = {
     "system_action": "выполняю", "set_timer": "ставлю таймер", "clipboard": "буфер обмена", "type_text": "печатаю",
     "press_keys": "нажимаю клавиши", "find_files": "ищу файлы", "open_path": "открываю", "memory": "память",
     "vpn": "VPN", "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл",
-    "list_dir": "смотрю папку", "disk_usage": "считаю место на диске",
+    "list_dir": "смотрю папку", "disk_usage": "считаю место на диске", "click": "кликаю", "mouse": "мышь",
 }
 
 _FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
@@ -90,7 +90,7 @@ class Assistant:
         self.brain = Brain(cfg, self.tools, self.memory)
         self.ctx = Context(cfg, memory=self.memory, speak=self.say, confirm=self.confirm,
                            vision=self.brain.vision, notify=self.ui.show_assistant,
-                           attach_image=self.brain.attach_image)
+                           attach_image=self.brain.attach_image, locate=self.brain.locate)
         self._mood_timer: threading.Timer | None = None
         self.listener = None
         self.stt = None

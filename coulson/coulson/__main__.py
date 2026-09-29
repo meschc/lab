@@ -166,9 +166,10 @@ def main() -> None:
         reg = load_all()
         ctx = Context(cfg, memory=Memory(config.DATA_DIR / "memory.db"),
                       confirm=lambda d: input(f"Подтвердить «{d}»? [y/N] ").lower().startswith(("y", "д")))
-        if args.tool[0] == "look":
+        if args.tool[0] in ("look", "click"):
             from .brain import Brain
-            ctx.vision = Brain(cfg, reg, ctx.memory).vision
+            brain = Brain(cfg, reg, ctx.memory)
+            ctx.vision, ctx.locate = brain.vision, brain.locate
         print(reg.execute(args.tool[0], json.loads(args.tool[1]) if len(args.tool) > 1 else {}, ctx))
         return
     if args.text:
