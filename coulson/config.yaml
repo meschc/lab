@@ -1,0 +1,80 @@
+# Настройки Колсона. Свои изменения лучше класть в config.local.yaml
+# (он перекрывает этот файл и не попадает в git).
+
+assistant:
+  name: Колсон
+  user_title: сэр
+  # Варианты, в которые Whisper превращает «Колсон». Сравнение нечёткое.
+  wake_words: [колсон, коулсон, колсан, колсен, колсона, колсону, колсоне, кулсон, coulson, colson, kolson, coulsen]
+  wake_threshold: 85          # 0..100, чем выше — тем меньше ложных срабатываний
+  listen_after_wake_seconds: 8  # сказал «Колсон» и замолчал — столько ждём команду
+  followup_seconds: 8         # после ответа можно продолжать без «Колсон»
+  confirm_timeout_seconds: 15
+  ack: chime                  # chime | voice — реакция на одиночное «Колсон»
+  session_idle_minutes: 30    # после простоя контекст диалога сбрасывается (память остаётся)
+
+audio:
+  sample_rate: 16000
+  device: null                # null = системный микрофон; иначе имя или номер (см. --check)
+  vad_threshold: 0.5
+  min_silence_ms: 700         # пауза, после которой фраза считается законченной
+  speech_pad_ms: 300
+  min_speech_ms: 350
+  max_segment_s: 25
+  barge_in: true              # «Колсон, стоп» перебивает ответ (лучше работает в наушниках)
+
+stt:
+  model: mlx-community/whisper-large-v3-turbo
+  languages: [ru, en]
+  initial_prompt: "Колсон, открой Стим. Колсон, включи ВПН. Coulson, open Safari."
+
+llm:
+  host: http://127.0.0.1:11434
+  model: qwen3.5:9b           # запасной вариант полегче: qwen3.5:4b
+  vision_model: null          # null = та же модель (она мультимодальная)
+  think: false                # thinking у Qwen3.5 ломает tool calling в Ollama — не включать
+  num_ctx: 16384
+  temperature: 0.6
+  keep_alive: 15m             # потом модель выгружается и освобождает ~7 ГБ (важно для игр)
+  max_tool_rounds: 8
+  history_turns: 10
+
+tts:
+  engine: silero              # silero | say | qwen3
+  silero_model: v5_ru
+  silero_speaker: aidar       # мужские: aidar, eugene
+  sample_rate: 48000
+  say_en_voice: Daniel        # британский голос macOS
+  say_ru_voice: auto          # auto = лучший установленный русский голос macOS (запасной)
+  say_rate: 190
+  # --- экспериментально: Qwen3-TTS (uv sync --extra qwen3tts) ---
+  qwen3_model: mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16
+  qwen3_ref_audio: null       # WAV-образец голоса для клонирования (scripts/make_voice_ref.sh)
+  qwen3_ref_text: null
+
+browser:
+  app: Yandex                 # имя приложения браузера (/Applications/Yandex.app)
+
+apps:
+  aliases:                    # как ты называешь приложение -> как оно называется на диске
+    телега: Telegram
+    браузер: Yandex
+    яндекс: Yandex
+    музыка: Music
+    терминал: Terminal
+    настройки: System Settings
+
+vpn:
+  method: none                # none | scutil | shortcut | app
+  name: ""                    # имя VPN-подключения / команды Shortcuts / приложения
+
+safety:
+  confirm_risky: true         # опасные действия только после голосового «да»
+
+vision:
+  max_width: 1440
+
+ui:
+  enabled: true
+  position: top-right         # top-right | bottom-right
+  collapse_after_seconds: 6

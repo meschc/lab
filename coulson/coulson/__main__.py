@@ -1,0 +1,164 @@
+"""Точка входа.
+
+  python -m coulson               голос + окно (обычный режим)
+  python -m coulson --no-ui       голос без окна
+  python -m coulson --text        текстовый чат в терминале (без микрофона) — удобно для отладки
+  python -m coulson --say "…"     проверить голос
+  python -m coulson --tool open_app '{"name": "Steam"}'   вызвать инструмент напрямую
+  python -m coulson --check       диагностика
+  python -m coulson --prefetch    заранее скачать модели распознавания и голоса
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sys
+import threading
+
+from . import config
+
+
+def setup_logging(verbose: bool) -> None:
+    config.LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    handlers = [logging.StreamHandler(sys.stderr), logging.FileHandler(config.LOG_FILE, encoding="utf-8")]
+    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO, handlers=handlers,
+                        format="%(asctime)s %(levelname).1s %(name)s: %(message)s", datefmt="%H:%M:%S")
+    for noisy in ("httpx", "httpcore", "urllib3", "primp", "ddgs", "trafilatura", "PIL"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+def cmd_check(cfg) -> int:
+    ok = True
+
+    def row(name, good, info=""):
+        nonlocal ok
+        ok &= bool(good)
+        print(f"{'✅' if good else '❌'} {name}{(' — ' + info) if info else ''}")
+
+    import platform
+    row("Apple Silicon", platform.machine() == "arm64", platform.machine())
+    try:
+        import ollama
+        models = [m.model for m in ollama.Client(host=cfg.llm.host).list().models]
+        row("Ollama запущен", True, cfg.llm.host)
+        row(f"Модель {cfg.llm.model}", any(m.startswith(cfg.llm.model) for m in models),
+            f"есть: {', '.join(models) or 'нет'}")
+    except Exception as e:
+        row("Ollama запущен", False, f"{e} (brew services start ollama)")
+    try:
+        import sounddevice as sd
+        dev = sd.query_devices(kind="input")
+        row("Микрофон", True, dev["name"])
+        print("   входные устройства:", "; ".join(f"{i}: {d['name']}" for i, d in enumerate(sd.query_devices())
+                                                 if d["max_input_channels"] > 0))
+    except Exception as e:
+        row("Микрофон", False, str(e))
+    for mod in ("mlx_whisper", "silero_vad", "torch", "webview", "ddgs", "trafilatura", "cv2", "Quartz"):
+        try:
+            __import__(mod)
+            row(f"python: {mod}", True)
+        except Exception as e:
+            row(f"python: {mod}", False, str(e))
+    import subprocess
+    voices = subprocess.run(["say", "-v", "?"], capture_output=True, text=True).stdout
+    row(f"Голос macOS {cfg.tts.say_en_voice}", cfg.tts.say_en_voice in voices)
+    from .tts import best_russian_say_voice
+    row("Русский голос macOS (запасной)", True, best_russian_say_voice())
+    print(f"\nДанные: {config.DATA_DIR}\nЛог: {config.LOG_FILE}")
+    return 0 if ok else 1
+
+
+def cmd_prefetch(cfg) -> None:
+    import numpy as np
+    print("Whisper…")
+    from .stt import STT
+    STT(cfg).transcribe(np.zeros(16000, dtype=np.float32))
+    print("Silero VAD…")
+    from silero_vad import load_silero_vad
+    load_silero_vad()
+    print("Голос…")
+    from .tts import Speaker
+    Speaker(cfg).warmup()
+    print("Готово.")
+
+
+def cmd_text(cfg, mute: bool) -> None:
+    from .assistant import Assistant
+
+    a = Assistant(cfg)
+    if mute:
+        a.speaker.say = lambda text: None
+    a.warmup(with_audio=False)
+    print(f"\n{cfg.assistant.name} слушает (текстовый режим). Пустая строка или Ctrl+D — выход.\n")
+    while True:
+        try:
+            line = input("вы › ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not line:
+            break
+        reply = a.handle(line)
+        print(f"{cfg.assistant.name} › {reply}\n")
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="coulson", description="Колсон — локальный голосовой ассистент")
+    p.add_argument("--config", help="путь к дополнительному yaml")
+    p.add_argument("--no-ui", action="store_true")
+    p.add_argument("--text", action="store_true")
+    p.add_argument("--mute", action="store_true", help="в --text режиме не озвучивать")
+    p.add_argument("--say")
+    p.add_argument("--tool", nargs="+", metavar=("NAME", "JSON"))
+    p.add_argument("--check", action="store_true")
+    p.add_argument("--prefetch", action="store_true")
+    p.add_argument("-v", "--verbose", action="store_true")
+    args = p.parse_args()
+
+    cfg = config.load(args.config)
+    setup_logging(args.verbose)
+
+    if args.check:
+        sys.exit(cmd_check(cfg))
+    if args.prefetch:
+        return cmd_prefetch(cfg)
+    if args.say:
+        from .tts import Speaker
+        s = Speaker(cfg)
+        s.warmup()
+        s.say(args.say)
+        s.wait_idle()
+        return
+    if args.tool:
+        from .memory import Memory
+        from .tools import Context, load_all
+        reg = load_all()
+        ctx = Context(cfg, memory=Memory(config.DATA_DIR / "memory.db"),
+                      confirm=lambda d: input(f"Подтвердить «{d}»? [y/N] ").lower().startswith(("y", "д")))
+        if args.tool[0] in ("look_at_screen", "look_at_camera"):
+            from .brain import Brain
+            ctx.vision = Brain(cfg, reg, ctx.memory).vision
+        print(reg.execute(args.tool[0], json.loads(args.tool[1]) if len(args.tool) > 1 else {}, ctx))
+        return
+    if args.text:
+        return cmd_text(cfg, args.mute)
+
+    from .assistant import Assistant
+
+    if args.no_ui or not cfg.ui.enabled:
+        a = Assistant(cfg)
+        a.start()
+        threading.Event().wait()
+        return
+
+    from .ui.window import WindowUI
+
+    ui = WindowUI(cfg)
+    a = Assistant(cfg, ui=ui)
+    ui.assistant = a
+    ui.create()
+    ui.run(on_start=a.start)
+
+
+if __name__ == "__main__":
+    main()
