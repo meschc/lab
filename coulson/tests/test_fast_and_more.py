@@ -187,9 +187,23 @@ def test_exact_variant_from_calibration_always_wakes():
     assert find_wake("Колтон, открой стим", words) == (True, "открой стим")
 
 
-def test_eighteen_tools_exposed_internal_still_work(tmp_path):
+def test_grouped_tools_exposed_internal_still_work(tmp_path):
     reg = load_all()
-    assert len(reg.exposed()) == 18 and "open_app" not in reg.exposed()
+    assert len(reg.exposed()) == 20 and "open_app" not in reg.exposed()
     ctx = Context(load(), memory=Memory(tmp_path / "m.db"))
     assert "нужно name" in reg.execute("app", {"action": "open"}, ctx)
     assert "Запомнил" in reg.execute("memory", {"action": "remember", "text": "тест"}, ctx)
+
+
+@pytest.mark.parametrize("cmd,tool,args", [
+    ("включи впн", "vpn", {"action": "on"}),
+    ("Включи VPN.", "vpn", {"action": "on"}),
+    ("выключи впн", "vpn", {"action": "off"}),
+    ("проверь впн", "vpn", {"action": "status"}),
+    ("через какую страну я сейчас", "vpn", {"action": "status"}),
+    ("открой клод код", "claude", {"action": "open"}),
+    ("запусти claude code", "claude", {"action": "open"}),
+])
+def test_fast_vpn_and_claude(ctx, cmd, tool, args):
+    rec = Rec()
+    assert try_fast(cmd, rec, ctx) is not None and rec.calls == [(tool, args)]

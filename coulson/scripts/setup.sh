@@ -57,6 +57,13 @@ say_step "Модели: $MODEL (~6 ГБ) и поиск по смыслу (~0.6 �
 ollama pull "$MODEL"
 ollama pull "${COULSON_EMBED_MODEL:-qwen3-embedding:0.6b}"
 
+say_step "Claude Code (для сложных задач и самопочинки)"
+if ! command -v claude >/dev/null && [[ ! -x "$HOME/.local/bin/claude" ]]; then
+  brew install --cask claude-code || curl -fsSL https://claude.ai/install.sh | bash || true
+fi
+command -v claude >/dev/null && claude --version || echo "Claude Code не установился — поставь вручную: https://code.claude.com"
+echo "Войди в Claude Code один раз (нужен VPN не в России): запусти  claude  и выполни вход."
+
 say_step "Python-окружение"
 uv sync
 if [[ "${COULSON_QWEN3TTS:-0}" == "1" ]]; then

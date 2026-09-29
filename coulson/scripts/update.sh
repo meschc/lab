@@ -4,7 +4,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
-git pull --ff-only
+# --rebase: локальные коммиты самопочинки Колсона ложатся поверх свежей версии
+if ! git pull --rebase --autostash; then
+  git rebase --abort 2>/dev/null || true
+  echo "Не удалось совместить свежую версию с локальными правками — разберись вручную (git status)"; exit 1
+fi
 uv sync
 uv run python -c 'from coulson import config; c = config.load(); print(c.llm.model); print((c.get("memory") or {}).get("embed_model") or "")' |
   while read -r m; do [[ -n "$m" ]] && ollama pull "$m"; done

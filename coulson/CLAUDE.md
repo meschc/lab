@@ -47,6 +47,17 @@
   (`OLLAMA_MAX_LOADED_MODELS=2`), иначе мозг и эмбеддинги вытесняют друг друга.
 - План (`tools/plan.py`): для задач из 3+ действий модель делает `plan set`, после каждого шага `plan done`;
   если остановилась с невыполненными шагами — `Brain.respond` один раз напоминает. `llm.max_tool_rounds: 20`.
+- VPN (`tools/vpn.py`): страна выхода по внешнему IP (ipinfo/ipapi/ifconfig/ip-api), `ensure_vpn` включает
+  системное VPN-подключение (`scutil --nc start`) и ждёт, пока страна перестанет быть из `vpn.forbidden_countries`.
+  Настройка: «Колсон, покажи VPN-подключения» (`vpn list`) → имя в `vpn.name` (`config.local.yaml`).
+  Если VPN-приложение не добавляет себя в системные VPN — `vpn.method: shortcut` (команды «Имя On/Off»).
+- Claude (`tools/claude.py`): `claude -p … --output-format json --permission-mode acceptEdits --allowedTools …`
+  в фоне, итог озвучивается и сохраняется в заметки (тег claude), продолжение через `--resume`. Перед вызовом —
+  `ensure_vpn`. Пользователь должен один раз войти в Claude Code (`claude` в Терминале, с VPN).
+- Самоанализ (`tools/selfcare.py`): журнал `incidents` (tool/crash/correction/stuck/code), `self analyze`
+  (и автоматически в простое при ≥3 записях, если модель загружена) → правила `lessons` в промпте.
+  `self fix` (только с подтверждением): Claude правит код в `coulson/`, затем `uv run --group dev pytest -q`;
+  прошли — локальный коммит «self-fix: …» и перезапуск (код 75), нет — `git stash`.
 - Мышь (`tools/mouse.py`): `click` — снимок главного экрана → `Brain.locate` (grounding Qwen3-VL, координаты
   0–1000, запрос с тем же началом диалога — кэш не сбрасывается) → клик Quartz; `mouse` — прокрутка,
   перетаскивание, клик в точку. Нужен «Универсальный доступ». Только главный экран. Клики по «Удалить/

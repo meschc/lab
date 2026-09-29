@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 import re
-import shlex
 import threading
 import time
 from pathlib import Path
@@ -242,25 +241,3 @@ def run_shortcut(ctx, name: str, input: str = "") -> str:
         finally:
             os.unlink(f.name)
     return run(["shortcuts", "run", name], timeout=60)
-
-
-# ---------------------------------------------------------------- VPN
-
-@registry.add("vpn", "VPN on/off/status.", {"action": ("string", "")}, ["action"], enums={"action": ["on", "off", "status"]})
-def vpn(ctx, action: str) -> str:
-    method, name = ctx.cfg.vpn.method, ctx.cfg.vpn.name
-    if method == "none" or not name:
-        return "VPN ещё не настроен (секция vpn в config.local.yaml)."
-    if method == "scutil":
-        cmd = {"on": "start", "off": "stop", "status": "status"}[action]
-        return run(["scutil", "--nc", cmd, name])
-    if method == "shortcut":
-        return run(["shortcuts", "run", f"{name} {'On' if action == 'on' else 'Off'}"]) if action != "status" else \
-            run("scutil --nc list | grep -i connected || echo 'нет активных'", shell=True)
-    if method == "app":
-        if action == "on":
-            return run(["open", "-a", name])
-        if action == "off":
-            return quit_if_running(name)
-        return run(f"pgrep -fl {shlex.quote(name)} || echo 'не запущено'", shell=True)
-    return f"Неизвестный метод VPN: {method}"

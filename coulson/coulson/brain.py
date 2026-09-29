@@ -40,6 +40,8 @@ SYSTEM_PROMPT = """Ты — {name}, личный голосовой ИИ-асс�
 - Узнал о пользователе что-то долговременное — memory remember. Вопросы о прошлом («что я говорил/думал про…») — memory recall: он ищет по смыслу в заметках, фактах и всех разговорах.
 - Просят записать мысль, идею, информацию — notes add; дело на потом — notes add с kind task. «Что у меня в заметках/задачах» — notes list или search.
 - Файлы: таблицы — create_table (можно с диаграммой); страницы, документы, код — write_file с полным содержимым (HTML сразу красивый, стили внутри). Данные сначала собери инструментами. Потом скажи, где файл.
+- Сложное — программирование, исправление кода, глубокий анализ, длинные тексты, исследования — передавай Клоду: claude ask с подробным описанием задачи (он намного умнее тебя; VPN система включит сама). Открыть Claude Code пользователю — claude open.
+- Ошибся или пользователь недоволен — коротко признай и попробуй иначе. «Разбери свои ошибки» — self analyze, «почини себя» — self fix.
 - Опасные действия система подтверждает у пользователя сама: просто вызывай инструмент.
 - Речь распознаётся автоматически и может содержать ошибки — угадывай смысл по контексту."""
 
@@ -49,6 +51,9 @@ LOCATE_PROMPT = ("Найди на этом снимке экрана элеме�
 
 VISION_PROMPT = ("Ты смотришь на изображение по просьбе голосового ассистента. Ответь кратко и по делу, на русском. "
                  "Если на изображении есть важный текст — процитируй его. Вопрос: {question}")
+
+_CORRECTION_RE = re.compile(r"(не то\b|не так\b|ты ошиб|неправильно|неверно|я не это (просил|имел)|опять не|"
+                            r"не работает|не получилось|ерунд|чушь|that'?s wrong|not what i)")
 
 _TOOL_TEXT_MARKERS = ("<tool_call", "<function=", '{"name"')
 _MOOD_RE = re.compile(r"\[(ok|warn|bad)\]\s*", re.I)
@@ -120,6 +125,12 @@ class Brain:
         a = self.cfg.assistant
         msgs = [{"role": "system", "content": SYSTEM_PROMPT.format(name=a.name)}]
         facts = self.memory.facts_dated(int((self.cfg.get("memory") or {}).get("max_facts", 40)))
+        lessons = self.memory.lessons()
+        if lessons:
+            # правила, которые Колсон вывел из своих ошибок (self analyze) — меняются редко, кэш почти не страдает
+            msgs += [{"role": "user", "content": "Твои правила, выведенные из прошлых ошибок:\n" +
+                      "\n".join(f"- {t}" for _, t in lessons)},
+                     {"role": "assistant", "content": "[ok] Буду следовать."}]
         if facts:
             # Парой реплик ПОСЛЕ системного промпта с инструментами (в любом шаблоне модели они идут дальше):
             # новый факт не сбрасывает кэш тяжёлой части промпта
@@ -172,6 +183,17 @@ class Brain:
         text = r.message.content or ""
         log.info("locate «%s» → %s", target, text.strip()[:200])
         return parse_point(text, size)
+
+    def side_query(self, prompt: str, max_tokens: int = 500) -> str:
+        """Вопрос своей модели «в сторону» (самоанализ): с тем же началом, что и диалог, — кэш не сбрасывается."""
+        base = list(self._live) if self._live else self._prefix() + self.history
+        kw = self._kwargs()
+        kw["options"].update({"temperature": 0.2, "num_predict": max_tokens})
+        r = self.client.chat(model=self.llm.model, messages=base + [{"role": "user", "content": prompt}],
+                             tools=self.tools.schemas(), **kw)
+        if not (r.message.content or "").strip():
+            r = self.client.chat(model=self.llm.model, messages=[{"role": "user", "content": prompt}], **kw)
+        return (r.message.content or "").strip()
 
     def vision(self, question: str, image_path: str) -> str:
         """Отдельный запрос с картинкой — только если зрение вынесено в другую модель."""
@@ -238,6 +260,10 @@ class Brain:
             self.reset_if_idle()
             self._trim_history()
             recall = self._recall_block(user_text)
+            if _CORRECTION_RE.search(user_text.lower()) and len(self.history) >= 2:
+                self.memory.add_incident("correction", f"Пользователь поправил: «{user_text}». До этого просил: "
+                                         f"«{self.history[-2]['content'][:200]}», ответ был: "
+                                         f"«{self.history[-1]['content'][:300]}»")
             self.last_active = time.time()
             self.memory.log("user", user_text)
             ctx.plan = []
@@ -297,6 +323,10 @@ class Brain:
                         log.info("← %s", result[:300].replace("\n", " "))
                         if re.match(r"(Ошибка|\[код [1-9]|Не удалось|Не нашёл|Пользователь НЕ подтвердил)", result):
                             trouble[0] = max(trouble[0], MOOD_LEVEL["warn"])
+                            if not result.startswith("Пользователь НЕ"):
+                                self.memory.add_incident("tool", f"«{user_text[:150]}» → {call['name']}("
+                                                         f"{json.dumps(call['arguments'], ensure_ascii=False)[:200]})"
+                                                         f" → {result[:300]}")
                             if on_mood:
                                 on_mood(trouble[0])
                         messages.append({"role": "tool", "tool_name": call["name"], "content": result})
@@ -308,6 +338,8 @@ class Brain:
                         used_images += self._images
                         self._images.clear()
                 else:
+                    self.memory.add_incident("stuck", f"«{user_text[:200]}»: исчерпан лимит шагов "
+                                             f"({self.llm.max_tool_rounds}), план: {ctx.plan}")
                     final = final or "[warn] Слишком много шагов, я остановился."
                     on_sentence(_MOOD_RE.sub("", final))
             finally:

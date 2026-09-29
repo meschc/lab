@@ -54,6 +54,7 @@ TOOL_LABELS = {
     "list_dir": "смотрю папку", "disk_usage": "считаю место на диске", "click": "кликаю", "mouse": "мышь",
     "notes": "заметки", "plan": "планирую", "app": "приложения", "browser": "браузер", "web": "ищу в интернете",
     "keyboard": "клавиатура", "system": "система", "automation": "автоматизация", "files": "файлы",
+    "claude": "работаю с Клодом", "self": "разбираю свои ошибки", "vpn": "VPN",
 }
 
 _FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
@@ -95,7 +96,8 @@ class Assistant:
         self.ctx = Context(cfg, memory=self.memory, speak=self.say, confirm=self.confirm,
                            vision=self.brain.vision, notify=self.ui.show_assistant,
                            attach_image=self.brain.attach_image, locate=self.brain.locate,
-                           progress=lambda text: self.ui.set_state("thinking", text))
+                           progress=lambda text: self.ui.set_state("thinking", text),
+                           ask_self=self.brain.side_query, restart=self.restart)
         self._mood_timer: threading.Timer | None = None
         self.listener = None
         self.stt = None
@@ -139,6 +141,7 @@ class Assistant:
         self.listener.start()
         threading.Thread(target=self._listen_loop, daemon=True, name="listen").start()
         threading.Thread(target=self._agent_loop, daemon=True, name="agent").start()
+        threading.Thread(target=self._self_review_loop, daemon=True, name="self-review").start()
         name = self.cfg.assistant.name
         log.info("%s готов и слушает", name)
         self.say(f"{name} на связи.")
@@ -157,6 +160,37 @@ class Assistant:
         if time.monotonic() < self.awaiting_until:
             return "listening"
         return "thinking" if self.busy else "idle"
+
+    def restart(self) -> None:
+        """Перезапуск с новым кодом: ненулевой код — лаунчер Coulson.app поднимет Колсона заново."""
+        log.info("Перезапуск (после самопочинки)")
+        self.speaker.wait_idle(timeout=15)
+        os._exit(75)
+
+    def _self_review_loop(self) -> None:
+        """В простое разбирает журнал ошибок — пока модель ещё в памяти (не будим её ради этого)."""
+        c = self.cfg.get("self_review") or {}
+        if not c.get("auto", True):
+            return
+        from .tools.selfcare import analyze
+        while True:
+            time.sleep(60)
+            try:
+                idle = time.time() - self.brain.last_active
+                if (self.busy or not self.brain.last_active or idle < float(c.get("idle_minutes", 5)) * 60
+                        or len(self.memory.incidents()) < int(c.get("min_incidents", 3))):
+                    continue
+                loaded = [m.model for m in self.brain.client.ps().models]
+                if not any(m.startswith(self.cfg.llm.model) for m in loaded):
+                    continue
+                if not self.brain._lock.acquire(blocking=False):
+                    continue
+                try:
+                    log.info("🧠 самоанализ в простое: %s", analyze(self.memory, self.brain.side_query))
+                finally:
+                    self.brain._lock.release()
+            except Exception:
+                log.exception("самоанализ в простое не удался")
 
     def quit(self) -> None:
         """Корректно завершить работу (лаунчер Coulson.app не перезапускает при коде 0)."""
@@ -326,6 +360,7 @@ class Assistant:
                                            on_tool=lambda name: self.ui.set_state("thinking", TOOL_LABELS.get(name, name)))
             except Exception as e:
                 log.exception("LLM error")
+                self.memory.add_incident("crash", f"«{command[:200]}»: {type(e).__name__}: {e}")
                 reply = ""
                 mood_level[0] = 1.0
                 self.set_mood(1.0)

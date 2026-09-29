@@ -108,6 +108,16 @@ def try_fast(command: str, tools, ctx) -> Fast | None:
         if re.fullmatch(pattern, t):
             return _run(tools, ctx, tool, args, reply)
 
+    vpn = r"(впн|vpn|ви пи эн|вэпээн)"
+    if re.fullmatch(rf"(включи|подключи|запусти|врубай|вруби) {vpn}", t):
+        return _run(tools, ctx, "vpn", {"action": "on"}, None)
+    if re.fullmatch(rf"(выключи|отключи|вырубай|выруби) {vpn}", t):
+        return _run(tools, ctx, "vpn", {"action": "off"}, "VPN выключен.")
+    if re.fullmatch(rf"((проверь|какой|где|статус) {vpn}|{vpn} работает|{vpn} включен|через какую страну .*)", t):
+        return _run(tools, ctx, "vpn", {"action": "status"}, None)
+    if re.fullmatch(r"(открой|запусти) (клод|клоуд|claude)( код| code| кот)?", t):
+        return _run(tools, ctx, "claude", {"action": "open"}, None)
+
     m = re.fullmatch(r"(открой|запусти|включи|open|launch) (.+)", t)
     if m and not _BLOCK_OPEN.search(" " + m.group(2) + " "):
         return _open_app(tools, ctx, m.group(2))

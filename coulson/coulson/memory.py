@@ -87,6 +87,9 @@ class Memory:
             """
             CREATE TABLE IF NOT EXISTS facts (id INTEGER PRIMARY KEY, text TEXT NOT NULL, created REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, ts REAL NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS incidents (id INTEGER PRIMARY KEY, ts REAL NOT NULL, kind TEXT NOT NULL,
+                text TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS lessons (id INTEGER PRIMARY KEY, created REAL NOT NULL, text TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS notes (
                 id INTEGER PRIMARY KEY, created REAL NOT NULL, updated REAL NOT NULL,
                 kind TEXT NOT NULL DEFAULT 'note', title TEXT NOT NULL DEFAULT '', text TEXT NOT NULL,
@@ -298,6 +301,63 @@ class Memory:
         with self._lock:
             rows = self.db.execute(sql, args).fetchall()
         return [Hit(r[1], r[0], r[3], r[6], title=r[2], tags=r[4], done=bool(r[5])) for r in rows]
+
+    # ------------------------------------------------------------ самоанализ: журнал ошибок и правила
+    def add_incident(self, kind: str, text: str) -> None:
+        """kind: tool (инструмент не сработал), crash, correction (пользователь поправил), stuck, code (баг в коде)."""
+        with self._lock:
+            last = self.db.execute("SELECT text FROM incidents ORDER BY id DESC LIMIT 1").fetchone()
+            if last and last[0] == text:
+                return  # одна и та же ошибка подряд — не засоряем журнал
+            self.db.execute("INSERT INTO incidents(ts, kind, text) VALUES (?, ?, ?)", (time.time(), kind, text[:1500]))
+            self.db.commit()
+
+    def incidents(self, unresolved: bool = True, limit: int = 40, kinds: tuple[str, ...] | None = None) -> list[tuple]:
+        sql = "SELECT id, ts, kind, text FROM incidents WHERE 1=1"
+        args: list = []
+        if unresolved:
+            sql += " AND resolved=0"
+        if kinds:
+            sql += f" AND kind IN ({','.join('?' * len(kinds))})"
+            args += list(kinds)
+        sql += " ORDER BY id DESC LIMIT ?"
+        with self._lock:
+            return self.db.execute(sql, args + [limit]).fetchall()
+
+    def resolve_incidents(self, ids: list[int]) -> None:
+        if ids:
+            with self._lock:
+                self.db.execute(f"UPDATE incidents SET resolved=1 WHERE id IN ({','.join('?' * len(ids))})", ids)
+                self.db.commit()
+
+    def add_lesson(self, text: str) -> bool:
+        text = text.strip(" -•\t")
+        if len(text) < 8:
+            return False
+        for lid, existing in self.lessons():
+            if fuzz.token_set_ratio(existing.lower(), text.lower()) >= 85:
+                with self._lock:
+                    self.db.execute("UPDATE lessons SET text=?, created=? WHERE id=?", (text, time.time(), lid))
+                    self.db.commit()
+                return True
+        with self._lock:
+            self.db.execute("INSERT INTO lessons(created, text) VALUES (?, ?)", (time.time(), text))
+            self.db.execute("DELETE FROM lessons WHERE id NOT IN (SELECT id FROM lessons ORDER BY created DESC LIMIT 25)")
+            self.db.commit()
+        return True
+
+    def lessons(self, limit: int = 25) -> list[tuple[int, str]]:
+        with self._lock:
+            return self.db.execute("SELECT id, text FROM lessons ORDER BY created LIMIT ?", (limit,)).fetchall()
+
+    def delete_lesson(self, query: str) -> str:
+        scored = sorted(((fuzz.partial_ratio(query.lower(), t.lower()), i, t) for i, t in self.lessons()), reverse=True)
+        if not scored or scored[0][0] < 70:
+            return "Такого правила нет."
+        with self._lock:
+            self.db.execute("DELETE FROM lessons WHERE id=?", (scored[0][1],))
+            self.db.commit()
+        return f"Удалил правило: {scored[0][2]}"
 
     # ------------------------------------------------------------ поиск
     def _load(self, table: str, ids: list[int]) -> dict[int, Hit]:

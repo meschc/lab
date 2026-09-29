@@ -41,7 +41,7 @@ class Context:
     """То, что доступно инструментам: настройки, память, голос, зрение, подтверждение."""
 
     def __init__(self, cfg, memory=None, speak=None, confirm=None, vision=None, notify=None, attach_image=None,
-                 locate=None, progress=None):
+                 locate=None, progress=None, ask_self=None, restart=None):
         self.cfg = cfg
         self.memory = memory
         self.speak = speak or (lambda text: None)
@@ -53,6 +53,8 @@ class Context:
         self.game_launched = False        # open_app запустил игру → после ответа выгрузить модель
         self.plan: list[dict] = []        # шаги текущей задачи (инструмент plan)
         self.progress = progress or (lambda text: None)  # «шаг 2 из 5» в окне
+        self.ask_self = ask_self          # callable(prompt) -> str: вопрос своей модели (самоанализ)
+        self.restart = restart or (lambda: None)  # перезапуститься после самопочинки
 
 
 class Registry:
@@ -137,6 +139,6 @@ def osascript(script: str, timeout: float = 20) -> str:
 
 
 def load_all() -> Registry:
-    from . import apps, files, memory_tools, mouse, plan, system, vision, web  # noqa: F401  регистрация через декораторы
+    from . import apps, claude, files, memory_tools, mouse, plan, selfcare, system, vision, vpn, web  # noqa: F401
     from . import groups  # noqa: F401  группирует мелкие инструменты: модели на 8B легче выбрать из 18, чем из 34
     return registry

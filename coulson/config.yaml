@@ -78,8 +78,31 @@ apps:
     настройки: System Settings
 
 vpn:
-  method: none                # none | scutil | shortcut | app
-  name: ""                    # имя VPN-подключения / команды Shortcuts / приложения
+  # auto — системные VPN-подключения macOS (scutil --nc): встроенные и приложения, добавившие себя в
+  #        «Настройки → VPN» (WireGuard, Amnezia, v2rayTun, Outline…). shortcut — команды «<name> On/Off».
+  #        app — просто запустить приложение.
+  method: auto
+  name: ""                    # имя подключения (узнать: «Колсон, покажи VPN-подключения»); пусто = первое
+  forbidden_countries: [RU]   # выход через эти страны считается «VPN не работает»
+  connect_timeout: 25         # сколько секунд ждать подключения
+
+claude:
+  binary: claude
+  default_project: ~/Documents/Колсон   # папка, где Claude работает, если проект не назван
+  projects:                   # «Колсон, попроси Клода в проекте <имя>…» → папка
+    колсон: "@self"           # собственный код Колсона
+    сайт: ~/lab
+  permission_mode: acceptEdits  # Claude сам правит файлы в папке проекта; прочие команды — только из списка ниже
+  allowed_tools: [Read, Edit, Write, Glob, Grep, WebSearch, WebFetch, "Bash(uv run *)", "Bash(python3 *)",
+                  "Bash(ls *)", "Bash(git status *)", "Bash(git diff *)", "Bash(git log *)"]
+  max_turns: 40
+  timeout_minutes: 30
+  terminal: Terminal          # где открывать интерактивный Claude Code
+
+self_review:
+  auto: true                  # в простое разбирать журнал ошибок и выводить правила
+  min_incidents: 3
+  idle_minutes: 5
 
 safety:
   confirm_risky: true         # опасные действия только после голосового «да»
