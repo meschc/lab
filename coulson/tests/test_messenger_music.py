@@ -129,4 +129,4 @@ def test_suggests_review_after_errors(tmp_path, monkeypatch):
 
 
 def test_tool_count():
-    assert len(load_all().exposed()) == 22
+    assert len(load_all().exposed()) == 24

@@ -24,6 +24,20 @@ def _skeleton(word: str) -> str:
     return re.sub(r"(.)\1+", r"\1", w)
 
 
+def _bigrams(s: str) -> set[str]:
+    return {s[i:i + 2] for i in range(len(s) - 1)}
+
+
+def _skeleton_ok(sk: str, skeletons: set[str]) -> bool:
+    """Согласные похожи на имя: скелет близок и содержит почти все пары согласных имени
+    (для «Колсон» klsn: kl/ls/sn — «колонка» klnk не проходит). Работает для любого имени."""
+    for s in skeletons:
+        need = _bigrams(s)
+        if fuzz.ratio(sk, s) >= 80 and len(need & _bigrams(sk)) >= max(1, len(need) - 1):
+            return True
+    return False
+
+
 def find_wake(text: str, wake_words: list[str], threshold: int = 85) -> tuple[bool, str]:
     """Ищет слово-активатор в любом месте фразы. Возвращает (найдено, фраза без него)."""
     words = [normalize(w) for w in wake_words]
@@ -35,7 +49,7 @@ def find_wake(text: str, wake_words: list[str], threshold: int = 85) -> tuple[bo
         sk = _skeleton(token)
         best = max(fuzz.ratio(token, w) for w in words)
         # точный вариант из списка (например, найденный калибровкой) срабатывает всегда
-        if best >= 97 or (best >= threshold and "ls" in sk and max(fuzz.ratio(sk, s) for s in skeletons) >= 80):
+        if best >= 97 or (best >= threshold and _skeleton_ok(sk, skeletons)):
             rest = text[: m.start()] + text[m.end():]
             rest = re.sub(r"^\s*(эй|хей|hey|ok|окей|слушай)\b", "", rest.strip(" ,.!?;:—-"), flags=re.I)
             rest = re.sub(r"\s{2,}", " ", rest).strip(" ,.!?;:—-")

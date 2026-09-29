@@ -41,6 +41,7 @@ class _Api:
 class WindowUI:
     def __init__(self, cfg):
         self.cfg = cfg.ui
+        self.name = cfg.assistant.name
         self.window = None
         self.assistant = None
         self._loaded = threading.Event()
@@ -66,7 +67,7 @@ class WindowUI:
 
         x, y = self._geometry(FULL)
         self.window = webview.create_window(
-            "Колсон", url=HTML.as_uri(), js_api=_Api(self), width=FULL[0], height=FULL[1], x=x, y=y,
+            self.name, url=HTML.as_uri(), js_api=_Api(self), width=FULL[0], height=FULL[1], x=x, y=y,
             frameless=True, easy_drag=True, on_top=True, transparent=True, resizable=False, focus=False)
         self.window.events.loaded += self._on_loaded
 
@@ -82,6 +83,7 @@ class WindowUI:
 
     def _on_loaded(self) -> None:
         self._loaded.set()
+        self._js(f"window.ui.setName && window.ui.setName({json.dumps(self.name)})")
         self._native_tweaks()
 
     def _native_tweaks(self) -> None:

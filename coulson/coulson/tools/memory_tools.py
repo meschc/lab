@@ -24,21 +24,36 @@ def _note_risk(ctx, action: str, text: str = "", id: int | None = None, **_) -> 
     return None
 
 
-@registry.add("notes", "Coulson's own notes and tasks database. add: save a thought/idea/info (kind=task for to-dos); "
-              "list: recent notes or open tasks; search: find notes by meaning; append: add text to note id; "
-              "done: mark task id done; delete: remove note id.",
+@registry.add("notes", "Coulson's own notes, tasks, events and birthdays. add: save a thought/idea (kind note), "
+              "a to-do (task), a dated event (event + date) or someone's birthday (birthday + date; text = whose, "
+              "e.g. «День рождения мамы»); Coulson will remind in advance. list: recent notes / open tasks / "
+              "upcoming (kind event or birthday); search: by meaning; append: add text to id; done: task done; "
+              "delete: remove id.",
               {"action": ("string", ""), "text": ("string", "note text or search query"), "title": ("string", ""),
-               "tags": ("string", "comma-separated"), "kind": ("string", ""), "id": ("integer", "")},
+               "tags": ("string", "comma-separated"), "kind": ("string", ""), "id": ("integer", ""),
+               "date": ("string", "YYYY-MM-DD or DD.MM (birthday without year)")},
               ["action"], enums={"action": ["add", "list", "search", "append", "done", "delete"],
-                                 "kind": ["note", "task"]},
+                                 "kind": ["note", "task", "event", "birthday"]},
               risk=_note_risk)
-def notes(ctx, action: str, text: str = "", title: str = "", tags: str = "", kind: str = "", id: int | None = None) -> str:
+def notes(ctx, action: str, text: str = "", title: str = "", tags: str = "", kind: str = "", id: int | None = None,
+          date: str = "") -> str:
     m = ctx.memory
     if action == "add":
         if not text.strip():
             return "Ошибка: нужен text"
-        note_id = m.add_note(text, title=title, tags=tags, kind=kind or "note")
-        return f"Записал ({'задача' if kind == 'task' else 'заметка'} {note_id})."
+        iso = ""
+        if kind in ("event", "birthday"):
+            from ..proactive import parse_date
+            iso = parse_date(date, yearly=kind == "birthday")
+            if not iso:
+                return "Ошибка: для события/дня рождения нужна дата (YYYY-MM-DD или ДД.ММ)"
+        note_id = m.add_note(text, title=title, tags=tags, kind=kind or "note", date=iso)
+        label = {"task": "задача", "event": "событие", "birthday": "день рождения"}.get(kind, "заметка")
+        return f"Записал ({label} {note_id}" + (f", {iso.replace('0000-', '')}" if iso else "") + ")."
+    if action == "list" and kind in ("event", "birthday"):
+        from ..proactive import upcoming
+        items = upcoming(ctx, days=60)
+        return "\n".join(f"{u.when_text()}: {u.title}" for u in items) or "Ближайших событий нет."
     if action == "list":
         hits = m.list_notes(kind=kind or None, open_only=(kind == "task"), tag=tags)
         return "\n".join(h.line() for h in hits) or "Пусто."

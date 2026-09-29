@@ -73,6 +73,30 @@ def claude_bin(cfg) -> str | None:
     return None
 
 
+def find_project(c: dict, name: str) -> Path | None:
+    """«уклад» → ~/Projects/uklad-app: ищем папку с похожим именем (и в латинице) в обычных местах."""
+    from rapidfuzz import fuzz
+
+    from ..textutil import normalize, ru_to_lat
+    want = {normalize(name), ru_to_lat(normalize(name))}
+    roots = c.get("project_roots") or ["~/Projects", "~/Developer", "~/Documents", "~/lab", "~/code", "~/Desktop", "~"]
+    best: tuple[float, Path | None] = (0, None)
+    for root in roots:
+        base = Path(root).expanduser()
+        if not base.is_dir():
+            continue
+        try:
+            dirs = [d for d in base.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        except OSError:
+            continue
+        for d in dirs:
+            n = normalize(d.name.replace("-", " ").replace("_", " "))
+            score = max(max(fuzz.ratio(w, n), fuzz.partial_ratio(w, n) - 5 if len(w) >= 4 else 0) for w in want)
+            if score > best[0]:
+                best = (score, d)
+    return best[1] if best[0] >= 85 else None
+
+
 def resolve_project(ctx, project: str = "") -> Path:
     c = ctx.cfg.get("claude") or {}
     aliases = {k.lower(): v for k, v in (c.get("projects") or {}).items()}
@@ -80,6 +104,8 @@ def resolve_project(ctx, project: str = "") -> Path:
     target = aliases.get(key, project) if key else c.get("default_project", "~/Documents/Колсон")
     if target == "@self":
         return config.ROOT
+    if key and key not in aliases and "/" not in key and (found := find_project(c, key)):
+        return found
     from .files import resolve
     path = resolve(ctx, target)
     path.mkdir(parents=True, exist_ok=True)

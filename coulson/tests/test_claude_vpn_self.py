@@ -154,4 +154,4 @@ def test_self_fix_needs_confirmation(ctx, monkeypatch):
 
 def test_twenty_tools_exposed():
     reg = load_all()
-    assert len(reg.exposed()) == 22 and {"claude", "self", "music"} <= set(reg.exposed()) and "vpn" not in reg.exposed()
+    assert len(reg.exposed()) == 24 and {"claude", "self", "music"} <= set(reg.exposed()) and "vpn" not in reg.exposed()

@@ -32,16 +32,19 @@ class Hit:
     title: str = ""
     tags: str = ""
     done: bool = False
+    date: str = ""  # для событий и дней рождения: YYYY-MM-DD (год 0000 — ежегодно, без года рождения)
 
     def line(self) -> str:
         when = time.strftime("%d.%m.%Y %H:%M", time.localtime(self.ts))
         if self.kind == "fact":
             return f"Факт: {self.text}"
-        if self.kind in ("note", "task"):
+        if self.kind in ("note", "task", "event", "birthday"):
             mark = ("✓ " if self.done else "☐ ") if self.kind == "task" else ""
             head = f"{self.title}: " if self.title else ""
             tags = f" #{self.tags.replace(',', ' #')}" if self.tags else ""
-            return f"[{'задача' if self.kind == 'task' else 'заметка'} {self.id}, {when}] {mark}{head}{self.text}{tags}"
+            label = {"task": "задача", "event": "событие", "birthday": "день рождения"}.get(self.kind, "заметка")
+            date = f" на {self.date.replace('0000-', '')}" if self.date else ""
+            return f"[{label} {self.id}{date}, записано {when}] {mark}{head}{self.text}{tags}"
         who = "Пользователь" if self.kind == "user" else "Колсон"
         return f"[разговор {when}] {who}: {self.text[:300]}"
 
@@ -101,6 +104,9 @@ class Memory:
             cols = [r[1] for r in self.db.execute(f"PRAGMA table_info({table})")]
             if "emb" not in cols:
                 self.db.execute(f"ALTER TABLE {table} ADD COLUMN emb BLOB")
+        if "date" not in [r[1] for r in self.db.execute("PRAGMA table_info(notes)")]:
+            self.db.execute("ALTER TABLE notes ADD COLUMN date TEXT NOT NULL DEFAULT ''")
+        self.db.execute("CREATE TABLE IF NOT EXISTS nudges (key TEXT PRIMARY KEY, ts REAL NOT NULL)")
         self.fts = True
         try:
             self.db.execute("CREATE VIRTUAL TABLE IF NOT EXISTS log_fts USING fts5(text, content='log', content_rowid='id')")
@@ -247,21 +253,23 @@ class Memory:
         if row:
             self._enqueue("notes", note_id, row[0])
 
-    def add_note(self, text: str, title: str = "", tags: str = "", kind: str = "note") -> int:
+    def add_note(self, text: str, title: str = "", tags: str = "", kind: str = "note", date: str = "") -> int:
         now = time.time()
         tags = ",".join(t.strip().lstrip("#") for t in tags.split(",") if t.strip()) if tags else ""
+        kind = kind if kind in ("note", "task", "event", "birthday") else "note"
         with self._lock:
-            cur = self.db.execute("INSERT INTO notes(created, updated, kind, title, text, tags) VALUES (?,?,?,?,?,?)",
-                                  (now, now, "task" if kind == "task" else "note", title.strip(), text.strip(), tags))
+            cur = self.db.execute("INSERT INTO notes(created, updated, kind, title, text, tags, date) "
+                                  "VALUES (?,?,?,?,?,?,?)",
+                                  (now, now, kind, title.strip(), text.strip(), tags, date))
             self.db.commit()
         self._index_note(cur.lastrowid)
         return cur.lastrowid
 
     def get_note(self, note_id: int) -> Hit | None:
         with self._lock:
-            r = self.db.execute("SELECT id, kind, title, text, tags, done, updated FROM notes WHERE id=?",
+            r = self.db.execute("SELECT id, kind, title, text, tags, done, updated, date FROM notes WHERE id=?",
                                 (note_id,)).fetchone()
-        return Hit(r[1], r[0], r[3], r[6], title=r[2], tags=r[4], done=bool(r[5])) if r else None
+        return Hit(r[1], r[0], r[3], r[6], title=r[2], tags=r[4], done=bool(r[5]), date=r[7]) if r else None
 
     def update_note(self, note_id: int, text: str | None = None, tags: str | None = None,
                     done: bool | None = None, append: bool = False) -> bool:
@@ -287,7 +295,7 @@ class Memory:
         return bool(n)
 
     def list_notes(self, kind: str | None = None, open_only: bool = False, tag: str = "", limit: int = 15) -> list[Hit]:
-        sql = "SELECT id, kind, title, text, tags, done, updated FROM notes WHERE 1=1"
+        sql = "SELECT id, kind, title, text, tags, done, updated, date FROM notes WHERE 1=1"
         args: list = []
         if kind:
             sql += " AND kind=?"
@@ -301,7 +309,23 @@ class Memory:
         args.append(limit)
         with self._lock:
             rows = self.db.execute(sql, args).fetchall()
-        return [Hit(r[1], r[0], r[3], r[6], title=r[2], tags=r[4], done=bool(r[5])) for r in rows]
+        return [Hit(r[1], r[0], r[3], r[6], title=r[2], tags=r[4], done=bool(r[5]), date=r[7]) for r in rows]
+
+    def dated_notes(self) -> list[Hit]:
+        """События и дни рождения с датой — для напоминаний."""
+        with self._lock:
+            rows = self.db.execute("SELECT id, kind, title, text, tags, done, updated, date FROM notes "
+                                   "WHERE date != '' AND done = 0").fetchall()
+        return [Hit(r[1], r[0], r[3], r[6], title=r[2], tags=r[4], done=bool(r[5]), date=r[7]) for r in rows]
+
+    def nudge_sent(self, key: str) -> bool:
+        with self._lock:
+            return self.db.execute("SELECT 1 FROM nudges WHERE key=?", (key,)).fetchone() is not None
+
+    def mark_nudge(self, key: str) -> None:
+        with self._lock:
+            self.db.execute("INSERT OR REPLACE INTO nudges(key, ts) VALUES (?, ?)", (key, time.time()))
+            self.db.commit()
 
     # ------------------------------------------------------------ самоанализ: журнал ошибок и правила
     def add_incident(self, kind: str, text: str) -> None:

@@ -3,7 +3,7 @@
 
 assistant:
   name: Колсон
-  # Варианты, в которые Whisper превращает «Колсон». Сравнение нечёткое.
+  # Варианты, в которые распознавание превращает имя. Сравнение нечёткое. Сменить имя: --rename «Имя».
   wake_words: [колсон, коулсон, колсан, колсен, колсона, колсону, колсоне, кулсон, coulson, colson, kolson, coulsen]
   wake_threshold: 85          # 0..100, чем выше — тем меньше ложных срабатываний
   listen_after_wake_seconds: 8  # сказал «Колсон» и замолчал — столько ждём команду
@@ -14,6 +14,37 @@ assistant:
   ack: chime                  # chime | voice — реакция на одиночное «Колсон»
   session_idle_minutes: 30    # после простоя контекст диалога сбрасывается (память остаётся)
   filler_after_seconds: 6     # если задача долгая — сказать «Минутку, работаю» (0 = не говорить)
+  user_name: ""               # как обращаться: «Кирилл» (в напоминаниях и утренней сводке)
+
+proactive:                    # инициатива: напоминания о днях рождения/событиях, утренняя сводка
+  enabled: true
+  briefing: true              # сводка (погода, события, дни рождения, задачи) — раз в день, при первом появлении
+  briefing_from_hour: 6
+  birthday_days: [7, 3, 1, 0] # за сколько дней напоминать о дне рождения
+  event_minutes: [60, 15]     # за сколько минут — о событии календаря
+  quiet_hours: [23, 8]        # сам не заговаривает (после команды — может)
+  min_gap_minutes: 20         # не чаще раза в N минут
+  present_idle_seconds: 300   # «ты за Маком» = был ввод за последние 5 минут и экран не заблокирован
+
+location:
+  use_system: true            # Службы геолокации macOS (точно, разрешение «Геолокация → Колсон»)
+  home: ""                    # запасной вариант: «Москва» или «55.61, 37.72»
+  home_country: RU            # по IP — только когда выход из этой страны (с VPN IP врёт)
+  use_ip: true
+  cache_minutes: 30
+
+search:
+  engine: auto                # auto: Yandex Search API, если настроен, иначе DuckDuckGo | yandex | ddg
+  yandex_folder_id: ""        # Yandex Cloud → каталог; API-ключ — в Связке ключей (см. CLAUDE.md)
+  region: 213                 # 213 — Москва
+
+transit:                      # «Колсон, ближайшие автобусы от ЖК Ольховка до метро Домодедовская»
+  city: Москва
+  places: {}                  # {дом: "Москва, остановка ЖК Ольховка", работа: "…"} — в config.local.yaml
+  wait_seconds: 4
+
+power:
+  keep_awake_on_ac: true      # на зарядке Мак не засыпает сам (экран гаснет как обычно); закрытая крышка = сон
 
 audio:
   sample_rate: 16000
@@ -93,6 +124,8 @@ claude:
   projects:                   # «Колсон, попроси Клода в проекте <имя>…» → папка
     колсон: "@self"           # собственный код Колсона
     сайт: ~/lab
+  # не нашёл в projects — ищет папку с похожим именем (и в латинице: «уклад» → uklad) здесь:
+  project_roots: [~/Projects, ~/Developer, ~/Documents, ~/lab, ~/code, ~/Desktop, "~"]
   permission_mode: acceptEdits  # Claude сам правит файлы в папке проекта; прочие команды — только из списка ниже
   allowed_tools: [Read, Edit, Write, Glob, Grep, WebSearch, WebFetch, "Bash(uv run *)", "Bash(python3 *)",
                   "Bash(ls *)", "Bash(git status *)", "Bash(git diff *)", "Bash(git log *)"]

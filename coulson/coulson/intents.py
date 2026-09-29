@@ -89,6 +89,11 @@ def try_fast(command: str, tools, ctx) -> Fast | None:
     if re.fullmatch(r"(какое сегодня число|какой сегодня день|какое число|какая сегодня дата)", t):
         return Fast(_say_date())
 
+    if re.fullmatch(r"(какая |что с |что по )?(погода|погодой)( сегодня| сейчас| на улице)?|"
+                    r"(какая )?(сегодня|сейчас) погода|(сколько|какая) (градусов|температура)( на улице)?|"
+                    r"нужен (ли )?зонт( сегодня)?|what'?s the weather( like)?( today)?", t):
+        return _weather(ctx)
+
     m = re.fullmatch(r"(сделай |поставь |установи )?громкость (на )?" + _NUM + r"( процент\w*)?", t)
     if m and (level := words_to_int(m.group(3))) is not None and 0 <= level <= 100:
         return _run(tools, ctx, "sound", {"action": "set", "level": level}, f"Громкость {level}.")
@@ -144,6 +149,17 @@ def try_fast(command: str, tools, ctx) -> Fast | None:
         if hit:
             return _run(tools, ctx, "quit_app", {"name": hit[0]}, None)
     return None
+
+
+def _weather(ctx) -> Fast | None:
+    """Погода там, где пользователь сейчас, — без модели. Не вышло — пусть разбирается модель."""
+    from .location import current
+    from .tools.web import weather_text
+    try:
+        place = current(ctx.cfg)
+        return Fast(weather_text(place, days=1, short=True)) if place else None
+    except Exception:
+        return None
 
 
 def _open_app(tools, ctx, name: str) -> Fast | None:

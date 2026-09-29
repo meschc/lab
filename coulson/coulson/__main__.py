@@ -9,6 +9,8 @@
   python -m coulson --bench       замер скорости: распознавание, кэш промпта, задержка, токены/с, память
   python -m coulson --bench-tools насколько точно модель выбирает инструмент (30 русских команд)
   python -m coulson --calibrate   подстроить «Колсон» под свой голос
+  python -m coulson --rename Имя  сменить имя ассистента
+  python -m coulson --import-movies файл   загрузить базу фильмов (Кинопоиск и др.)
   python -m coulson --prefetch    заранее скачать модели распознавания и голоса
 """
 from __future__ import annotations
@@ -99,6 +101,18 @@ def cmd_check(cfg) -> int:
     from .tts import best_russian_say_voice
     ru_voice = best_russian_say_voice()
     row("Русский голос macOS (запасной)", True, ru_voice or "не установлен (не обязателен, основной — Silero)")
+    # необязательное — не валит проверку, только подсказывает
+    from .location import current
+    place = current(cfg)
+    print(f"{'✅' if place else '⚠️ '} Где вы: " + (f"{place} ({place.source})" if place else
+          "не определено — разрешите геолокацию Колсону или задайте location.home в config.local.yaml"))
+    from .proactive import from_calendar
+    try:
+        import EventKit  # noqa: F401
+        print(f"✅ Календарь: событий и дней рождения на неделю — {len(from_calendar(7))} "
+              "(0 — возможно, нет доступа: Настройки → Конфиденциальность → Календари)")
+    except Exception:
+        print("⚠️  Календарь: нет pyobjc-framework-EventKit (uv sync)")
     print(f"\nДанные: {config.DATA_DIR}\nЛог: {config.LOG_FILE}")
     return 0 if ok else 1
 
@@ -148,6 +162,8 @@ def main() -> None:
     p.add_argument("--bench-tools", action="store_true")
     p.add_argument("--calibrate", action="store_true")
     p.add_argument("--prefetch", action="store_true")
+    p.add_argument("--rename", metavar="ИМЯ", help="сменить имя ассистента (и слово-активатор)")
+    p.add_argument("--import-movies", metavar="ФАЙЛ", help="загрузить свою базу фильмов (CSV/JSON/XLSX/SQLite)")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
@@ -168,6 +184,15 @@ def main() -> None:
         return calibrate(cfg)
     if args.prefetch:
         return cmd_prefetch(cfg)
+    if args.rename:
+        from .rename import rename
+        print(rename(args.rename))
+        return
+    if args.import_movies:
+        from .memory import open_memory
+        from .movies import import_file
+        print(import_file(open_memory(cfg, config.DATA_DIR), args.import_movies))
+        return
     if args.say:
         from .tts import Speaker
         s = Speaker(cfg)

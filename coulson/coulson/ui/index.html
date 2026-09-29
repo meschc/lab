@@ -131,7 +131,7 @@
       <button id="mic" title="Микрофон">●</button>
       <button id="stop" title="Замолчать">■</button>
       <button id="collapse" title="Свернуть">–</button>
-      <button id="quit" title="Выключить Колсона">×</button>
+      <button id="quit" title="Выключить">×</button>
     </div>
   </div>
 <script>
@@ -144,6 +144,11 @@
   const api = () => (window.pywebview && window.pywebview.api) || null;
 
   window.ui = {
+    setName(name) {
+      STATUS.idle = `Скажите «${name}»`;
+      document.title = name;
+      if (document.body.classList.contains("idle")) $("status").textContent = STATUS.idle;
+    },
     setState(s, detail) {
       state = s;
       document.body.classList.remove(...Object.keys(STATUS));

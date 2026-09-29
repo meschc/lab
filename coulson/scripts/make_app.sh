@@ -31,6 +31,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSMicrophoneUsageDescription</key><string>Колсон слушает голосовые команды.</string>
   <key>NSCameraUsageDescription</key><string>Колсон смотрит в камеру, когда вы просите.</string>
   <key>NSAppleEventsUsageDescription</key><string>Колсон управляет приложениями по вашим командам.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Колсон напоминает о событиях и днях рождения.</string>
+  <key>NSCalendarsUsageDescription</key><string>Колсон напоминает о событиях и днях рождения.</string>
+  <key>NSLocationWhenInUseUsageDescription</key><string>Колсон узнаёт погоду и транспорт там, где вы.</string>
+  <key>NSLocationUsageDescription</key><string>Колсон узнаёт погоду и транспорт там, где вы.</string>
 </dict></plist>
 PLIST
 

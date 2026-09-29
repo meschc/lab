@@ -142,6 +142,8 @@ class Assistant:
         threading.Thread(target=self._listen_loop, daemon=True, name="listen").start()
         threading.Thread(target=self._agent_loop, daemon=True, name="agent").start()
         threading.Thread(target=self._self_review_loop, daemon=True, name="self-review").start()
+        threading.Thread(target=self._proactive_loop, daemon=True, name="proactive").start()
+        self._keep_awake()
         name = self.cfg.assistant.name
         log.info("%s готов и слушает", name)
         self.say(f"{name} на связи.")
@@ -191,6 +193,85 @@ class Assistant:
                     self.brain._lock.release()
             except Exception:
                 log.exception("самоанализ в простое не удался")
+
+    # ------------------------------------------------------------ инициатива (как у Джарвиса)
+    def _may_speak_first(self) -> bool:
+        """Можно ли заговорить самому: пользователь за Маком, не тихие часы, не игра, Колсон не занят."""
+        from . import proactive as pa
+        c = self.cfg.get("proactive") or {}
+        hour = time.localtime().tm_hour
+        q0, q1 = (int(x) for x in c.get("quiet_hours", [23, 8]))
+        quiet = (q0 <= hour or hour < q1) if q0 > q1 else (q0 <= hour < q1)
+        if (quiet or self.busy or self.sleeping or self.confirming or self.speaker.is_speaking
+                or (self.listener and not self.listener.enabled.is_set())):
+            return False
+        if time.monotonic() - getattr(self, "_last_initiative", -1e9) < float(c.get("min_gap_minutes", 20)) * 60:
+            return False
+        return (pa.user_idle_seconds() < float(c.get("present_idle_seconds", 300)) and not pa.screen_locked()
+                and not pa.frontmost_is_game())
+
+    def _speak_first(self, text: str) -> None:
+        """Сказать по своей инициативе; «да, подбери» дальше поймёт модель — реплика в её истории."""
+        self._last_initiative = time.monotonic()
+        log.info("💡 %s", text)
+        self.brain.note_initiative(text)
+        self.say(text)
+        self.speaker.wait_idle()
+        self.followups_in_row = 0
+        self.followup_from = time.monotonic() - 0.3
+        self.followup_until = time.monotonic() + float(self.cfg.assistant.followup_seconds)
+
+    def _proactive_tick(self, after_command: bool = False) -> None:
+        from . import proactive as pa
+        c = self.cfg.get("proactive") or {}
+        if not c.get("enabled", True):
+            return
+        today = time.strftime("%Y-%m-%d")
+        if c.get("briefing", True) and not self.memory.nudge_sent(f"brief:{today}") \
+                and time.localtime().tm_hour >= int(c.get("briefing_from_hour", 6)) \
+                and (after_command or self._may_speak_first()):
+            self.memory.mark_nudge(f"brief:{today}")
+            weather = ""
+            try:
+                from .location import current
+                from .tools.web import weather_text
+                place = current(self.cfg)
+                weather = weather_text(place, days=1, short=True) if place else ""
+            except Exception as e:
+                log.debug("погода для сводки: %s", e)
+            self._speak_first(pa.briefing(self.ctx, weather))
+            return
+        items = pa.nudges(self.ctx)
+        if not items or not (after_command or self._may_speak_first()):
+            return
+        key, text = items[0]  # по одному — не вываливаем всё сразу
+        self.memory.mark_nudge(key)
+        self._speak_first(text)
+
+    def _proactive_loop(self) -> None:
+        was_locked = False
+        while True:
+            time.sleep(30)
+            try:
+                from .proactive import screen_locked
+                locked = screen_locked()
+                if was_locked and not locked:  # только что разблокировали — хорошее время для сводки
+                    time.sleep(3)
+                    self._last_initiative = -1e9
+                was_locked = locked
+                self._proactive_tick()
+            except Exception:
+                log.exception("инициатива: сбой")
+
+    def _keep_awake(self) -> None:
+        """На зарядке не даём Маку уснуть (иначе Колсон не слышит). Крышка закрыта — всё равно сон."""
+        if not (self.cfg.get("power") or {}).get("keep_awake_on_ac", False):
+            return
+        import subprocess
+        try:  # -s: не спать, пока Мак на зарядке (от батареи — спит как обычно); -w: пока жив Колсон
+            subprocess.Popen(["caffeinate", "-s", "-w", str(os.getpid())])
+        except Exception as e:
+            log.warning("caffeinate: %s", e)
 
     def quit(self) -> None:
         """Корректно завершить работу (лаунчер Coulson.app не перезапускает при коде 0)."""
@@ -382,6 +463,11 @@ class Assistant:
             if self.cfg.llm.get("unload_on_game", True):
                 self.brain.unload()
         self._maybe_suggest_review()
+        if not self.cancel.is_set() and not self.ctx.plan:
+            try:  # напоминание «в момент взаимодействия» — сразу после ответа
+                self._proactive_tick(after_command=True)
+            except Exception:
+                log.exception("инициатива после команды")
         return reply or " ".join(spoken)
 
     def _maybe_suggest_review(self) -> None:

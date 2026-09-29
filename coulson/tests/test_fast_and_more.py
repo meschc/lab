@@ -117,6 +117,7 @@ def test_fast_path_in_handle(tmp_path, monkeypatch):
     monkeypatch.setattr(A.config, "DATA_DIR", tmp_path)
     cfg = load()
     cfg["memory"]["embed_model"] = None
+    cfg["proactive"]["enabled"] = False  # утренняя сводка после первой команды дня — отдельный тест
     a = A.Assistant(cfg)
     said = []
     monkeypatch.setattr(a.speaker, "say", said.append)
@@ -189,7 +190,7 @@ def test_exact_variant_from_calibration_always_wakes():
 
 def test_grouped_tools_exposed_internal_still_work(tmp_path):
     reg = load_all()
-    assert len(reg.exposed()) == 22 and "open_app" not in reg.exposed()
+    assert len(reg.exposed()) == 24 and "open_app" not in reg.exposed()
     ctx = Context(load(), memory=Memory(tmp_path / "m.db"))
     assert "нужно name" in reg.execute("app", {"action": "open"}, ctx)
     assert "Запомнил" in reg.execute("memory", {"action": "remember", "text": "тест"}, ctx)
