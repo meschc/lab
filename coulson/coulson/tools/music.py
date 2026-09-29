@@ -66,3 +66,68 @@ def play_music(ctx, query: str) -> str:
         return f"Ошибка: открыл поиск «{query}», но не нашёл кнопку воспроизведения"
     click_at(*to_screen(*point))
     return f"Включаю «{query}» в Яндекс Музыке"
+
+
+# ---------------------------------------------------------------- Яндекс Музыка через API аккаунта (основной путь)
+
+from . import registry  # noqa: E402
+
+
+def _connect(ctx) -> str:
+    from .. import yamusic
+    from .web import _open_in_browser
+
+    m = yamusic.get(ctx.cfg)
+
+    def on_code(url: str, code: str) -> None:
+        _open_in_browser(ctx, url)
+        spaced = " ".join(code)
+        ctx.notify(f"Код для Яндекс Музыки: {code} (страница {url})")
+        ctx.speak(f"Открыл страницу Яндекса. Введите код: {spaced}. Код также на экране.")
+
+    m.login(on_code, lambda ok, text: ctx.speak(text))
+    return "Запускаю вход в Яндекс Музыку: сейчас продиктую код, его нужно ввести на странице Яндекса."
+
+
+@registry.add("music", "Yandex Music on the user's account (no browser): play a song/artist/album (query), "
+              "my_wave («Моя волна»), liked (favourites), pause, resume, next, previous, now_playing, like, "
+              "dislike, volume (level), connect (log into the account once).",
+              {"action": ("string", ""), "query": ("string", "song, artist or album"),
+               "level": ("integer", "volume 0-100")}, ["action"],
+              enums={"action": ["play", "my_wave", "liked", "pause", "resume", "next", "previous", "now_playing",
+                                "like", "dislike", "volume", "connect"]})
+def music(ctx, action: str, query: str = "", level: int | None = None) -> str:
+    from .. import yamusic
+
+    if action == "connect":
+        return _connect(ctx)
+    m = yamusic.get(ctx.cfg)
+    if not m.connected():
+        if action == "play" and query:
+            return play_music(ctx, query) + " (Яндекс Музыка не подключена — включил через браузер; скажите " \
+                                            "«подключи Яндекс Музыку», чтобы работать напрямую)"
+        return "Ошибка: Яндекс Музыка не подключена — скажите «подключи Яндекс Музыку»"
+    try:
+        if action == "play":
+            return m.play(query) if query.strip() else m.pause(False)
+        if action == "my_wave":
+            return m.my_wave()
+        if action == "liked":
+            return m.liked()
+        if action in ("pause", "resume"):
+            return m.pause(action == "pause")
+        if action == "next":
+            return m.next()
+        if action == "previous":
+            return m.previous()
+        if action == "now_playing":
+            return m.now_playing()
+        if action in ("like", "dislike"):
+            return m.like(dislike=action == "dislike")
+        if action == "volume":
+            return m.volume(level if level is not None else 50)
+    except PermissionError:
+        return "Ошибка: Яндекс Музыка не подключена — скажите «подключи Яндекс Музыку»"
+    except RuntimeError as e:
+        return f"Ошибка: {e}"
+    return f"Неизвестное действие {action}"

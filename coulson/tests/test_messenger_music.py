@@ -90,7 +90,7 @@ def test_play_song_intent_and_tool(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path)
     ctx.cfg["music"]["browser"] = "external"
     assert try_fast("включи песню кино группа крови", Rec(), ctx) is not None
-    assert calls == [("sound", {"action": "play_song", "query": "кино группа крови"})]
+    assert calls == [("music", {"action": "play", "query": "кино группа крови"})]
 
     opened, clicks = [], []
     monkeypatch.setattr("coulson.tools.web._open_in_browser", lambda c, url: opened.append(url) or "OK")
@@ -100,7 +100,7 @@ def test_play_song_intent_and_tool(tmp_path, monkeypatch):
     monkeypatch.setattr(MU.time, "sleep", lambda s: None)
     res = load_all().execute("sound", {"action": "play_song", "query": "Кино Группа крови"}, ctx)
     assert opened[0].startswith("https://music.yandex.ru/search?text=") and clicks == [(100, 200, False)]
-    assert res.startswith("Включаю")
+    assert res.startswith("Включаю") and "не подключена" in res  # аккаунта нет — запасной путь через браузер
 
 
 def test_incident_log_file(tmp_path):
@@ -129,4 +129,4 @@ def test_suggests_review_after_errors(tmp_path, monkeypatch):
 
 
 def test_tool_count():
-    assert len(load_all().exposed()) == 21
+    assert len(load_all().exposed()) == 22

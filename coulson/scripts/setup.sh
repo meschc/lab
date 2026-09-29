@@ -18,6 +18,7 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 
 say_step "uv, Ollama"
 brew list uv >/dev/null 2>&1 || brew install uv
+brew list mpv >/dev/null 2>&1 || brew install mpv   # плеер для Яндекс Музыки
 brew list ollama >/dev/null 2>&1 || brew install ollama
 brew upgrade ollama >/dev/null 2>&1 || true
 
@@ -75,6 +76,13 @@ uv run playwright install chromium
 
 say_step "Скачиваю модели распознавания речи и голоса"
 uv run python -m coulson --prefetch
+
+say_step "MCP-сервер Яндекс Музыки для Claude Code"
+if command -v claude >/dev/null; then
+  claude mcp remove yandex-music -s user >/dev/null 2>&1 || true
+  claude mcp add yandex-music -s user -- "$PROJECT/.venv/bin/python" -m coulson.mcp_music \
+    && echo "Claude Code теперь тоже умеет управлять твоей Яндекс Музыкой"
+fi
 
 say_step "Собираю Coulson.app"
 ./scripts/make_app.sh

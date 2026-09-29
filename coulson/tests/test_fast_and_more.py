@@ -189,7 +189,7 @@ def test_exact_variant_from_calibration_always_wakes():
 
 def test_grouped_tools_exposed_internal_still_work(tmp_path):
     reg = load_all()
-    assert len(reg.exposed()) == 21 and "open_app" not in reg.exposed()
+    assert len(reg.exposed()) == 22 and "open_app" not in reg.exposed()
     ctx = Context(load(), memory=Memory(tmp_path / "m.db"))
     assert "нужно name" in reg.execute("app", {"action": "open"}, ctx)
     assert "Запомнил" in reg.execute("memory", {"action": "remember", "text": "тест"}, ctx)
@@ -207,3 +207,16 @@ def test_grouped_tools_exposed_internal_still_work(tmp_path):
 def test_fast_vpn_and_claude(ctx, cmd, tool, args):
     rec = Rec()
     assert try_fast(cmd, rec, ctx) is not None and rec.calls == [(tool, args)]
+
+
+@pytest.mark.parametrize("cmd,args", [
+    ("включи мою волну", {"action": "my_wave"}),
+    ("что сейчас играет", {"action": "now_playing"}),
+    ("лайкни", {"action": "like"}),
+    ("включи любимые треки", {"action": "liked"}),
+    ("подключи яндекс музыку", {"action": "connect"}),
+    ("включи песню кино кукушка", {"action": "play", "query": "кино кукушка"}),
+])
+def test_fast_music(ctx, cmd, args):
+    rec = Rec()
+    assert try_fast(cmd, rec, ctx) is not None and rec.calls == [("music", args)]

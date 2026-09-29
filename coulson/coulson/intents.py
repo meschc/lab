@@ -110,7 +110,19 @@ def try_fast(command: str, tools, ctx) -> Fast | None:
 
     m = re.fullmatch(r"(включи|поставь|запусти|играй|сыграй) (песню|трек|музыку|альбом|группу|исполнителя) (.+)", t)
     if m:
-        return _run(tools, ctx, "sound", {"action": "play_song", "query": m.group(3)}, None)
+        return _run(tools, ctx, "music", {"action": "play", "query": m.group(3)}, None)
+    if re.fullmatch(r"(включи |запусти |поставь )?(мою волну|моя волна)", t):
+        return _run(tools, ctx, "music", {"action": "my_wave"}, None)
+    if re.fullmatch(r"(включи |поставь )?(любимые|мои любимые|любимые треки|мне нравится)( треки| песни)?", t):
+        return _run(tools, ctx, "music", {"action": "liked"}, None)
+    if re.fullmatch(r"(что (сейчас )?играет|что это за (песня|трек)|как называется (песня|трек))", t):
+        return _run(tools, ctx, "music", {"action": "now_playing"}, None)
+    if re.fullmatch(r"(лайк|лайкни|нравится|мне нравится эта (песня|трек)|добавь в (любимые|мне нравится))", t):
+        return _run(tools, ctx, "music", {"action": "like"}, None)
+    if re.fullmatch(r"(дизлайк|не нравится|убери эту песню|не предлагай (её|ее|это))", t):
+        return _run(tools, ctx, "music", {"action": "dislike"}, None)
+    if re.fullmatch(r"подключи (яндекс )?музыку|войди в (яндекс )?музыку", t):
+        return _run(tools, ctx, "music", {"action": "connect"}, None)
 
     vpn = r"(впн|vpn|ви пи эн|вэпээн)"
     if re.fullmatch(rf"(включи|подключи|запусти|врубай|вруби) {vpn}", t):

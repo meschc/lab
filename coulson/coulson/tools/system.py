@@ -16,17 +16,20 @@ from . import osascript, registry, run
 _MEDIA_KEYS = {"play_pause": 16, "next": 17, "previous": 18}
 
 
-@registry.add("sound", "Volume, media keys for any player, and play_song — find and play a song/artist in "
-              "Yandex Music (query).",
+@registry.add("sound", "System volume and media keys (play_pause/next/previous) for any player.",
               {"action": ("string", ""), "level": ("integer", "0-100 for set; step for up/down"),
-               "query": ("string", "song or artist for play_song")}, ["action"],
+               "query": ("string", "")}, ["action"],
               enums={"action": ["set", "up", "down", "mute", "unmute", "get", "play_pause", "next", "previous",
                                 "play_song"]})
 def sound(ctx, action: str, level: int | None = None, query: str = "") -> str:
-    if action == "play_song":
-        from .music import play_music
-        return play_music(ctx, query) if query.strip() else "Ошибка: нужно query — что включить"
+    if action == "play_song":  # совместимость: песни теперь через music
+        from .music import music
+        return music(ctx, "play", query=query)
     if action in _MEDIA_KEYS:
+        from .. import yamusic
+        m = yamusic._music
+        if m is not None and m.active():  # играет наш плеер Яндекс Музыки — управляем им напрямую
+            return {"play_pause": m.pause, "next": m.next, "previous": m.previous}[action]()
         return _media_key(_MEDIA_KEYS[action])
     cur = int(osascript("output volume of (get volume settings)") or 0) if action in ("up", "down", "get") else 0
     if action == "get":

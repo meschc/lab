@@ -75,7 +75,7 @@ def test_music_plays_requested_song_not_first(browser, monkeypatch):
 
     ctx = Context(cfg, memory=Memory(tmp / "m.db"), locate=locate)
     res = load_all().execute("sound", {"action": "play_song", "query": "Кино — Группа крови"}, ctx)
-    assert res == "Включаю «Кино — Группа крови» в Яндекс Музыке"
+    assert res.startswith("Включаю «Кино — Группа крови» в Яндекс Музыке")
     assert "«Кино — Группа крови»" in asked[0]
 
 
