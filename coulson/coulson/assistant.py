@@ -228,7 +228,7 @@ class Assistant:
             return
         today = time.strftime("%Y-%m-%d")
         if c.get("briefing", True) and not self.memory.nudge_sent(f"brief:{today}") \
-                and time.localtime().tm_hour >= int(c.get("briefing_from_hour", 6)) \
+                and int(c.get("briefing_from_hour", 6)) <= time.localtime().tm_hour < int(c.get("briefing_until_hour", 14)) \
                 and (after_command or self._may_speak_first()):
             self.memory.mark_nudge(f"brief:{today}")
             weather = ""
@@ -249,6 +249,11 @@ class Assistant:
         self._speak_first(text)
 
     def _proactive_loop(self) -> None:
+        from .proactive import from_calendar
+        try:  # запрос доступа к Календарю — сразу при запуске, а не посреди разговора
+            from_calendar()
+        except Exception:
+            log.exception("календарь")
         was_locked = False
         while True:
             time.sleep(30)
@@ -259,6 +264,8 @@ class Assistant:
                     time.sleep(3)
                     self._last_initiative = -1e9
                 was_locked = locked
+                from .location import current
+                current(self.cfg)  # держим место свежим в фоне: «какая погода» и сводка не ждут геолокацию
                 self._proactive_tick()
             except Exception:
                 log.exception("инициатива: сбой")

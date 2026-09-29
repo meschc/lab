@@ -80,7 +80,7 @@ def yandex_search(ctx, query: str, n: int = 5) -> list[dict]:
                    headers={"Authorization": f"Api-Key {key}"},
                    json={"query": {"searchType": "SEARCH_TYPE_RU", "queryText": query},
                          "groupSpec": {"groupMode": "GROUP_MODE_DEEP", "groupsOnPage": str(n), "docsInGroup": "1"},
-                         "maxPassages": "2", "region": str(c.get("region", 213)), "l10N": "LOCALIZATION_RU",
+                         "maxPassages": "2", "region": str(c.get("region", 213)), "l10n": "LOCALIZATION_RU",
                          "folderId": folder, "responseFormat": "FORMAT_XML"})
     r.raise_for_status()
     root = ET.fromstring(base64.b64decode(r.json()["rawData"]))

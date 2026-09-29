@@ -33,7 +33,8 @@ _cache: tuple[float, Place | None] = (0.0, None)
 def current(cfg) -> Place | None:
     global _cache
     c = cfg.get("location") or {}
-    if _cache[1] and time.monotonic() - _cache[0] < float(c.get("cache_minutes", 30)) * 60:
+    ttl = float(c.get("cache_minutes", 30)) * 60 if _cache[1] else 300  # не нашли — пробуем снова через 5 мин
+    if _cache[0] and time.monotonic() - _cache[0] < ttl:
         return _cache[1]
     place = None
     if c.get("use_system", True):
@@ -86,7 +87,37 @@ def reverse_name(lat: float, lon: float) -> str:
         return ""
 
 
+_Delegate = None
+_got = threading.Event()        # делегат сообщает сюда: координаты пришли (или ошибка)
+_loc_lock = threading.Lock()    # одновременно — один запрос к CoreLocation
+
+
+def _delegate_class():
+    """Класс делегата создаём один раз: PyObjC не даёт объявить Objective-C класс с тем же именем повторно."""
+    global _Delegate
+    if _Delegate is None:
+        import Foundation
+
+        class CoulsonLocationDelegate(Foundation.NSObject):
+            def locationManager_didUpdateLocations_(self, m, locs):
+                _got.set()
+
+            def locationManager_didFailWithError_(self, m, err):
+                _got.set()
+
+            def locationManagerDidChangeAuthorization_(self, m):
+                pass
+
+        _Delegate = CoulsonLocationDelegate
+    return _Delegate
+
+
 def _corelocation(timeout: float = 8.0) -> Place | None:
+    with _loc_lock:
+        return _corelocation_locked(timeout)
+
+
+def _corelocation_locked(timeout: float) -> Place | None:
     try:
         import CoreLocation
         import Foundation
@@ -98,19 +129,9 @@ def _corelocation(timeout: float = 8.0) -> Place | None:
             else CoreLocation.CLLocationManager.authorizationStatus()
         if status in (1, 2):  # restricted / denied — не мучаем
             return None
-        got = threading.Event()
-
-        class Delegate(Foundation.NSObject):
-            def locationManager_didUpdateLocations_(self, m, locs):
-                got.set()
-
-            def locationManager_didFailWithError_(self, m, err):
-                got.set()
-
-            def locationManagerDidChangeAuthorization_(self, m):
-                pass
-
-        delegate = Delegate.alloc().init()
+        got = _got
+        got.clear()
+        delegate = _delegate_class().alloc().init()
         mgr.setDelegate_(delegate)
         mgr.setDesiredAccuracy_(CoreLocation.kCLLocationAccuracyHundredMeters)
         if status == 0:

@@ -93,13 +93,24 @@ def from_notes(memory) -> list[Upcoming]:
 
 
 _cal_cache: tuple[float, list[Upcoming]] = (0.0, [])
+_cal_lock = threading.Lock()
 
 
 def from_calendar(days: int = 8) -> list[Upcoming]:
     """События и дни рождения из Календаря macOS (EventKit). Нет доступа — пустой список."""
     global _cal_cache
-    if time.monotonic() - _cal_cache[0] < 900:
+    if _cal_cache[0] and time.monotonic() - _cal_cache[0] < 900:
         return _cal_cache[1]
+    if not _cal_lock.acquire(blocking=False):  # уже читаем (или ждём ответа на запрос доступа) — не ждём
+        return _cal_cache[1]
+    try:
+        _cal_cache = (time.monotonic(), _read_calendar(days))
+    finally:
+        _cal_lock.release()
+    return _cal_cache[1]
+
+
+def _read_calendar(days: int) -> list[Upcoming]:
     out: list[Upcoming] = []
     try:
         import EventKit
@@ -131,7 +142,6 @@ def from_calendar(days: int = 8) -> list[Upcoming]:
                                     None if (e.isAllDay() or is_bday) else when, "calendar"))
     except Exception as e:  # нет PyObjC EventKit (не macOS) или доступа
         log.debug("календарь недоступен: %s", e)
-    _cal_cache = (time.monotonic(), out)
     return out
 
 

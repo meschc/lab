@@ -166,6 +166,7 @@ def test_briefing_after_first_command_then_nudge(tmp_path, monkeypatch):
     cfg["memory"]["embed_model"] = None
     cfg["assistant"]["user_name"] = "Кирилл"
     cfg["proactive"]["briefing_from_hour"] = 0
+    cfg["proactive"]["briefing_until_hour"] = 24
     a = A.Assistant(cfg)
     said = []
     monkeypatch.setattr(a.speaker, "say", said.append)
