@@ -71,6 +71,7 @@ files:
 apps:
   aliases:                    # как ты называешь приложение -> как оно называется на диске
     телега: Telegram
+    макс: MAX
     браузер: Yandex
     яндекс: Yandex
     музыка: Music
@@ -99,8 +100,19 @@ claude:
   timeout_minutes: 30
   terminal: Terminal          # где открывать интерактивный Claude Code
 
+messengers:                   # хоткей поиска контакта, если в твоей версии приложения он другой
+  max: {app: MAX, search: "cmd+f"}
+  telegram: {app: Telegram, search: "cmd+f"}
+  whatsapp: {app: WhatsApp, search: "cmd+f"}
+
+music:
+  search_url: "https://music.yandex.ru/search?text={}"
+  load_wait: 4                # секунд на загрузку страницы поиска перед кликом
+
 self_review:
-  auto: true                  # в простое разбирать журнал ошибок и выводить правила
+  analyzer: claude            # кто разбирает журнал ошибок: claude (Claude Code, нужен VPN) | local (своя модель)
+  suggest_after: 5            # накопилось столько ошибок — Колсон сам предложит отдать их Клоду (0 — не предлагать)
+  auto: false                 # разбирать журнал своей моделью в простое, без спроса
   min_incidents: 3
   idle_minutes: 5
 

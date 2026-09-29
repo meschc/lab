@@ -98,7 +98,8 @@ def _fix_job(ctx) -> None:
         log_tail = "\n".join(config.LOG_FILE.read_text(encoding="utf-8", errors="ignore").splitlines()[-120:])
     except Exception:
         log_tail = "(лог недоступен)"
-    report = f"Журнал:\n{journal}\n\nХвост лога ({config.LOG_FILE}):\n{log_tail}"
+    report = (f"Журнал (полная история — в файле {ctx.memory.incident_log}):\n{journal}\n\n"
+              f"Хвост лога ({config.LOG_FILE}):\n{log_tail}")
     res = run_claude(ctx, FIX_PROMPT.format(report=report), config.ROOT, allowed=FIX_TOOLS, timeout_min=40)
     changed = _git("status", "--porcelain", "--", ".").stdout.strip()
     if not res["ok"]:
@@ -127,6 +128,22 @@ def _fix_job(ctx) -> None:
     ctx.restart()
 
 
+def _analyzer(ctx):
+    """Кто разбирает журнал: Claude Code (по умолчанию — он умнее) или своя модель, если Claude недоступен."""
+    if (ctx.cfg.get("self_review") or {}).get("analyzer", "claude") == "claude":
+        from .claude import claude_bin, run_claude
+        from .vpn import ensure_vpn
+        if claude_bin(ctx.cfg):
+            ok, msg = ensure_vpn(ctx)
+            if ok:
+                def ask(prompt: str) -> str:
+                    res = run_claude(ctx, prompt, config.ROOT, allowed=["Read", "Glob", "Grep"], timeout_min=10)
+                    return res["result"] if res["ok"] else ""
+                return ask
+            log.warning("разбор через Claude недоступен (%s) — разбираю сам", msg)
+    return ctx.ask_self or (lambda prompt: "")
+
+
 def _fix_risk(ctx, action: str, text: str = "") -> str | None:
     return "дать Клоду изменить мой собственный код (с тестами и откатом при ошибке)" if action == "fix" else None
 
@@ -144,9 +161,7 @@ def self_tool(ctx, action: str, text: str = "") -> str:
     if action == "forget_lesson":
         return m.delete_lesson(text)
     if action == "analyze":
-        if not ctx.ask_self:
-            return "Ошибка: самоанализ недоступен без модели"
-        return analyze(m, ctx.ask_self)
+        return analyze(m, _analyzer(ctx))
     dirty = _git("status", "--porcelain", "--", ".").stdout.strip()
     if dirty:
         return "Ошибка: в моём коде есть несохранённые изменения — сначала их нужно закоммитить или убрать"

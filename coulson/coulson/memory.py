@@ -82,6 +82,7 @@ class Memory:
     def __init__(self, path: Path, embedder: Embedder | None = None):
         self._lock = threading.RLock()
         self.embedder = embedder
+        self.incident_log: Path | None = None  # «Журнал ошибок Колсона.md» — читаемая копия для человека и Claude
         self.db = sqlite3.connect(str(path), check_same_thread=False)
         self.db.executescript(
             """
@@ -311,6 +312,18 @@ class Memory:
                 return  # одна и та же ошибка подряд — не засоряем журнал
             self.db.execute("INSERT INTO incidents(ts, kind, text) VALUES (?, ?, ?)", (time.time(), kind, text[:1500]))
             self.db.commit()
+        if self.incident_log is not None:
+            labels = {"tool": "не сработал инструмент", "crash": "сбой", "correction": "пользователь поправил",
+                      "stuck": "застрял", "code": "баг в коде"}
+            try:
+                new = not self.incident_log.exists()
+                with self.incident_log.open("a", encoding="utf-8") as f:
+                    if new:
+                        f.write("# Журнал ошибок Колсона\n\nКолсон пишет сюда свои промахи сам. Разбор и починку делает "
+                                "Claude Code («Колсон, разбери свои ошибки» / «почини себя»).\n\n")
+                    f.write(f"- {time.strftime('%d.%m.%Y %H:%M')} — **{labels.get(kind, kind)}**: {text[:500]}\n")
+            except OSError:
+                log.warning("не удалось дописать журнал ошибок")
 
     def incidents(self, unresolved: bool = True, limit: int = 40, kinds: tuple[str, ...] | None = None) -> list[tuple]:
         sql = "SELECT id, ts, kind, text FROM incidents WHERE 1=1"
@@ -440,4 +453,11 @@ def open_memory(cfg, data_dir: Path) -> Memory:
     m = cfg.get("memory", {}) or {}
     model = m.get("embed_model")
     embedder = Embedder(cfg.llm.host, model, cfg.llm.keep_alive) if model else None
-    return Memory(data_dir / "memory.db", embedder)
+    mem = Memory(data_dir / "memory.db", embedder)
+    ws = Path((cfg.get("files") or {}).get("workspace", "~/Documents/Колсон")).expanduser()
+    try:
+        ws.mkdir(parents=True, exist_ok=True)
+        mem.incident_log = ws / "Журнал ошибок Колсона.md"
+    except OSError:
+        pass
+    return mem

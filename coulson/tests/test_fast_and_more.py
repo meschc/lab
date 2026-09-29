@@ -189,7 +189,7 @@ def test_exact_variant_from_calibration_always_wakes():
 
 def test_grouped_tools_exposed_internal_still_work(tmp_path):
     reg = load_all()
-    assert len(reg.exposed()) == 20 and "open_app" not in reg.exposed()
+    assert len(reg.exposed()) == 21 and "open_app" not in reg.exposed()
     ctx = Context(load(), memory=Memory(tmp_path / "m.db"))
     assert "нужно name" in reg.execute("app", {"action": "open"}, ctx)
     assert "Запомнил" in reg.execute("memory", {"action": "remember", "text": "тест"}, ctx)

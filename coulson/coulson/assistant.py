@@ -381,7 +381,24 @@ class Assistant:
             self.ctx.game_launched = False
             if self.cfg.llm.get("unload_on_game", True):
                 self.brain.unload()
+        self._maybe_suggest_review()
         return reply or " ".join(spoken)
+
+    def _maybe_suggest_review(self) -> None:
+        """Накопились ошибки — один раз предложить отдать их Клоду на разбор (не чинит сам, без спроса)."""
+        limit = int((self.cfg.get("self_review") or {}).get("suggest_after", 5) or 0)
+        if not limit or self.cancel.is_set():
+            return
+        count = len(self.memory.incidents(limit=100))
+        if count < limit or count <= getattr(self, "_suggested_at", 0):
+            return
+        self._suggested_at = count + limit  # следующее напоминание — ещё через столько же ошибок
+        text = (f"Кстати, в журнале накопилось {count} моих ошибок. Отдать их Клоду на разбор и починку?")
+        self.brain.append_to_last(text)  # чтобы на «да» модель поняла, о чём речь
+        self.say(text)
+        self.speaker.wait_idle()
+        self.followup_from = time.monotonic() - 0.3
+        self.followup_until = time.monotonic() + float(self.cfg.assistant.followup_seconds)
 
     def say(self, text: str) -> None:
         self.ui.show_assistant(text)

@@ -139,6 +139,7 @@ def osascript(script: str, timeout: float = 20) -> str:
 
 
 def load_all() -> Registry:
-    from . import apps, claude, files, memory_tools, mouse, plan, selfcare, system, vision, vpn, web  # noqa: F401
-    from . import groups  # noqa: F401  группирует мелкие инструменты: модели на 8B легче выбрать из 18, чем из 34
+    from . import (apps, claude, files, memory_tools, messenger, mouse, plan, selfcare, system,  # noqa: F401
+                   vision, vpn, web)
+    from . import groups  # noqa: F401  группирует мелкие инструменты: модели на 8B легче выбрать из ~20, чем из 35
     return registry

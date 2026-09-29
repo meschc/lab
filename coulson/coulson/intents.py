@@ -108,6 +108,10 @@ def try_fast(command: str, tools, ctx) -> Fast | None:
         if re.fullmatch(pattern, t):
             return _run(tools, ctx, tool, args, reply)
 
+    m = re.fullmatch(r"(включи|поставь|запусти|играй|сыграй) (песню|трек|музыку|альбом|группу|исполнителя) (.+)", t)
+    if m:
+        return _run(tools, ctx, "sound", {"action": "play_song", "query": m.group(3)}, None)
+
     vpn = r"(впн|vpn|ви пи эн|вэпээн)"
     if re.fullmatch(rf"(включи|подключи|запусти|врубай|вруби) {vpn}", t):
         return _run(tools, ctx, "vpn", {"action": "on"}, None)
