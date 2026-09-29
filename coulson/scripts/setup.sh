@@ -70,6 +70,9 @@ if [[ "${COULSON_QWEN3TTS:-0}" == "1" ]]; then
   uv sync --extra qwen3tts
 fi
 
+say_step "Встроенный браузер Колсона (Chromium для Playwright)"
+uv run playwright install chromium
+
 say_step "Скачиваю модели распознавания речи и голоса"
 uv run python -m coulson --prefetch
 

@@ -65,10 +65,21 @@ def read_webpage(ctx, url: str) -> str:
     import httpx
     import trafilatura
 
-    r = httpx.get(url, headers=_UA, timeout=20, follow_redirects=True)
-    r.raise_for_status()
-    text = trafilatura.extract(r.text, include_comments=False, include_tables=True, url=url)
-    return (text or re.sub(r"<[^>]+>", " ", r.text))[:6000]
+    try:
+        r = httpx.get(url, headers=_UA, timeout=20, follow_redirects=True)
+        r.raise_for_status()
+        text = trafilatura.extract(r.text, include_comments=False, include_tables=True, url=url) or ""
+    except Exception:
+        text = ""
+    if len(text) < 400:  # сайт на JavaScript или не пустил простой запрос — открываем во внутреннем браузере
+        try:
+            from ..browser_engine import engine
+            engine(ctx.cfg).open(url)
+            return engine(ctx.cfg).text()
+        except Exception as e:
+            if not text:
+                return f"Ошибка: не удалось прочитать страницу: {e}"
+    return text[:6000]
 
 
 @registry.add("browser_tab", "URL and title of the active browser tab.")

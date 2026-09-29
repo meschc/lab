@@ -4,7 +4,7 @@ import pytest
 
 from coulson.config import load
 from coulson.memory import Memory
-from coulson.textutil import clean_for_speech, emoji_to_words, prepare_ru
+from coulson.textutil import clean_for_speech, prepare_ru, strip_emoji
 from coulson.tools import Context, load_all, messenger as MS, music as MU
 
 
@@ -71,9 +71,9 @@ def test_message_always_confirmed(ui, tmp_path):
     assert ui == []
 
 
-def test_emoji_spoken_as_words():
-    assert emoji_to_words("Люблю тебя ❤️") == "Люблю тебя, сердечко"
-    assert "сердечко" in prepare_ru("Снежа ❤️ ответила 😘")
+def test_emoji_are_skipped_in_speech():
+    assert strip_emoji("Люблю тебя ❤️😘") == "Люблю тебя"
+    assert prepare_ru("Снежа ❤️ ответила 😘 ⭐") == "Снежа ответила"
     assert "🦄" not in clean_for_speech("Единорог 🦄")
 
 
@@ -88,6 +88,7 @@ def test_play_song_intent_and_tool(tmp_path, monkeypatch):
             return "Включаю «кино группа крови» в Яндекс Музыке"
 
     ctx = _ctx(tmp_path)
+    ctx.cfg["music"]["browser"] = "external"
     assert try_fast("включи песню кино группа крови", Rec(), ctx) is not None
     assert calls == [("sound", {"action": "play_song", "query": "кино группа крови"})]
 

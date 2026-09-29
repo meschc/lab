@@ -23,6 +23,7 @@ dependencies = [
     "opencv-python>=4.10",
     "pyyaml>=6.0",
     "openpyxl>=3.1",
+    "playwright>=1.50",
 ]
 
 [project.optional-dependencies]

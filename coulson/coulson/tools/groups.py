@@ -44,16 +44,42 @@ def browser(ctx, action: str, target: str = "", engine: str = "yandex") -> str:
     return _call(ctx, "open_url", url=target)
 
 
-@registry.add("web", "Internet for YOU to read and answer from: search (then read the best link), read a page, "
-              "weather (query = city).",
-              {"action": ("string", ""), "query": ("string", "search text, URL or city")}, ["action"],
-              enums={"action": ["search", "read", "weather"]})
-def web(ctx, action: str, query: str = "") -> str:
+@registry.add("web", "Internet for YOU (your own built-in browser, not the user's): search (then read the best "
+              "link), read a page, weather (query=city); open a site and work on it yourself: click a button/link "
+              "(query=its text), type into a field (query=field name, text=what), press a key, look at the page, "
+              "close.",
+              {"action": ("string", ""), "query": ("string", "search text, URL, city or element text"),
+               "text": ("string", "text to type")}, ["action"],
+              enums={"action": ["search", "read", "weather", "open", "click", "type", "press", "look", "close"]})
+def web(ctx, action: str, query: str = "", text: str = "") -> str:
     if action == "weather":
         return _call(ctx, "weather", city=query)
-    if action == "read":
+    if action == "search":
+        return _call(ctx, "web_search", query=query)
+    if action == "read" and query:
         return _call(ctx, "read_webpage", url=query)
-    return _call(ctx, "web_search", query=query)
+    from ..browser_engine import engine
+
+    b = engine(ctx.cfg)
+    if action == "open":
+        url = query if "://" in query else ("https://" + query if "." in query and " " not in query
+                                            else "https://yandex.ru/search/?text=" + query)
+        return b.open(url)
+    if action == "read":
+        return b.text()
+    if action == "click":
+        return b.click(query, locate=getattr(ctx, "locate", None))
+    if action == "type":
+        return b.type(query, text, submit=True)
+    if action == "press":
+        return b.press(query or "enter")
+    if action == "close":
+        return b.close()
+    shot = b.screenshot()  # look
+    if ctx.attach_image:
+        ctx.attach_image(shot)
+        return "Снимок страницы внутреннего браузера приложен следующим сообщением."
+    return "Зрение недоступно"
 
 
 @registry.add("keyboard", "Keyboard and clipboard: type text into the focused field, press keys/shortcut "
