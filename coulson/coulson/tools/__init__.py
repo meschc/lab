@@ -16,16 +16,16 @@ MAX_RESULT = 6000
 class Tool:
     name: str
     description: str
-    params: dict[str, tuple[str, str]]      # имя -> (json-тип, описание)
+    params: dict[str, tuple[str, str] | dict]  # имя -> (json-тип, описание) или готовая JSON-схема
     required: list[str]
     func: Callable[..., Any]
-    risk: Callable[..., str | None] | None = None  # вернуть описание, если нужно подтверждение
+    risk: Callable[..., str | None] | None = None  # risk(ctx, **args) -> описание, если нужно подтверждение
     enums: dict[str, list[str]] = field(default_factory=dict)
 
     def schema(self) -> dict:
         props = {}
-        for pname, (ptype, pdesc) in self.params.items():
-            props[pname] = {"type": ptype, "description": pdesc}
+        for pname, spec in self.params.items():
+            props[pname] = dict(spec) if isinstance(spec, dict) else {"type": spec[0], "description": spec[1]}
             if pname in self.enums:
                 props[pname]["enum"] = self.enums[pname]
         return {"type": "function", "function": {
@@ -74,7 +74,7 @@ class Registry:
             return f"Ошибка: не хватает параметров {missing}"
         try:
             if tool.risk and ctx.cfg.safety.confirm_risky:
-                reason = tool.risk(**args)
+                reason = tool.risk(ctx, **args)
                 if reason and not ctx.confirm(reason):
                     return "Пользователь НЕ подтвердил действие. Не выполняй его и не пытайся обойти."
             result = tool.func(ctx, **args)
@@ -106,5 +106,5 @@ def osascript(script: str, timeout: float = 20) -> str:
 
 
 def load_all() -> Registry:
-    from . import apps, memory_tools, system, vision, web  # noqa: F401  регистрация через декораторы
+    from . import apps, files, memory_tools, system, vision, web  # noqa: F401  регистрация через декораторы
     return registry

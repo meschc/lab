@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import threading
 import time
@@ -83,7 +84,7 @@ _ACTIONS = {
 
 @registry.add("system_action", "Perform a system action.",
               {"action": ("string", "What to do")}, ["action"],
-              risk=lambda action: _ACTIONS.get(action, (None, None))[1], enums={"action": list(_ACTIONS)})
+              risk=lambda ctx, action: _ACTIONS.get(action, (None, None))[1], enums={"action": list(_ACTIONS)})
 def system_action(ctx, action: str) -> str:
     if action not in _ACTIONS:
         return f"Неизвестное действие. Доступны: {', '.join(_ACTIONS)}"
@@ -126,6 +127,54 @@ def type_text(ctx, text: str) -> str:
     return osascript(f'tell application "System Events" to keystroke {_as_str(text)}')
 
 
+_KEY_CODES = {"esc": 53, "escape": 53, "enter": 36, "return": 36, "tab": 48, "space": 49, "пробел": 49,
+              "delete": 51, "backspace": 51, "forwarddelete": 117, "left": 123, "right": 124, "down": 125, "up": 126,
+              "home": 115, "end": 119, "pageup": 116, "pagedown": 121,
+              **{f"f{i}": c for i, c in enumerate([122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111], 1)}}
+_MODS = {"cmd": "command down", "command": "command down", "⌘": "command down", "shift": "shift down",
+         "alt": "option down", "option": "option down", "opt": "option down", "ctrl": "control down",
+         "control": "control down"}
+
+
+def parse_keys(keys: str) -> tuple[str, list[str]]:
+    """'cmd+shift+t' -> ('keystroke "t"', ['command down', 'shift down'])."""
+    parts = [p.strip().lower() for p in re.split(r"\s*\+\s*", keys.strip()) if p.strip()]
+    mods = [_MODS[p] for p in parts[:-1] if p in _MODS]
+    key = parts[-1] if parts else ""
+    if key in _KEY_CODES:
+        action = f"key code {_KEY_CODES[key]}"
+    elif len(key) == 1:
+        action = f"keystroke {_as_str(key)}"
+    else:
+        raise ValueError(f"Неизвестная клавиша: {key}")
+    return action, mods
+
+
+def _keys_risk(ctx, keys: str, app: str = "", times: int = 1) -> str | None:
+    action, mods = parse_keys(keys)
+    if "command down" in mods and action in ('keystroke "q"', 'keystroke "w"'):
+        return "закрыть окно или приложение сочетанием клавиш (несохранённое может пропасть)"
+    if "command down" in mods and action in ("key code 51", "key code 117"):
+        return "удаление сочетанием клавиш"
+    return None
+
+
+@registry.add("press_keys", "Press a key or keyboard shortcut in the active app (or in `app`): 'cmd+t', 'esc', "
+              "'space', 'cmd+shift+4', 'f5', 'right'. For games, browsers, players.",
+              {"keys": ("string", "Shortcut like cmd+shift+t"), "app": ("string", "Optional app to activate first"),
+               "times": ("integer", "Repeat count (default 1)")}, ["keys"], risk=_keys_risk)
+def press_keys(ctx, keys: str, app: str = "", times: int = 1) -> str:
+    action, mods = parse_keys(keys)
+    using = f" using {{{', '.join(mods)}}}" if mods else ""
+    script = ""
+    if app:
+        script += f'tell application {_as_str(app)} to activate\ndelay 0.3\n'
+    script += "tell application \"System Events\"\n"
+    script += f"repeat {max(1, min(int(times), 50))} times\n{action}{using}\ndelay 0.05\nend repeat\nend tell"
+    res = osascript(script)
+    return f"Нажато: {keys}" if res == "OK" else res
+
+
 def _as_str(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -134,7 +183,7 @@ def _as_str(s: str) -> str:
 
 @registry.add("run_shell", "Run a zsh command on the Mac and return output. Use for anything not covered by other "
               "tools. Dangerous commands are confirmed with the user automatically.",
-              {"command": ("string", "zsh command")}, ["command"], risk=lambda command: shell_risk(command))
+              {"command": ("string", "zsh command")}, ["command"], risk=lambda ctx, command: shell_risk(command))
 def run_shell(ctx, command: str) -> str:
     env_path = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     return run(f"export PATH={env_path}:$PATH; cd ~; {command}", shell=True, timeout=60)
@@ -142,7 +191,7 @@ def run_shell(ctx, command: str) -> str:
 
 @registry.add("run_applescript", "Run AppleScript to automate macOS apps (Finder, Music, Notes, Reminders, Calendar, "
               "System Events, browser…).",
-              {"script": ("string", "AppleScript source")}, ["script"], risk=lambda script: applescript_risk(script))
+              {"script": ("string", "AppleScript source")}, ["script"], risk=lambda ctx, script: applescript_risk(script))
 def run_applescript(ctx, script: str) -> str:
     return run(["osascript", "-e", script], timeout=30)
 
@@ -157,25 +206,6 @@ def run_shortcut(ctx, name: str, input: str = "") -> str:
         p = subprocess.run(["shortcuts", "run", name, "-i", "-"], input=input, capture_output=True, text=True, timeout=60)
         return (p.stdout or p.stderr or "OK").strip()
     return run(["shortcuts", "run", name], timeout=60)
-
-
-# ---------------------------------------------------------------- файлы
-
-@registry.add("find_files", "Find files/folders by name using Spotlight.",
-              {"query": ("string", "Name or part of it"), "folder": ("string", "Limit to folder, default home")},
-              ["query"])
-def find_files(ctx, query: str, folder: str = "") -> str:
-    base = os.path.expanduser(folder or "~")
-    out = run(["mdfind", "-onlyin", base, "-name", query], timeout=20)
-    lines = [l for l in out.splitlines() if "/Library/" not in l and "/." not in l][:20]
-    return "\n".join(lines) or "Ничего не найдено"
-
-
-@registry.add("open_path", "Open a file or folder with its default app (or reveal in Finder).",
-              {"path": ("string", "Path"), "reveal": ("boolean", "Show in Finder instead of opening")}, ["path"])
-def open_path(ctx, path: str, reveal: bool = False) -> str:
-    path = os.path.expanduser(path)
-    return run(["open", "-R", path] if reveal else ["open", path])
 
 
 # ---------------------------------------------------------------- VPN

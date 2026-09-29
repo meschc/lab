@@ -56,3 +56,31 @@ def test_sleep_mode(asst):
 def test_sleep_regex_word_boundaries():
     assert not A._SLEEP_RE.search("открой список покупок")
     assert A._SLEEP_RE.search("спи")
+
+
+def test_filler_not_during_confirmation(asst, monkeypatch):
+    import threading
+    said = []
+    monkeypatch.setattr(asst.speaker, "say", lambda t: said.append(t))
+    monkeypatch.setattr(asst.speaker, "wait_idle", lambda timeout=0: None)
+    asst.cfg["assistant"]["filler_after_seconds"] = 0.05
+    started = threading.Event()
+
+    def slow_respond(cmd, ctx, on_sentence, cancel=None, on_tool=None):
+        asst.confirming = True
+        started.set()
+        time.sleep(0.2)
+        asst.confirming = False
+        return "ok"
+
+    monkeypatch.setattr(asst.brain, "respond", slow_respond)
+    A.Assistant.handle(asst, "удали файл")
+    assert said == []
+
+    def slow_plain(cmd, ctx, on_sentence, cancel=None, on_tool=None):
+        time.sleep(0.2)
+        return "ok"
+
+    monkeypatch.setattr(asst.brain, "respond", slow_plain)
+    A.Assistant.handle(asst, "напиши страницу")
+    assert len(said) == 1

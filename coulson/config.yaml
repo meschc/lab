@@ -11,6 +11,7 @@ assistant:
   confirm_timeout_seconds: 15
   ack: chime                  # chime | voice — реакция на одиночное «Колсон»
   session_idle_minutes: 30    # после простоя контекст диалога сбрасывается (память остаётся)
+  filler_after_seconds: 6     # если задача долгая — сказать «Минутку, работаю» (0 = не говорить)
 
 audio:
   sample_rate: 16000
@@ -53,6 +54,9 @@ tts:
 
 browser:
   app: Yandex                 # имя приложения браузера (/Applications/Yandex.app)
+
+files:
+  workspace: ~/Documents/Колсон   # куда сохраняются созданные файлы, если путь не указан
 
 apps:
   aliases:                    # как ты называешь приложение -> как оно называется на диске

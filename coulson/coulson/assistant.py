@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import queue
+import random
 import re
 import threading
 import time
@@ -42,7 +43,11 @@ TOOL_LABELS = {
     "media": "медиа", "system_status": "проверяю систему", "system_action": "выполняю", "set_timer": "ставлю таймер",
     "clipboard": "буфер обмена", "type_text": "печатаю", "find_files": "ищу файлы", "open_path": "открываю",
     "remember": "запоминаю", "forget": "забываю", "recall": "вспоминаю", "vpn": "VPN",
+    "write_file": "создаю файл", "create_table": "делаю таблицу", "read_file": "читаю файл", "list_dir": "смотрю папку",
+    "disk_usage": "считаю место на диске", "press_keys": "нажимаю клавиши",
 }
+
+_FILLERS = ("Минутку, работаю.", "Секунду, делаю.", "Сейчас, это займёт немного времени.", "Работаю над этим.")
 
 _SLEEP_RE = re.compile(r"\b(не слушай|перестань слушать|режим сна|спи|отдыхай|stop listening|go to sleep)\b")
 _WAKE_UP_RE = re.compile(r"\b(проснись|слушай|просыпайся|я здесь|wake up|start listening)\b")
@@ -61,6 +66,7 @@ class Assistant:
         self.ready = threading.Event()
         self.awaiting_until = 0.0
         self.followup_until = 0.0
+        self.confirming = False
 
         from .brain import Brain
         from .tts import Speaker
@@ -211,6 +217,16 @@ class Assistant:
             self.ui.show_assistant(" ".join(spoken))
             self.speaker.say(s)
 
+        def filler() -> None:
+            # Модель долго пишет (страница, таблица, поиск) — даём знать, что не зависли
+            if self.busy and not spoken and not self.cancel.is_set() and not self.confirming:
+                self.speaker.say(random.choice(_FILLERS))
+
+        delay = float(self.cfg.assistant.get("filler_after_seconds", 6) or 0)
+        timer = threading.Timer(delay, filler) if delay > 0 else None
+        if timer:
+            timer.daemon = True
+            timer.start()
         try:
             reply = self.brain.respond(command, self.ctx, on_sentence, cancel=self.cancel,
                                        on_tool=lambda name: self.ui.set_state("thinking", TOOL_LABELS.get(name, name)))
@@ -220,6 +236,8 @@ class Assistant:
             on_sentence(f"Простите, мозг не отвечает: {type(e).__name__}.")
         finally:
             self.busy = False
+            if timer:
+                timer.cancel()
         self.speaker.wait_idle()
         self.followup_until = time.monotonic() + float(self.cfg.assistant.followup_seconds)
         self.ui.set_state(self._idle_state())
@@ -235,6 +253,7 @@ class Assistant:
         if self.listener is None:  # текстовый режим
             ans = input(f"\n⚠️  Подтвердите: {description}? [да/нет] ")
             return bool(parse_yes_no(ans))
+        self.confirming = True
         try:
             while not self.utterances.empty():
                 self.utterances.get_nowait()
@@ -256,3 +275,4 @@ class Assistant:
             return False
         finally:
             self.awaiting_until = 0
+            self.confirming = False

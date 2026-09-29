@@ -23,12 +23,12 @@
   body.collapsed .text, body.collapsed .controls { display: none; }
 
   /* ---------- шар: живой переливающийся градиент ---------- */
-  @property --c1 { syntax: "<color>"; inherits: true; initial-value: #6a5cff; }
-  @property --c2 { syntax: "<color>"; inherits: true; initial-value: #00c6ff; }
-  @property --c3 { syntax: "<color>"; inherits: true; initial-value: #ff5ea8; }
-  @property --c4 { syntax: "<color>"; inherits: true; initial-value: #7cf5d0; }
+  @property --c1 { syntax: "<color>"; inherits: true; initial-value: #2f9bff; }
+  @property --c2 { syntax: "<color>"; inherits: true; initial-value: #5fd0ff; }
+  @property --c3 { syntax: "<color>"; inherits: true; initial-value: #0a3bd6; }
+  @property --c4 { syntax: "<color>"; inherits: true; initial-value: #d8f7ff; }
   @property --a  { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-  body { --c1: #6a5cff; --c2: #00c6ff; --c3: #ff5ea8; --c4: #7cf5d0;
+  body { --c1: #2f9bff; --c2: #5fd0ff; --c3: #0a3bd6; --c4: #d8f7ff;
     transition: --c1 .9s ease, --c2 .9s ease, --c3 .9s ease, --c4 .9s ease; }
 
   /* все размеры шара в em: 1em = диаметр, поэтому он одинаково красиво масштабируется */
@@ -38,11 +38,11 @@
     filter: blur(.16em) saturate(1.3); animation: spin 9s linear infinite;
     transition: opacity .6s, transform .12s linear; transform: scale(var(--s, .9)); }
   .orb { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; isolation: isolate;
-    background: #0a0a16; filter: saturate(1.35) contrast(1.05);
+    background: radial-gradient(circle at 50% 60%, #0b2448, #04101f 80%); filter: saturate(1.25) contrast(1.05);
     transform: scale(var(--s, .9)); transition: transform .12s linear, filter .6s, opacity .6s; }
   .swirl { position: absolute; inset: -30%;
     background: conic-gradient(from var(--a), var(--c1), var(--c2), var(--c3), var(--c4), var(--c1));
-    filter: blur(.1em); animation: spin 6s linear infinite; opacity: .8; transition: opacity .6s; }
+    filter: blur(.1em); animation: spin 6s linear infinite; opacity: .6; transition: opacity .6s; }
   .blob { position: absolute; top: 14%; left: 14%; width: 72%; height: 72%; border-radius: 50%;
     filter: blur(.09em); opacity: .9; }
   .b1 { background: radial-gradient(circle, var(--c1) 0%, transparent 62%); animation: d1 7.3s ease-in-out infinite; }
@@ -65,12 +65,12 @@
                   75% { transform: translate(24%,32%) scale(.8); } }
   @keyframes breathe { 0%,100% { opacity: .35 } 50% { opacity: .85 } }
 
-  /* состояния: меняются цвета (плавно) и активность, скорость анимаций не скачет */
-  body.idle      { --c1: #6a5cff; --c2: #00c6ff; --c3: #ff5ea8; --c4: #7cf5d0; }
-  body.loading   { --c1: #5561a8; --c2: #3aa3c9; --c3: #8e6ad8; --c4: #4fd1c5; }
-  body.listening { --c1: #00e0ff; --c2: #3d7bff; --c3: #7cffcb; --c4: #b36bff; }
-  body.thinking  { --c1: #a45bff; --c2: #ff4fd8; --c3: #4d7cff; --c4: #ffb86b; }
-  body.speaking  { --c1: #ff9f43; --c2: #ff5e62; --c3: #ffd86b; --c4: #ff7ad9; }
+  /* все состояния голубые: различаются оттенком, яркостью и активностью (скорость анимаций не скачет) */
+  body.idle      { --c1: #2f9bff; --c2: #5fd0ff; --c3: #0a3bd6; --c4: #d8f7ff; }  /* спокойный голубой */
+  body.loading   { --c1: #3a78c2; --c2: #4fa6d8; --c3: #2a4f99; --c4: #86c4e6; }  /* приглушённый */
+  body.listening { --c1: #00c8ff; --c2: #52e0ff; --c3: #0b5fe0; --c4: #e6fbff; }  /* яркий, ближе к циану */
+  body.thinking  { --c1: #1f6bff; --c2: #3fb4ff; --c3: #2a2fd8; --c4: #b5e6ff; }  /* глубже, с каплей индиго */
+  body.speaking  { --c1: #38bdf8; --c2: #7dd8ff; --c3: #0a6fd0; --c4: #f0fbff; }  /* светлый, почти ледяной */
   body.idle .glow { opacity: .28; }
   body.loading .orb { opacity: .7; }
   body.loading .glow { animation: spin 9s linear infinite, breathe 2s ease-in-out infinite; }
