@@ -21,6 +21,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Колсон</string>
   <key>CFBundleIdentifier</key><string>local.coulson.assistant</string>
   <key>CFBundleExecutable</key><string>Coulson</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>0.1.0</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
@@ -54,6 +55,15 @@ int main(void) {
   return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
 }
 C
+# Иконка: градиентный шар из assets/icon.png
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for sz in 16 32 128 256 512; do
+  sips -z $sz $sz assets/icon.png --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
+  sips -z $((sz*2)) $((sz*2)) assets/icon.png --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+
 clang -O2 -o "$APP/Contents/MacOS/Coulson" "$APP/Contents/Resources/launcher.c"
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
 echo "Собрано: $APP"

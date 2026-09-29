@@ -43,12 +43,12 @@ def make(tmp_path, scripts):
 def test_tool_then_answer(tmp_path):
     b, ctx, opened = make(tmp_path, [
         [chunk(tool_calls=[tc("open_app", {"name": "Steam"})])],
-        [chunk("Готово, сэр. "), chunk("Стим запущен. Запустить "), chunk("вашу игру?")],
+        [chunk("Готово. "), chunk("Стим запущен. Запустить "), chunk("вашу игру?")],
     ])
     spoken = []
     reply = b.respond("открой стим", ctx, spoken.append)
     assert opened == ["Steam"]
-    assert spoken == ["Готово, сэр.", "Стим запущен.", "Запустить вашу игру?"]
+    assert spoken == ["Готово. Стим запущен.", "Запустить вашу игру?"]
     assert reply.startswith("Готово")
     second = b.client.calls[1]["messages"]
     assert second[-1]["role"] == "tool" and "Запущено" in second[-1]["content"]
@@ -58,12 +58,12 @@ def test_tool_then_answer(tmp_path):
 def test_text_tool_call_fallback_is_not_spoken(tmp_path):
     b, ctx, opened = make(tmp_path, [
         [chunk("<tool_call>\n<function=open_app>\n<parameter=name>\nTelegram\n"), chunk("</parameter>\n</function>\n</tool_call>")],
-        [chunk("Телеграм открыт, сэр.")],
+        [chunk("Телеграм открыт.")],
     ])
     spoken = []
     b.respond("открой телегу", ctx, spoken.append)
     assert opened == ["Telegram"]
-    assert spoken == ["Телеграм открыт, сэр."]
+    assert spoken == ["Телеграм открыт."]
 
 
 def test_cancel(tmp_path):

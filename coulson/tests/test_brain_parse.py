@@ -17,4 +17,4 @@ def test_hermes_json():
 
 
 def test_plain_text():
-    assert parse_text_tool_calls("Готово, сэр.") == []
+    assert parse_text_tool_calls("Готово, Стим запущен.") == []

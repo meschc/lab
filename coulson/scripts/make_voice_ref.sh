@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="${1:-voices/butler_ref.wav}"
-TEXT="Good evening, sir. All systems are online. Shall I prepare the usual setup for tonight?"
+TEXT="Good evening. All systems are online. Shall I prepare the usual setup for tonight?"
 mkdir -p "$(dirname "$OUT")"
 say -v Daniel -o /tmp/coulson_ref.aiff "$TEXT"
 afconvert -f WAVE -d LEI16@24000 -c 1 /tmp/coulson_ref.aiff "$OUT"

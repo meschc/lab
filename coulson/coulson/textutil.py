@@ -147,6 +147,19 @@ def pop_sentences(buffer: str, min_len: int = 12) -> tuple[list[str], str]:
     return out, rest
 
 
+_HONORIFIC_RE = re.compile(r"(,\s*|\s+)?\b(сэр|сер|господин|хозяин|sir)\b(?=[\s,.!?…]|$)", re.I)
+
+
+def strip_honorifics(text: str) -> str:
+    """«Готово, сэр. Да, сэр, открываю» -> «Готово. Да, открываю»."""
+    text = _HONORIFIC_RE.sub("", text)
+    text = re.sub(r"^\s*[,.!]\s*", "", text)
+    text = re.sub(r"\s+([,.!?…])", r"\1", text)
+    text = re.sub(r"([,.!?…])\s*,", r"\1", text)
+    text = re.sub(r"\s{2,}", " ", text).strip()
+    return text[:1].upper() + text[1:] if text else text
+
+
 def clean_for_speech(text: str) -> str:
     """Убирает markdown, ссылки, эмодзи — то, что нельзя произнести."""
     text = re.sub(r"```.*?```", " ", text, flags=re.S)

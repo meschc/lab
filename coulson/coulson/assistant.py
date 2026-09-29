@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from . import config
 from .memory import Memory
-from .textutil import find_wake, is_stop_command, normalize, parse_yes_no
+from .textutil import find_wake, is_stop_command, normalize, parse_yes_no, strip_honorifics
 from .tools import Context, load_all
 
 log = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ class Assistant:
         threading.Thread(target=self._agent_loop, daemon=True, name="agent").start()
         name = self.cfg.assistant.name
         log.info("%s готов и слушает", name)
-        self.say(f"{name} на связи, {self.cfg.assistant.user_title}.")
+        self.say(f"{name} на связи.")
 
     def set_mic(self, on: bool) -> None:
         if self.listener:
@@ -159,7 +159,7 @@ class Assistant:
         if self.sleeping:
             if u.wake and _WAKE_UP_RE.search(normalize(u.rest or "")):
                 self.sleeping = False
-                self.say(f"Я снова слушаю, {a.user_title}.")
+                self.say("Я снова слушаю.")
             return
 
         accepted = u.wake or now < self.awaiting_until or now < self.followup_until
@@ -178,7 +178,7 @@ class Assistant:
             return
         if _SLEEP_RE.search(normalize(command)) and len(command) < 40:
             self.sleeping = True
-            self.say(f"Хорошо, {a.user_title}. Скажите «{a.name}, проснись», когда понадоблюсь.")
+            self.say(f"Хорошо. Скажите «{a.name}, проснись», когда понадоблюсь.")
             self.ui.set_state("sleeping")
             return
         self.awaiting_until = 0
@@ -189,7 +189,7 @@ class Assistant:
         self.awaiting_until = time.monotonic() + float(a.listen_after_wake_seconds)
         self.ui.set_state("listening")
         if a.ack == "voice":
-            self.say(f"Да, {a.user_title}?")
+            self.say("Да?")
         else:
             from .audio import chime
             chime("wake")
@@ -204,6 +204,9 @@ class Assistant:
         def on_sentence(s: str) -> None:
             if self.cancel.is_set():  # перебили — остаток ответа не озвучиваем
                 return
+            s = strip_honorifics(s)
+            if not s:
+                return
             spoken.append(s)
             self.ui.show_assistant(" ".join(spoken))
             self.speaker.say(s)
@@ -214,7 +217,7 @@ class Assistant:
         except Exception as e:
             log.exception("LLM error")
             reply = ""
-            on_sentence(f"Простите, {self.cfg.assistant.user_title}, мозг не отвечает: {type(e).__name__}.")
+            on_sentence(f"Простите, мозг не отвечает: {type(e).__name__}.")
         finally:
             self.busy = False
         self.speaker.wait_idle()
@@ -235,7 +238,7 @@ class Assistant:
         try:
             while not self.utterances.empty():
                 self.utterances.get_nowait()
-            self.speaker.say(f"{a.user_title.capitalize()}, требуется подтверждение: {description}. Выполнить?")
+            self.speaker.say(f"Нужно подтверждение: {description}. Выполнить?")
             self.speaker.wait_idle()
             self.ui.set_state("listening", "жду подтверждения")
             deadline = time.monotonic() + float(a.confirm_timeout_seconds)

@@ -101,7 +101,7 @@ def set_timer(ctx, minutes: float, message: str = "") -> str:
     def fire():
         ctx.notify(text)
         osascript(f'display notification {_as_str(text)} with title "Колсон" sound name "Glass"')
-        ctx.speak(f"Сэр, напоминаю: {text}")
+        ctx.speak(f"Напоминаю: {text}")
 
     t = threading.Timer(minutes * 60, fire)
     t.daemon = True

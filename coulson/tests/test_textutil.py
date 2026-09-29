@@ -34,14 +34,14 @@ def test_stop():
 
 
 def test_lang():
-    assert detect_lang("Открываю Стим, сэр.") == "ru"
-    assert detect_lang("Opening Steam for you, sir.") == "en"
+    assert detect_lang("Открываю Стим.") == "ru"
+    assert detect_lang("Opening Steam for you right now.") == "en"
     assert detect_lang("Запустил Steam") == "ru"
 
 
 def test_sentences_streaming():
-    sents, rest = pop_sentences("Готово, сэр. Стим запущен! Что ещё")
-    assert sents == ["Готово, сэр.", "Стим запущен!"]
+    sents, rest = pop_sentences("Готово. Стим запущен! Что ещё")
+    assert sents == ["Готово. Стим запущен!"]
     assert rest.strip() == "Что ещё"
     sents, rest = pop_sentences("Да. Конечно, сейчас сделаю.")
     assert sents == ["Да. Конечно, сейчас сделаю."]
@@ -66,3 +66,13 @@ def test_wake_edge_cases():
 def test_time_speech():
     assert "четырнадцать ноль пять" in prepare_ru("Сейчас 14:05")
     assert "девять ровно" in prepare_ru("Встреча в 9:00")
+
+
+def test_strip_honorifics():
+    from coulson.textutil import strip_honorifics
+    assert strip_honorifics("Готово, сэр.") == "Готово."
+    assert strip_honorifics("Сэр, Стим запущен.") == "Стим запущен."
+    assert strip_honorifics("Да, сэр, открываю.") == "Да, открываю."
+    assert strip_honorifics("Right away, sir!") == "Right away!"
+    assert strip_honorifics("Сергей звонил") == "Сергей звонил"
+    assert strip_honorifics("Сэр.") == ""
