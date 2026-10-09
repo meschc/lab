@@ -4,6 +4,7 @@ import { SYSTEMS, CARRIERS, buildQuestion, templateCount } from './data/whatif.j
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
 import { exportCard } from './card.js';
+import { initCatalog } from './catalog.js';
 
 const COLORS = { paper: '#F3F0E8', ink: '#1F1F1F' };
 const RECENT_LIMIT = 24;
@@ -34,6 +35,7 @@ const state = {
   visual: null,
   visualKey: '',
   view: null,
+  screen: null, // 'catalog' | 'gen'
 };
 
 /* ——— выбор ——— */
@@ -88,10 +90,15 @@ function currentView() {
 const canvas = $('#stage');
 const ctx = canvas.getContext('2d');
 
+const visualKey = (engine, params, seed) => `${engine}|${JSON.stringify(params)}|${seed}`;
+
 function setVisual(engine, params, seed) {
-  const key = `${engine}|${JSON.stringify(params)}|${seed}`;
+  const key = visualKey(engine, params, seed);
   if (key === state.visualKey) return;
   state.visualKey = key;
+  // та же схема, что крутилась в плитке каталога, — продолжаем её, а не начинаем заново
+  const shared = state.screen && catalog.visualOf(state.view?.ref?.id);
+  if (shared && state.view.engine === engine && state.view.seed === seed) { state.visual = shared; return; }
   state.visual = createVisual(engine, params, seed);
   if (reducedMotion) for (let i = 0; i < 900; i++) state.visual.engine.step(state.visual.state, 1 / 30);
 }
@@ -115,8 +122,10 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  if (state.visual && !reducedMotion) state.visual.engine.step(state.visual.state, dt);
-  paint();
+  if (state.screen === 'gen') {
+    if (state.visual && !reducedMotion) state.visual.engine.step(state.visual.state, dt);
+    paint();
+  }
   requestAnimationFrame(loop);
 }
 
@@ -249,7 +258,7 @@ function writeHash() {
     const { sys, car, tpl } = state.wf;
     h = `w/${sys.id}/${car.id}/${tpl}`;
   }
-  history.replaceState(null, '', `#${h}`);
+  history.replaceState(history.state, '', `#${h}`);
 }
 
 function readHash() {
@@ -268,7 +277,7 @@ function readHash() {
 }
 
 function render() {
-  for (const b of document.querySelectorAll('.seg__btn')) {
+  for (const b of document.querySelectorAll('.seg__btn[data-branch]')) {
     const on = b.dataset.branch === state.branch;
     b.classList.toggle('is-on', on);
     b.setAttribute('aria-selected', String(on));
@@ -290,6 +299,70 @@ function render() {
   renderLinks(v);
   renderReveal(v);
   writeHash();
+}
+
+/* ——— экраны: каталог ⇄ генератор ——— */
+
+const genEl = $('#gen');
+const stageEl = $('.stage');
+let catalogScroll = 0;
+
+// View Transitions: элемент from «перетекает» в to (to — функция: цель известна только после update);
+// без поддержки браузером — просто переключаем
+function swap(update, from, to) {
+  if (!document.startViewTransition || reducedMotion || !state.screen) { update(); return; }
+  if (from) from.style.viewTransitionName = 'vis';
+  let target = null;
+  const vt = document.startViewTransition(() => {
+    if (from) from.style.viewTransitionName = '';
+    update();
+    target = to?.() || null;
+    if (target) target.style.viewTransitionName = 'vis';
+  });
+  vt.finished.finally(() => { if (target) target.style.viewTransitionName = ''; });
+}
+
+function enterGen(from = null) {
+  if (state.screen === 'catalog') catalogScroll = window.scrollY;
+  swap(() => {
+    catalog.hide();
+    genEl.hidden = false;
+    document.title = 'Мысль — генератор';
+    state.screen = 'gen';
+    fitCanvas();
+    render();
+    paint();
+    window.scrollTo(0, 0);
+  }, from, from ? () => stageEl : null);
+}
+
+function enterCatalog() {
+  const id = state.branch === 'term' ? state.term : state.branch === 'theory' ? state.theory.term : null;
+  swap(() => {
+    genEl.hidden = true;
+    catalog.show();
+    document.title = 'Мысль';
+    state.screen = 'catalog';
+    window.scrollTo(0, catalogScroll);
+  }, state.screen === 'gen' ? stageEl : null, () => {
+    const to = id && catalog.targetFor(id);
+    if (to) {
+      const r = to.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight) to.scrollIntoView({ block: 'center' });
+    }
+    return to;
+  });
+}
+
+function route() {
+  if (readHash()) {
+    if (state.screen !== 'gen') enterGen();
+    else render();
+  } else if (state.screen !== 'catalog') enterCatalog();
+}
+
+function openGen(push) {
+  history.pushState({ gen: true }, '', push);
 }
 
 function go(branch, mutate) {
@@ -318,13 +391,35 @@ function toast(msg) {
 
 /* ——— старт ——— */
 
+const catalog = initCatalog({
+  root: $('#catalog'),
+  colors: COLORS,
+  reducedMotion,
+  onOpen({ id, mode, fromEl }) {
+    state.revealed = false;
+    if (mode === 'theory') { state.branch = 'theory'; state.theory = { term: id, idx: 0 }; }
+    else { state.branch = 'term'; state.term = id; }
+    state.view = { ref: termById(id), engine: termById(id).engine, seed: hashStr(id) };
+    openGen(mode === 'theory' ? `#th/${id}/0` : `#t/${id}`);
+    enterGen(fromEl);
+  },
+  onGo(branch) {
+    state.revealed = false;
+    state.branch = branch;
+    if (branch === 'term') state.term = pickTerm();
+    else if (branch === 'theory') { const id = pickTerm(); state.theory = { term: id, idx: 0 }; }
+    else shuffleWhatIf();
+    openGen('#go');
+    enterGen();
+  },
+});
+
 buildAreas();
 buildAxes();
 state.term = pickTerm();
 state.theory = { term: state.term, idx: 0 };
-readHash();
 
-document.querySelectorAll('.seg__btn').forEach((b) => b.addEventListener('click', () => {
+document.querySelectorAll('.seg__btn[data-branch]').forEach((b) => b.addEventListener('click', () => {
   if (b.dataset.branch === state.branch) return;
   go(b.dataset.branch, () => {
     // ветки связаны: открытая теория продолжает текущий термин
@@ -348,14 +443,18 @@ $('#cardBtn').addEventListener('click', async () => {
   }
 });
 document.addEventListener('keydown', (e) => {
-  if (e.target !== document.body || e.metaKey || e.ctrlKey) return;
+  if (state.screen !== 'gen' || e.target !== document.body || e.metaKey || e.ctrlKey) return;
   if (e.code === 'Space') { e.preventDefault(); next(); }
   if (e.key === 'r' || e.key === 'к') { state.revealed = !state.revealed; renderReveal(state.view); }
 });
-window.addEventListener('hashchange', () => { if (readHash()) render(); });
+window.addEventListener('popstate', route);
+$('#homeLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  if (history.state?.gen) history.back();
+  else { history.pushState(null, '', location.pathname); route(); }
+});
 
 new ResizeObserver(() => { fitCanvas(); paint(); }).observe(canvas);
-fitCanvas();
-render();
+route();
 requestAnimationFrame(loop);
-document.fonts?.ready.then(paint);
+document.fonts?.ready.then(() => state.screen === 'gen' && paint());

@@ -19,7 +19,7 @@ export function createVisual(engineId, params, seed) {
 }
 
 // Рисует текущий кадр в квадрат (x, y, size) в пикселях текущего контекста
-export function drawVisual(ctx, visual, x, y, size, colors) {
+export function drawVisual(ctx, visual, x, y, size, colors, { frame = true } = {}) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(size, size);
@@ -33,6 +33,7 @@ export function drawVisual(ctx, visual, x, y, size, colors) {
   ctx.fillStyle = colors.ink;
   visual.engine.draw(ctx, visual.state, colors);
   ctx.restore();
+  if (!frame) return;
   // рамка, как у референсов
   ctx.save();
   ctx.lineWidth = LW * size;
