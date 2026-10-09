@@ -115,7 +115,8 @@ function paint() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = COLORS.paper;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawVisual(ctx, state.visual, 0, 0, canvas.width, COLORS);
+  // на экране без рамки — воздух; рамка остаётся только на карточке PNG
+  drawVisual(ctx, state.visual, 0, 0, canvas.width, COLORS, { frame: false });
 }
 
 let last = performance.now();

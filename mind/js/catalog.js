@@ -3,8 +3,31 @@ import { TERMS, AREAS } from './data/terms.js';
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
 
-// ритм размеров плиток: S — клетка, L — 2×2, W — 2×1, T — 1×2
-const RHYTHM = ['L', 'S', 'S', 'T', 'S', 'W', 'S', 'S', 'W', 'S', 'T', 'L', 'S', 'S', 'S', 'W'];
+// Асимметричный ритм строк: [колонка, ширина] для каждой плитки в строке.
+// Пустые колонки между плитками — намеренно: воздух важнее плотности.
+const ROWS = {
+  d: [ // ПК, 12 колонок
+    [[1, 5], [7, 3], [11, 2]],
+    [[2, 3], [6, 2], [9, 4]],
+    [[1, 2], [4, 4], [10, 3]],
+    [[3, 3], [7, 2], [10, 3]],
+    [[1, 4], [6, 3], [11, 2]],
+    [[2, 2], [5, 4], [10, 3]],
+  ],
+  t: [ // планшет, 8 колонок
+    [[1, 4], [6, 3]],
+    [[2, 3], [6, 3]],
+    [[1, 3], [5, 4]],
+    [[2, 4], [7, 2]],
+  ],
+  m: [ // телефон, 6 колонок
+    [[1, 4]],
+    [[3, 4]],
+    [[1, 3], [4, 3]],
+    [[2, 5]],
+    [[1, 3], [4, 3]],
+  ],
+};
 const HOVER_SPEED = 2.5;
 const STORE_KEY = 'mind.catalog.view';
 
@@ -35,19 +58,11 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     a.href = `#t/${t.id}`;
     a.dataset.id = t.id;
     a.innerHTML = `
-      <div class="tile__a" aria-hidden="false">
-        <div class="tile__vis"><canvas></canvas></div>
-        <div class="tile__side">
-          <p class="tile__area">${esc(t.area)}</p>
-          <p class="tile__cap"><span class="tile__num">${num(i)}</span><span class="tile__title">${esc(t.title)}</span><span class="tile__go" aria-hidden="true">→</span></p>
-          <p class="tile__thesis">${esc(t.theories[0])}</p>
-        </div>
-      </div>
-      <div class="tile__b">
+      <div class="tile__vis"><canvas></canvas></div>
+      <div class="tile__body">
         <p class="tile__meta"><span>${num(i)}</span><span>${esc(t.area)}</span></p>
-        <h3 class="tile__h">${esc(t.title)}</h3>
-        <p class="tile__p">${esc(t.theories[0])}</p>
-        <span class="tile__go" aria-hidden="true">→</span>
+        <h3 class="tile__title">${esc(t.title)}</h3><span class="tile__go" aria-hidden="true">→</span>
+        <p class="tile__thesis">${esc(t.theories[0])}</p>
       </div>`;
     const canvas = a.querySelector('canvas');
     const tile = { t, el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
@@ -57,23 +72,38 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
       e.preventDefault();
       ensureVisual(tile);
-      onOpen({ id: t.id, mode: view === 'text' ? 'theory' : 'term', fromEl: view === 'text' ? a : a.querySelector('.tile__vis'), visual: tile.visual });
+      onOpen({ id: t.id, mode: view === 'text' ? 'theory' : 'term', fromEl: view === 'text' ? a.querySelector('.tile__title') : a.querySelector('.tile__vis'), visual: tile.visual });
     });
     tiles.push(tile);
     grid.append(a);
   });
 
   function layout() {
-    let k = 0;
+    const shown = [];
     for (const tile of tiles) {
       const on = !area || tile.t.area === area;
       tile.el.hidden = !on;
-      if (!on) continue;
-      tile.el.classList.remove('tile--S', 'tile--L', 'tile--W', 'tile--T');
-      tile.el.classList.add(`tile--${RHYTHM[k % RHYTHM.length]}`);
-      tile.el.style.setProperty('--i', k);
-      k++;
+      if (on) shown.push(tile);
     }
+    // раскладываем по ритму строк — отдельно для каждой ширины экрана
+    for (const [key, rows] of Object.entries(ROWS)) {
+      let r = 0, slot = 0;
+      shown.forEach((tile, k) => {
+        const [col, span] = rows[r % rows.length][slot];
+        tile.el.style.setProperty(`--c${key}`, `${col} / span ${span}`);
+        tile.el.style.setProperty(`--r${key}`, String(r + 1));
+        tile.el.style.setProperty('--i', k);
+        if (++slot >= rows[r % rows.length].length) { slot = 0; r++; }
+      });
+    }
+  }
+
+  // плавная перестройка сетки (View Transitions), если браузер умеет
+  function morph(apply, animate = true) {
+    if (!animate || !document.startViewTransition || reducedMotion) { apply(); return; }
+    tiles.forEach((tile) => { if (!tile.el.hidden) tile.el.style.viewTransitionName = `tile-${tile.t.id}`; });
+    const vt = document.startViewTransition(apply);
+    vt.finished.finally(() => tiles.forEach((tile) => { tile.el.style.viewTransitionName = ''; }));
   }
 
   /* ——— визуал: создаётся лениво, рисуются только видимые плитки ——— */
@@ -148,16 +178,17 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   /* ——— переключатели ——— */
 
   function setView(v, animate = true) {
-    view = v;
-    saveView(v);
-    root.classList.toggle('is-text', v === 'text');
-    root.classList.toggle('no-anim', !animate);
-    for (const b of root.querySelectorAll('[data-view]')) {
-      const on = b.dataset.view === v;
-      b.classList.toggle('is-on', on);
-      b.setAttribute('aria-selected', String(on));
-    }
-    if (v === 'anim') tiles.forEach((tile) => tile.visible && paint(tile));
+    morph(() => {
+      view = v;
+      saveView(v);
+      root.classList.toggle('is-text', v === 'text');
+      for (const b of root.querySelectorAll('[data-view]')) {
+        const on = b.dataset.view === v;
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-selected', String(on));
+      }
+      if (v === 'anim') tiles.forEach((tile) => { if (tile.visible) { ensureVisual(tile); fit(tile); paint(tile); } });
+    }, animate);
   }
 
   function buildFilter() {
@@ -174,17 +205,11 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   }
 
   function setArea(a, animate = true) {
-    const apply = () => {
+    morph(() => {
       area = a;
       for (const b of filterBox.children) b.classList.toggle('is-on', (b.dataset.area || null) === area);
       layout();
-    };
-    // перестройка сетки — через View Transitions, если браузер умеет
-    if (animate && document.startViewTransition && !reducedMotion) {
-      tiles.forEach((tile) => { tile.el.style.viewTransitionName = `tile-${tile.t.id}`; });
-      const vt = document.startViewTransition(apply);
-      vt.finished.finally(() => tiles.forEach((tile) => { tile.el.style.viewTransitionName = ''; }));
-    } else apply();
+    }, animate);
   }
 
   for (const b of root.querySelectorAll('[data-view]')) b.addEventListener('click', () => setView(b.dataset.view));
@@ -213,7 +238,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     targetFor(id) {
       const tile = tiles.find((x) => x.t.id === id);
       if (!tile || tile.el.hidden) return null;
-      return view === 'text' ? tile.el : tile.el.querySelector('.tile__vis');
+      return tile.el.querySelector(view === 'text' ? '.tile__title' : '.tile__vis');
     },
     visualOf(id) {
       return tiles.find((x) => x.t.id === id)?.visual || null;
