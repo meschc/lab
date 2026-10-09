@@ -1,4 +1,4 @@
-// «Загадка»: три ветки — термин, «что если», теория
+// «Мысль»: три ветки — термин, теория, «что если»
 import { TERMS, AREAS, termById } from './data/terms.js';
 import { SYSTEMS, CARRIERS, buildQuestion, templateCount } from './data/whatif.js';
 import { createVisual, drawVisual } from './engines/index.js';
@@ -17,7 +17,6 @@ const carById = (id) => CARRIERS.find((c) => c.id === id);
 const AXES = [
   { key: 'sys', label: 'Система', list: SYSTEMS, byId: sysById, name: (s) => s.nom },
   { key: 'car', label: 'Носитель', list: CARRIERS, byId: carById, name: (c) => c.label },
-  { key: 'lens', label: 'Линза', list: TERMS, byId: termById, name: (t) => t.title },
 ];
 
 const state = {
@@ -26,9 +25,8 @@ const state = {
   term: null,
   theory: { term: null, idx: 0 },
   wf: {
-    sys: { id: rand(SYSTEMS).id, lock: false, on: true },
-    car: { id: rand(CARRIERS).id, lock: false, on: true },
-    lens: { id: rand(TERMS).id, lock: false, on: false },
+    sys: { id: rand(SYSTEMS).id, lock: false },
+    car: { id: rand(CARRIERS).id, lock: false },
     tpl: 0,
   },
   revealed: false,
@@ -48,14 +46,6 @@ function pickTerm() {
   return t.id;
 }
 
-function wfParts() {
-  const { wf } = state;
-  return {
-    sys: wf.sys.on ? sysById(wf.sys.id) : null,
-    car: wf.car.on ? carById(wf.car.id) : null,
-    lens: wf.lens.on ? termById(wf.lens.id) : null,
-  };
-}
 
 function shuffleWhatIf() {
   for (const ax of AXES) {
@@ -83,17 +73,14 @@ function currentView() {
       engine: t.engine, params: t.params, seed: hashStr(t.id), ref: t,
     };
   }
-  const p = wfParts();
-  const q = buildQuestion(p, state.wf.tpl);
-  const axes = [p.sys?.nom, p.car?.label].filter(Boolean).join(' × ');
-  const v = {
-    eyebrow: `Что если · ${[axes, p.lens && `линза: ${p.lens.title}`].filter(Boolean).join(' · ')}`,
-    headline: q, card: q, cardArea: `что если · ${axes || p.lens.area}`,
-    ref: p.lens, wf: p,
+  const sys = sysById(state.wf.sys.id), car = carById(state.wf.car.id);
+  const q = buildQuestion(sys, car, state.wf.tpl);
+  const axes = `${sys.nom} × ${car.label}`;
+  return {
+    eyebrow: `Что если · ${axes}`, headline: q, card: q, cardArea: `что если · ${axes}`,
+    ref: null, wf: { sys, car },
+    engine: 'symbol', params: { mode: 'auto' }, seed: hashStr(`${sys.id}·${car.id}`),
   };
-  if (p.lens) Object.assign(v, { engine: p.lens.engine, params: p.lens.params, seed: hashStr(p.lens.id) });
-  else Object.assign(v, { engine: 'symbol', params: { mode: 'auto' }, seed: hashStr(`${p.sys?.id}·${p.car?.id}`) });
-  return v;
 }
 
 /* ——— визуал ——— */
@@ -138,7 +125,6 @@ function loop(now) {
 const ICONS = {
   shuffle: '<svg viewBox="0 0 24 24"><path d="M3 7h3.5c4 0 6 10 10 10H21M3 17h3.5c1.6 0 2.8-1.6 3.9-3.6M13.6 9.6C14.7 8 15.6 7 17 7h4M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>',
   lock: '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
-  power: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8.5 15.5l7-7"/></svg>',
 };
 
 function buildAreas() {
@@ -171,14 +157,7 @@ function buildAxes() {
     const sel = document.createElement('select');
     sel.className = 'axis__select';
     sel.setAttribute('aria-label', ax.label);
-    if (ax.key === 'lens') {
-      for (const area of AREAS) {
-        const g = document.createElement('optgroup');
-        g.label = area;
-        for (const t of TERMS.filter((x) => x.area === area)) g.append(new Option(t.title, t.id));
-        sel.append(g);
-      }
-    } else for (const x of ax.list) sel.append(new Option(ax.name(x), x.id));
+    for (const x of ax.list) sel.append(new Option(ax.name(x), x.id));
     sel.addEventListener('change', () => {
       Object.assign(state.wf[ax.key], { id: sel.value, lock: true });
       state.revealed = false;
@@ -199,7 +178,6 @@ function buildAxes() {
     mk('shuffle', 'Перемешать', ICONS.shuffle).addEventListener('click', () => {
       const a = state.wf[ax.key];
       a.id = rand(ax.list.filter((x) => x.id !== a.id)).id;
-      a.on = true;
       state.revealed = false;
       render();
     });
@@ -207,29 +185,16 @@ function buildAxes() {
       state.wf[ax.key].lock = !state.wf[ax.key].lock;
       renderAxes();
     });
-    mk('toggle', 'Выключить ось', ICONS.power).addEventListener('click', () => {
-      const a = state.wf[ax.key];
-      a.on = !a.on;
-      state.revealed = false;
-      render();
-    });
     box.append(row);
   }
 }
 
 function renderAxes() {
-  const onCount = AXES.filter((ax) => state.wf[ax.key].on).length;
   for (const ax of AXES) {
     const a = state.wf[ax.key];
     const row = document.querySelector(`.axis[data-axis="${ax.key}"]`);
-    row.classList.toggle('is-off', !a.on);
     row.querySelector('select').value = a.id;
     row.querySelector('[data-act="lock"]').setAttribute('aria-pressed', String(a.lock));
-    const tg = row.querySelector('[data-act="toggle"]');
-    tg.setAttribute('aria-pressed', String(!a.on));
-    tg.title = a.on ? 'Выключить ось' : 'Включить ось';
-    // меньше двух осей — вопроса не получится
-    tg.disabled = a.on && onCount <= 2;
   }
 }
 
@@ -245,20 +210,12 @@ function renderLinks(v) {
   const box = $('#links');
   box.innerHTML = '';
   if (state.branch === 'term') {
-    box.append(
-      linkBtn('→ Вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })),
-      linkBtn('→ Сделать линзой в «Что если»', () => go('whatif', () => {
-        Object.assign(state.wf.lens, { id: state.term, on: true, lock: true });
-      })),
-    );
+    box.append(linkBtn('→ Вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
   } else if (state.branch === 'theory') {
-    const t = v.ref;
-    if (t.theories.length > 1) box.append(linkBtn('Другой тезис', () => { state.theory.idx = (state.theory.idx + 1) % t.theories.length; render(); }));
-    box.append(linkBtn('→ К термину', () => go('term', () => { state.term = t.id; })));
+    box.append(linkBtn('→ К термину', () => go('term', () => { state.term = v.ref.id; })));
   } else {
-    const n = templateCount(v.wf);
+    const n = templateCount(v.wf.sys);
     if (n > 1) box.append(linkBtn('Переформулировать', () => { state.wf.tpl = (state.wf.tpl + 1) % n; render(); }));
-    if (v.wf.lens) box.append(linkBtn('→ Термин-линза', () => go('term', () => { state.term = v.wf.lens.id; })));
   }
 }
 
@@ -280,7 +237,7 @@ function renderReveal(v) {
   } else {
     $('#revealTitle').textContent = 'Готового ответа нет';
     $('#revealText').textContent = 'Это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.';
-    $('#revealMore').innerHTML = searchLinks([v.wf.car?.label, v.wf.sys?.nom].filter(Boolean));
+    $('#revealMore').innerHTML = searchLinks([v.wf.car.label, v.wf.sys.nom]);
   }
 }
 
@@ -289,8 +246,8 @@ function writeHash() {
   if (state.branch === 'term') h = `t/${state.term}`;
   else if (state.branch === 'theory') h = `th/${state.theory.term}/${state.theory.idx}`;
   else {
-    const { sys, car, lens, tpl } = state.wf;
-    h = `w/${sys.on ? sys.id : '-'}/${car.on ? car.id : '-'}/${lens.on ? lens.id : '-'}/${tpl}`;
+    const { sys, car, tpl } = state.wf;
+    h = `w/${sys.id}/${car.id}/${tpl}`;
   }
   history.replaceState(null, '', `#${h}`);
 }
@@ -299,16 +256,11 @@ function readHash() {
   const [kind, a, b, c, d] = location.hash.slice(1).split('/');
   if (kind === 't' && termById(a)) { state.branch = 'term'; state.term = a; return true; }
   if (kind === 'th' && termById(a)) { state.branch = 'theory'; state.theory = { term: a, idx: +b || 0 }; return true; }
-  if (kind === 'w') {
-    const set = (key, id, byId) => {
-      if (id && id !== '-' && byId(id)) Object.assign(state.wf[key], { id, on: true, lock: true });
-      else state.wf[key].on = false;
-    };
-    set('sys', a, sysById);
-    set('car', b, carById);
-    set('lens', c, termById);
-    if (AXES.filter((ax) => state.wf[ax.key].on).length < 2) return false;
-    state.wf.tpl = +d || 0;
+  if (kind === 'w' && sysById(a) && carById(b)) {
+    Object.assign(state.wf.sys, { id: a, lock: true });
+    Object.assign(state.wf.car, { id: b, lock: true });
+    // старые ссылки с линзой: #w/sys/car/lens/tpl
+    state.wf.tpl = +(d ?? c) || 0;
     state.branch = 'whatif';
     return true;
   }

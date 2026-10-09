@@ -4,24 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F3F0E8">
-<meta name="description" content="Генератор загадок: термины из науки и философии, вопросы «Что если…» и теории — с живой линейной визуализацией и карточкой 9:16.">
-<title>Загадка</title>
+<meta name="description" content="Генератор мыслей: термины из науки и философии, теории и вопросы «Что если…» — с живой линейной визуализацией и карточкой 9:16.">
+<title>Мысль</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="preload" href="../assets/fonts/Minipax-Regular-BF64ab72720c345.otf" as="font" type="font/otf" crossorigin>
+<link rel="preload" href="fonts/MinipaxLining-Regular.otf" as="font" type="font/otf" crossorigin>
 <link rel="preload" href="../assets/fonts/golos-text_vf.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main class="app">
   <header class="top">
-    <a class="brand" href="./" aria-label="Загадка">
+    <a class="brand" href="./" aria-label="Мысль">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.1 6.4 3.9-5.1-2.4 6 6-2.4-5.1 3.9L22 12l-6.4 1.1 5.1 3.9-6-2.4 2.4 6-3.9-5.1L12 22l-1.1-6.4-3.9 5.1 2.4-6-6 2.4 5.1-3.9L2 12l6.4-1.1-5.1-3.9 6 2.4-2.4-6 3.9 5.1z"/></svg>
-      Загадка
+      Мысль
     </a>
     <nav class="seg" role="tablist" aria-label="Ветка">
       <button class="seg__btn is-on" role="tab" data-branch="term" aria-selected="true">Термин</button>
-      <button class="seg__btn" role="tab" data-branch="whatif" aria-selected="false">Что если…</button>
       <button class="seg__btn" role="tab" data-branch="theory" aria-selected="false">Теория</button>
+      <button class="seg__btn" role="tab" data-branch="whatif" aria-selected="false">Что если…</button>
     </nav>
   </header>
 
@@ -42,7 +42,9 @@
   <div class="actions">
     <button class="btn btn--ink" id="nextBtn">Ещё</button>
     <button class="btn" id="revealBtn" aria-expanded="false" aria-controls="reveal">Раскрыть</button>
-    <button class="btn" id="cardBtn" title="Карточка 1080×1920">PNG 9:16</button>
+    <button class="btn btn--icon" id="cardBtn" title="Скачать карточку 9:16" aria-label="Скачать карточку 9:16">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+    </button>
   </div>
 
   <div class="links" id="links"></div>
@@ -53,7 +55,6 @@
     <p class="reveal__more" id="revealMore"></p>
   </section>
 
-  <footer class="foot">Справка спрятана нарочно: сначала подумай, потом ищи.</footer>
 </main>
 <script type="module" src="js/app.js"></script>
 </body>

@@ -1,4 +1,4 @@
-// Карточка 9:16 (1080×1920): загадка крупно + текущий кадр + область мелко. Без справки и теории.
+// Карточка 9:16 (1080×1920): мысль крупно + текущий кадр + область мелко. Без справки и теории.
 import { drawVisual } from './engines/index.js';
 import { fitText, star, FONT_DISPLAY, FONT_TEXT } from './core/draw.js';
 
@@ -49,7 +49,7 @@ const slug = (s) => s.replace(/[«»„“"?!.,:;—–]/g, '').trim().replace(/
 export async function exportCard(opts) {
   const cv = await renderCard(opts);
   const blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
-  const name = `zagadka-${slug(opts.title) || 'card'}.png`;
+  const name = `mysl-${slug(opts.title) || 'card'}.png`;
   const file = new File([blob], name, { type: 'image/png' });
   const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (mobile && navigator.canShare?.({ files: [file] })) {

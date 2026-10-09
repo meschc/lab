@@ -1,8 +1,6 @@
-/* «Загадка» — бумага и одна линия, как в референсах */
-@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-Regular-BF64ab72720c345.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-Medium-BF64ab7272180b1.otf') format('opentype'); font-weight: 500; font-display: swap; }
-@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-SemiBold-BF64ab727206cb4.otf') format('opentype'); font-weight: 600; font-display: swap; }
-@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-Bold-BF64ab7272333c5.otf') format('opentype'); font-weight: 700; font-display: swap; }
+/* «Мысль» — бумага и одна линия, как в референсах */
+/* Minipax с ровными (lnum) цифрами по умолчанию: canvas не умеет включать OpenType-фичи */
+@font-face { font-family: 'Minipax'; src: url('fonts/MinipaxLining-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Golos Text'; src: url('../assets/fonts/golos-text_vf.ttf') format('truetype'); font-weight: 400 900; font-display: swap; }
 
 :root {
@@ -24,6 +22,7 @@ body {
   color: var(--ink);
   font: 400 15px/1.45 var(--text);
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: lining-nums;
   overflow-x: hidden;
 }
 [hidden] { display: none !important; }
@@ -50,21 +49,20 @@ button { cursor: pointer; background: none; border: 0; }
 .chip.is-on { border-color: var(--ink); color: var(--ink); }
 
 .axes { display: grid; gap: 6px; }
-.axis { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto auto auto; align-items: center; gap: 4px; padding: 4px 0; border-bottom: var(--lw) solid var(--line); }
+.axis { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto auto; align-items: center; gap: 4px; padding: 4px 0; border-bottom: var(--lw) solid var(--line); }
 .axis__label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
 .axis__select {
   appearance: none; -webkit-appearance: none; width: 100%; min-width: 0;
   border: 0; background: transparent; padding: 6px 4px; font: 400 18px/1.2 var(--display);
   text-overflow: ellipsis; white-space: nowrap; overflow: hidden; cursor: pointer;
 }
-.axis.is-off .axis__select { color: var(--ink-3); text-decoration: line-through; pointer-events: none; }
 .ico { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--ink-3); }
 .ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .ico[aria-pressed="true"] { color: var(--ink); background: rgba(31, 31, 31, .07); }
 .ico:disabled { opacity: .3; cursor: default; }
 .ico:not(:disabled):active { transform: scale(.92); }
 
-/* ——— загадка ——— */
+/* ——— мысль ——— */
 .riddle { min-height: 96px; display: flex; flex-direction: column; justify-content: flex-end; margin: 6px 0 14px; }
 .eyebrow { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
 .headline { margin: 0; font: 400 clamp(30px, 8.6vw, 44px)/1.04 var(--display); letter-spacing: -.015em; text-wrap: balance; }
@@ -75,7 +73,7 @@ button { cursor: pointer; background: none; border: 0; }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* ——— действия ——— */
-.actions { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; margin-top: 14px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 14px; }
 .btn { height: 46px; border: var(--lw) solid var(--ink); border-radius: 999px; font-size: 15px; font-weight: 500; transition: transform .15s, background .2s; white-space: nowrap; }
 .btn:active { transform: scale(.97); }
 .btn--ink { background: var(--ink); color: var(--paper); }
@@ -94,7 +92,35 @@ button { cursor: pointer; background: none; border: 0; }
 .reveal__more a { color: var(--ink); font-size: 14px; }
 @keyframes in { from { opacity: 0; transform: translateY(6px); } }
 
-.foot { margin-top: 28px; font-size: 12px; color: var(--ink-3); text-align: center; }
+.btn--icon { width: 46px; padding: 0; display: grid; place-items: center; }
+.btn--icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ——— ПК: текст слева, визуал справа во всю высоту ——— */
+@media (min-width: 960px) {
+  .app {
+    max-width: 1280px;
+    padding: 32px 40px 40px;
+    display: grid;
+    grid-template-columns: minmax(380px, 1fr) min(calc(100dvh - 72px), 720px);
+    grid-template-areas: "top stage" "controls stage" "riddle stage" "actions stage" "links stage" "reveal stage";
+    grid-template-rows: auto auto 1fr auto auto auto;
+    column-gap: 56px;
+    align-items: start;
+    min-height: 100dvh;
+    align-content: center;
+  }
+  .top { grid-area: top; }
+  .controls { grid-area: controls; }
+  .riddle { grid-area: riddle; align-self: end; margin: 24px 0 18px; }
+  .stage { grid-area: stage; position: sticky; top: 32px; }
+  .actions { grid-area: actions; }
+  .links { grid-area: links; }
+  .reveal { grid-area: reveal; }
+  .chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 2px 0 6px; }
+  .headline { font-size: clamp(44px, 4.4vw, 68px); }
+  .headline.is-long { font-size: clamp(32px, 2.9vw, 44px); }
+  .headline.is-xlong { font-size: clamp(26px, 2.3vw, 34px); }
+}
 
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 999px; font-size: 13px; animation: in .25s ease; z-index: 10; }
 
