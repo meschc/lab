@@ -1,5 +1,5 @@
 // 5. Волны и осцилляции
-import { contours, segments, poly, circle, line, star, dots, ease, TAU } from '../core/draw.js';
+import { contours, segments, poly, circle, line, star, dots, ease, TAU, DASH } from '../core/draw.js';
 
 const G = 120;
 
@@ -92,7 +92,7 @@ const MODES = {
           env2.push(0.06 + x * 0.88, y0 - A * sv);
         }
         ctx.save();
-        ctx.globalAlpha = 0.18;
+        ctx.setLineDash(DASH);
         poly(ctx, env); poly(ctx, env2);
         ctx.restore();
         poly(ctx, pts);
@@ -152,7 +152,7 @@ const MODES = {
       row(0.34, 0.05, (x) => Math.sin(TAU * (f2 * x - w * 1.1)));
       row(0.68, 0.12, (x) => (Math.sin(TAU * (f1 * x - w)) + Math.sin(TAU * (f2 * x - w * 1.1))) / 2);
       ctx.save();
-      ctx.globalAlpha = 0.22;
+      ctx.setLineDash(DASH);
       row(0.68, 0.12, (x) => Math.abs(Math.cos(Math.PI * ((f2 - f1) * x - w * 0.1))));
       row(0.68, -0.12, (x) => Math.abs(Math.cos(Math.PI * ((f2 - f1) * x - w * 0.1))));
       ctx.restore();

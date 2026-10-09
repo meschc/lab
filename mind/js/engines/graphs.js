@@ -1,5 +1,5 @@
 // 7. Графы и сети
-import { circle, line, star, dots, text, FONT_DISPLAY, FONT_TEXT, TAU } from '../core/draw.js';
+import { circle, line, star, dots, text, FONTS, TAU, DASH } from '../core/draw.js';
 
 function rings(ctx, x, y, r, n, gap) {
   for (let k = 0; k < n; k++) circle(ctx, x, y, r - k * gap);
@@ -122,7 +122,7 @@ const MODES = {
     },
     draw(ctx, s) {
       ctx.save();
-      ctx.globalAlpha = 0.2;
+      ctx.setLineDash(DASH);
       ctx.beginPath();
       ctx.moveTo(0.02, 0.36); ctx.bezierCurveTo(0.3, 0.3, 0.6, 0.42, 0.98, 0.36);
       ctx.moveTo(0.02, 0.64); ctx.bezierCurveTo(0.3, 0.7, 0.6, 0.58, 0.98, 0.64);
@@ -225,16 +225,16 @@ const MODES = {
       ctx.stroke();
       ctx.fillStyle = ctx.strokeStyle;
       for (let k = 0; k < 2; k++) {
-        text(ctx, s.cols[k], X0 + (k + 0.5) * C, Y0 - 0.04, 0.032, { family: FONT_TEXT });
+        text(ctx, s.cols[k], X0 + (k + 0.5) * C, Y0 - 0.04, 0.032, { family: FONTS.text });
         ctx.save();
         ctx.translate(X0 - 0.04, Y0 + (k + 0.5) * C);
         ctx.rotate(-Math.PI / 2);
-        text(ctx, s.rows[k], 0, 0, 0.032, { family: FONT_TEXT });
+        text(ctx, s.rows[k], 0, 0, 0.032, { family: FONTS.text });
         ctx.restore();
       }
       for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
         const cx = X0 + (j + 0.5) * C, cy = Y0 + (i + 0.5) * C;
-        text(ctx, `${s.pay[i][j][0]} · ${s.pay[i][j][1]}`, cx, cy, 0.06, { family: FONT_DISPLAY });
+        text(ctx, `${s.pay[i][j][0]} · ${s.pay[i][j][1]}`, cx, cy, 0.06, { family: FONTS.display });
         if (this.isNash(s, [i, j]) && this.isNash(s, s.cell) && s.cell[0] === i && s.cell[1] === j) {
           for (let k = 1; k <= 3; k++) { const m = 0.012 * k; ctx.strokeRect(cx - C / 2 + m, cy - C / 2 + m, C - 2 * m, C - 2 * m); }
         }
@@ -290,7 +290,7 @@ const MODES = {
     step(s, dt) { s.t += dt; },
     draw(ctx, s) {
       const R = [0.08, 0.17, 0.29, 0.44], C = [5, 15, 50, 150], V = [0.25, 0.12, 0.06, 0.03];
-      ctx.save(); ctx.globalAlpha = 0.25; R.forEach((r) => circle(ctx, 0.5, 0.5, r)); ctx.restore();
+      ctx.save(); ctx.setLineDash(DASH); R.forEach((r) => circle(ctx, 0.5, 0.5, r)); ctx.restore();
       R.forEach((r, k) => {
         const xs = [], ys = [];
         for (let i = 0; i < C[k]; i++) {

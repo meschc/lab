@@ -3,10 +3,21 @@ import { TERMS, AREAS, termById } from './data/terms.js';
 import { SYSTEMS, CARRIERS, buildQuestion, templateCount } from './data/whatif.js';
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
+import { FONTS } from './core/draw.js';
 import { exportCard } from './card.js';
 import { initCatalog } from './catalog.js';
 
 const COLORS = { paper: '#F3F0E8', ink: '#1F1F1F' };
+
+// вариант шрифта для сравнения: ?font=geist (только Geist) или ?font=mix (Minipax + Geist);
+// по умолчанию — только Minipax. Холст берёт те же семейства, что и CSS.
+const fontMode = new URLSearchParams(location.search).get('font');
+if (fontMode === 'geist' || fontMode === 'mix') document.documentElement.dataset.font = fontMode;
+{
+  const cs = getComputedStyle(document.documentElement);
+  FONTS.display = cs.getPropertyValue('--display').trim() || FONTS.display;
+  FONTS.text = cs.getPropertyValue('--text').trim() || FONTS.text;
+}
 const RECENT_LIMIT = 24;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 

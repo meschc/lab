@@ -60,8 +60,8 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     a.innerHTML = `
       <div class="tile__vis"><canvas></canvas></div>
       <div class="tile__body">
-        <p class="tile__meta"><span>${num(i)}</span><span>${esc(t.area)}</span></p>
         <h3 class="tile__title">${esc(t.title)}</h3><span class="tile__go" aria-hidden="true">→</span>
+        <p class="tile__meta">${num(i)} · ${esc(t.area)}</p>
         <p class="tile__thesis">${esc(t.theories[0])}</p>
       </div>`;
     const canvas = a.querySelector('canvas');
@@ -197,7 +197,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     for (const it of items) {
       const b = document.createElement('button');
       b.className = 'filter__btn';
-      b.innerHTML = `${esc(it.label)}<sup>${it.n}</sup>`;
+      b.innerHTML = `${esc(it.label)}<span class="n">${it.n}</span>`;
       b.dataset.area = it.id ?? '';
       b.addEventListener('click', () => setArea(it.id));
       filterBox.append(b);
