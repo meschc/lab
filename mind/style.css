@@ -1,0 +1,104 @@
+/* «Загадка» — бумага и одна линия, как в референсах */
+@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-Regular-BF64ab72720c345.otf') format('opentype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-Medium-BF64ab7272180b1.otf') format('opentype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-SemiBold-BF64ab727206cb4.otf') format('opentype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Minipax'; src: url('../assets/fonts/Minipax-Bold-BF64ab7272333c5.otf') format('opentype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Golos Text'; src: url('../assets/fonts/golos-text_vf.ttf') format('truetype'); font-weight: 400 900; font-display: swap; }
+
+:root {
+  --paper: #F3F0E8;
+  --ink: #1F1F1F;
+  --ink-2: rgba(31, 31, 31, .62);
+  --ink-3: rgba(31, 31, 31, .38);
+  --line: rgba(31, 31, 31, .2);
+  --lw: 1.5px;
+  --display: Minipax, 'PT Serif', Georgia, serif;
+  --text: 'Golos Text', 'Helvetica Neue', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.45 var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+[hidden] { display: none !important; }
+button, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; }
+:focus-visible { outline: var(--lw) solid var(--ink); outline-offset: 3px; }
+
+.app { max-width: 540px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 28px); }
+
+/* ——— шапка ——— */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font: 400 22px/1 var(--display); letter-spacing: -.01em; }
+.brand svg { width: 20px; height: 20px; fill: var(--ink); }
+
+.seg { display: flex; border: var(--lw) solid var(--ink); border-radius: 999px; padding: 2px; }
+.seg__btn { padding: 7px 13px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--ink-2); transition: background .2s, color .2s; white-space: nowrap; }
+.seg__btn.is-on { background: var(--ink); color: var(--paper); }
+
+/* ——— фильтры и оси ——— */
+.controls { margin-bottom: 10px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 6px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: 0 0 auto; padding: 5px 11px; border: var(--lw) solid var(--line); border-radius: 999px; font-size: 13px; color: var(--ink-2); }
+.chip.is-on { border-color: var(--ink); color: var(--ink); }
+
+.axes { display: grid; gap: 6px; }
+.axis { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto auto auto; align-items: center; gap: 4px; padding: 4px 0; border-bottom: var(--lw) solid var(--line); }
+.axis__label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.axis__select {
+  appearance: none; -webkit-appearance: none; width: 100%; min-width: 0;
+  border: 0; background: transparent; padding: 6px 4px; font: 400 18px/1.2 var(--display);
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden; cursor: pointer;
+}
+.axis.is-off .axis__select { color: var(--ink-3); text-decoration: line-through; pointer-events: none; }
+.ico { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--ink-3); }
+.ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ico[aria-pressed="true"] { color: var(--ink); background: rgba(31, 31, 31, .07); }
+.ico:disabled { opacity: .3; cursor: default; }
+.ico:not(:disabled):active { transform: scale(.92); }
+
+/* ——— загадка ——— */
+.riddle { min-height: 96px; display: flex; flex-direction: column; justify-content: flex-end; margin: 6px 0 14px; }
+.eyebrow { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.headline { margin: 0; font: 400 clamp(30px, 8.6vw, 44px)/1.04 var(--display); letter-spacing: -.015em; text-wrap: balance; }
+.headline.is-long { font-size: clamp(22px, 6vw, 30px); line-height: 1.12; }
+.headline.is-xlong { font-size: clamp(19px, 5vw, 25px); line-height: 1.15; }
+
+.stage { position: relative; aspect-ratio: 1; width: 100%; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* ——— действия ——— */
+.actions { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; margin-top: 14px; }
+.btn { height: 46px; border: var(--lw) solid var(--ink); border-radius: 999px; font-size: 15px; font-weight: 500; transition: transform .15s, background .2s; white-space: nowrap; }
+.btn:active { transform: scale(.97); }
+.btn--ink { background: var(--ink); color: var(--paper); }
+.btn[aria-expanded="true"] { background: rgba(31, 31, 31, .07); }
+.btn:disabled { opacity: .35; cursor: default; }
+
+.links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px; min-height: 22px; }
+.link { padding: 2px 0; font-size: 14px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+.link:hover { color: var(--ink); border-color: var(--ink); }
+
+/* ——— справка ——— */
+.reveal { margin-top: 18px; padding-top: 16px; border-top: var(--lw) solid var(--ink); animation: in .35s ease; }
+.reveal__title { margin: 0 0 8px; font: 400 22px/1.15 var(--display); }
+.reveal__text { margin: 0 0 10px; font-size: 15px; line-height: 1.55; }
+.reveal__more { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.reveal__more a { color: var(--ink); font-size: 14px; }
+@keyframes in { from { opacity: 0; transform: translateY(6px); } }
+
+.foot { margin-top: 28px; font-size: 12px; color: var(--ink-3); text-align: center; }
+
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 999px; font-size: 13px; animation: in .25s ease; z-index: 10; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .toast { animation: none; }
+  .seg__btn, .btn { transition: none; }
+}
