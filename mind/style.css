@@ -126,15 +126,22 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 .cat-head { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); column-gap: 16px; row-gap: 28px; padding-bottom: 72px; }
 .wordmark {
-  grid-column: 1 / -1; margin: 0; display: flex; align-items: flex-start; gap: .05em;
+  grid-column: 1 / span 2; grid-row: 1; margin: 0; display: flex; align-items: flex-start; gap: .05em;
   font: 600 var(--fs)/1.4 var(--display);
 }
-.cat-lede { grid-column: 1 / span 5; margin: 0; max-width: 40ch; }
+.cat-lede { grid-column: 3 / span 4; grid-row: 1; margin: 0; max-width: 40ch; }
 .cat-bar { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 20px; }
 .cat-go { display: flex; flex-wrap: wrap; gap: 4px 24px; }
 .cat-filters { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 20px; }
 .filter { flex: 1 1 auto; min-width: 0; display: flex; gap: 4px 20px; overflow-x: auto; scrollbar-width: none; margin: 0 0 0 -20px; padding: 0 0 0 20px; }
-.views { flex: none; display: flex; gap: 14px; }
+/* иконки вида: области уезжают под них, слева — белая кайма с размытием */
+.views { flex: none; display: flex; gap: 14px; position: relative; background: var(--paper); padding: 0 20px 0 6px; margin-right: -20px; }
+.views::before {
+  content: ''; position: absolute; right: 100%; top: -4px; bottom: -4px; width: 44px; pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--paper));
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%); mask-image: linear-gradient(to right, transparent, #000 70%);
+}
 .view-btn { display: grid; place-items: center; height: 30px; }
 .view-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; }
 .filter::-webkit-scrollbar { display: none; }
@@ -166,8 +173,10 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .cat-head, .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); column-gap: 24px; }
   .grid { row-gap: 72px; }
   .tile { grid-column: var(--ct); grid-row: var(--rt); }
-  .cat-lede { grid-column: 1 / span 5; }
+  .cat-lede { grid-column: 3 / span 5; }
   .filter { margin: 0; padding: 0; flex-wrap: wrap; }
+  .views { padding: 0; margin-right: 0; }
+  .views::before { display: none; }
 }
 @media (min-width: 1100px) {
   .catalog { padding: 48px 64px 160px; }
