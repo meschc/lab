@@ -226,6 +226,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   setView(view, false);
 
   return {
+    getArea: () => area,
     show() {
       root.hidden = false;
       // каскадное появление плиток — только при первом показе
