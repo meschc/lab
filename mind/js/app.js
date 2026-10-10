@@ -8,6 +8,8 @@ import { exportCard } from './card.js';
 import { initCatalog } from './catalog.js';
 
 const COLORS = { paper: '#FFFFFF', ink: '#1F1F1F' };
+// единый кегль сайта — и для подписей внутри схем
+const FS = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 15;
 
 // холст берёт те же семейства, что и CSS
 {
@@ -124,7 +126,7 @@ function paint() {
   ctx.fillStyle = COLORS.paper;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   // на экране без рамки — воздух; рамка остаётся только на карточке PNG
-  drawVisual(ctx, state.visual, 0, 0, canvas.width, COLORS, { frame: false });
+  drawVisual(ctx, state.visual, 0, 0, canvas.width, COLORS, { frame: false, textPx: FS * canvas.width / (canvas.clientWidth || canvas.width) });
 }
 
 let last = performance.now();
@@ -301,8 +303,6 @@ function render() {
   $('#eyebrow').textContent = v.eyebrow;
   const h = $('#headline');
   h.textContent = v.headline;
-  h.classList.toggle('is-long', v.headline.length > 34 && v.headline.length <= 90);
-  h.classList.toggle('is-xlong', v.headline.length > 90);
   canvas.setAttribute('aria-label', `Визуализация: ${v.ref ? v.ref.title : v.headline}`);
   setVisual(v.engine, v.params, v.seed);
   renderLinks(v);

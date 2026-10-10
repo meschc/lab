@@ -106,7 +106,12 @@ export function contours(field, nx, ny, level, out = [], x0 = 0, y0 = 0, w = 1, 
 }
 
 // Текст в единичных координатах: масштабируем через 1000, чтобы не упираться в минимальный кегль
+// на экране текст схем — того же кегля, что и интерфейс (задаёт drawVisual); на карточке — по размеру схемы
+let fixedText = null;
+export function setTextSize(u) { fixedText = u; }
+
 export function text(ctx, str, x, y, size, opts = {}) {
+  if (fixedText && !opts.stroke) size = fixedText;
   const { family = FONTS.text, weight = 400, align = 'center', baseline = 'middle', stroke = false, lw = LW } = opts;
   ctx.save();
   ctx.scale(0.001, 0.001);
