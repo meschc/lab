@@ -7,7 +7,7 @@ import waves from './waves.js';
 import chaos from './chaos.js';
 import graphs from './graphs.js';
 import symbol from './symbol.js';
-import { LW, setTextSize } from '../core/draw.js';
+import { LW } from '../core/draw.js';
 import { mulberry32 } from '../core/rng.js';
 
 export const ENGINES = { curves, fractals, automata, particles, waves, chaos, graphs, symbol };
@@ -18,10 +18,8 @@ export function createVisual(engineId, params, seed) {
   return { engine, state: engine.create(params || {}, rng) };
 }
 
-// Рисует текущий кадр в квадрат (x, y, size) в пикселях текущего контекста.
-// textPx — кегль подписей внутри схемы в пикселях холста (на экране — как у интерфейса)
-export function drawVisual(ctx, visual, x, y, size, colors, { frame = true, textPx = 0 } = {}) {
-  setTextSize(textPx ? textPx / size : null);
+// Рисует текущий кадр в квадрат (x, y, size) в пикселях текущего контекста
+export function drawVisual(ctx, visual, x, y, size, colors, { frame = true } = {}) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(size, size);
@@ -35,7 +33,6 @@ export function drawVisual(ctx, visual, x, y, size, colors, { frame = true, text
   ctx.fillStyle = colors.ink;
   visual.engine.draw(ctx, visual.state, colors);
   ctx.restore();
-  setTextSize(null);
   if (!frame) return;
   // рамка, как у референсов
   ctx.save();

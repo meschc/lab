@@ -9,7 +9,21 @@ export const DASH = [0.006, 0.009];
 export const FONTS = {
   display: 'Minipax, "PT Serif", Georgia, serif',
   text: 'Minipax, "PT Serif", Georgia, serif',
+  // подписи внутри схем — Geist, независимо от шрифтов сайта
+  figure: 'Geist, "Helvetica Neue", Arial, sans-serif',
 };
+
+// толщина штриха Geist (доля кегля) по насыщенности — чтобы буквы были толщиной в линию схемы
+const GEIST_STEM = [[100, 0.022], [200, 0.04], [300, 0.058], [400, 0.078], [500, 0.094], [600, 0.11]];
+function weightFor(size, lw) {
+  const r = lw / size;
+  if (r <= GEIST_STEM[0][1]) return 100;
+  for (let i = 1; i < GEIST_STEM.length; i++) {
+    const [w0, r0] = GEIST_STEM[i - 1], [w1, r1] = GEIST_STEM[i];
+    if (r <= r1) return Math.round(w0 + ((r - r0) / (r1 - r0)) * (w1 - w0));
+  }
+  return 600;
+}
 
 // Залитая точка — метка движущегося объекта
 export function dot(ctx, x, y, r) {
@@ -106,16 +120,13 @@ export function contours(field, nx, ny, level, out = [], x0 = 0, y0 = 0, w = 1, 
 }
 
 // Текст в единичных координатах: масштабируем через 1000, чтобы не упираться в минимальный кегль
-// на экране текст схем — того же кегля, что и интерфейс (задаёт drawVisual); на карточке — по размеру схемы
-let fixedText = null;
-export function setTextSize(u) { fixedText = u; }
-
+// Подпись внутри схемы: всегда Geist, кегль — доля схемы, насыщенность — по толщине линии
 export function text(ctx, str, x, y, size, opts = {}) {
-  if (fixedText && !opts.stroke) size = fixedText;
-  const { family = FONTS.text, weight = 400, align = 'center', baseline = 'middle', stroke = false, lw = LW } = opts;
+  const { align = 'center', baseline = 'middle', stroke = false, lw = LW } = opts;
+  const weight = stroke ? 400 : weightFor(size, lw);
   ctx.save();
   ctx.scale(0.001, 0.001);
-  ctx.font = `${weight} ${size * 1000}px ${family}`;
+  ctx.font = `${weight} ${size * 1000}px ${FONTS.figure}`;
   ctx.textAlign = align;
   ctx.textBaseline = baseline;
   if (stroke) {

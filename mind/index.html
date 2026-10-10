@@ -16,17 +16,23 @@
     <h1 class="wordmark">Мысль</h1>
     <p class="cat-lede">Сто двадцать четыре понятия из математики, физики, биологии, информатики, теории игр, психологии и философии. Живые схемы, теории и вопросы «что если».</p>
     <div class="cat-bar">
-      <div class="seg" role="tablist" aria-label="Вид каталога">
-        <button class="seg__btn is-on" role="tab" data-view="anim" aria-selected="true">Анимации</button>
-        <button class="seg__btn" role="tab" data-view="text" aria-selected="false">Тексты</button>
-      </div>
       <nav class="cat-go" aria-label="Генератор">
-        <button class="cat-go__btn" data-go="term">Случайный термин<span aria-hidden="true">→</span></button>
-        <button class="cat-go__btn" data-go="theory">Теория<span aria-hidden="true">→</span></button>
-        <button class="cat-go__btn" data-go="whatif">Что если…<span aria-hidden="true">→</span></button>
+        <button class="cat-go__btn" data-go="term">Случайный термин</button>
+        <button class="cat-go__btn" data-go="theory">Теория</button>
+        <button class="cat-go__btn" data-go="whatif">Что если…</button>
       </nav>
     </div>
-    <div class="filter" id="filter" role="group" aria-label="Область"></div>
+    <div class="cat-filters">
+      <div class="filter" id="filter" role="group" aria-label="Область"></div>
+      <div class="views" role="tablist" aria-label="Вид каталога">
+        <button class="seg__btn view-btn is-on" role="tab" data-view="anim" aria-selected="true" aria-label="Анимации" title="Анимации">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="8" r="2.6"/></svg>
+        </button>
+        <button class="seg__btn view-btn" role="tab" data-view="text" aria-selected="false" aria-label="Тексты" title="Тексты">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h7"/></svg>
+        </button>
+      </div>
+    </div>
   </header>
   <div class="grid-wrap"><div class="grid" id="grid"></div></div>
 </div>
@@ -34,7 +40,6 @@
 <main class="app" id="gen" hidden>
   <header class="top">
     <a class="brand" href="./" id="homeLink" aria-label="К каталогу" title="К каталогу">
-      <span class="brand__back" aria-hidden="true">←</span>
       Мысль
     </a>
     <nav class="seg" role="tablist" aria-label="Ветка">
@@ -51,7 +56,12 @@
 
   <section class="riddle" aria-live="polite">
     <p class="eyebrow" id="eyebrow">—</p>
-    <h1 class="headline" id="headline">—</h1>
+    <div class="riddle__row">
+      <h1 class="headline" id="headline">—</h1>
+      <button class="btn btn--icon" id="cardBtn" title="Скачать карточку 9:16" aria-label="Скачать карточку 9:16">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+      </button>
+    </div>
   </section>
 
   <div class="stage">
@@ -61,12 +71,8 @@
   <div class="actions">
     <button class="btn btn--ink" id="nextBtn">Ещё</button>
     <button class="btn" id="revealBtn" aria-expanded="false" aria-controls="reveal">Раскрыть</button>
-    <button class="btn btn--icon" id="cardBtn" title="Скачать карточку 9:16" aria-label="Скачать карточку 9:16">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
-    </button>
+    <div class="links" id="links"></div>
   </div>
-
-  <div class="links" id="links"></div>
 
   <section class="reveal" id="reveal" hidden>
     <h2 class="reveal__title" id="revealTitle"></h2>
