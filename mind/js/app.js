@@ -79,7 +79,7 @@ function currentView() {
     const t = termById(state.theory.term);
     const idx = state.theory.idx % t.theories.length;
     return {
-      eyebrow: `теория · ${t.title}`, headline: lc(t.theories[idx]), card: t.title, cardArea: t.area,
+      eyebrow: `теория · ${t.title}`, headline: t.theories[idx], card: t.title, cardArea: t.area,
       engine: t.engine, params: t.params, seed: hashStr(t.id), ref: t,
     };
   }
