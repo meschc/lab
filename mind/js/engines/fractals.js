@@ -112,7 +112,7 @@ function koch(depth, closed, seed) {
 
 function pythagoras(depth, angle) {
   const out = [];
-  const a = 0.14;
+  const a = 0.1;
   const rec = (x, y, ux, uy, d) => {
     // квадрат на отрезке (x,y)→(x+ux,y+uy), «вверх» — перпендикуляр (uy,-ux)
     const vx = uy, vy = -ux;
@@ -200,6 +200,5 @@ export default {
     if (s.segs) segments(ctx, s.segs);
     if (s.pts) poly(ctx, s.pts);
     if (s.mode === 'mandelbrot') star(ctx, (TX - s.cx) / s.scale + 0.5, (TY - s.cy) / s.scale + 0.5, 0.014);
-    if (s.mode === 'julia') star(ctx, 0.5, 0.5, 0.014);
   },
 };

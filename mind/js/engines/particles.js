@@ -175,6 +175,10 @@ const MODES = {
       }
     },
     draw(ctx, s) {
+      // стая живёт в торе 0..1, а рисуется с полями, чтобы не вылезать за квадрат
+      ctx.save();
+      ctx.translate(0.05, 0.05);
+      ctx.scale(0.9, 0.9);
       ctx.beginPath();
       for (let i = 0; i < s.n; i++) {
         const v = Math.hypot(s.vx[i], s.vy[i]) || 1;
@@ -184,6 +188,7 @@ const MODES = {
         ctx.lineTo(s.x[i] - ux * L + uy * L * 0.5, s.y[i] - uy * L - ux * L * 0.5);
       }
       ctx.stroke();
+      ctx.restore();
     },
   },
 

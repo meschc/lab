@@ -84,7 +84,6 @@ const MODES = {
         ctx.save(); ctx.fillStyle = s.paper; ctx.beginPath(); ctx.arc(x, y, 0.014, 0, TAU); ctx.fill(); ctx.restore();
         circle(ctx, x, y, 0.014);
       }
-      star(ctx, 0.5, 0.5, 0.014);
     },
   },
 
@@ -303,7 +302,6 @@ const MODES = {
           dots(ctx, xs, ys, k ? 0.012 : 0.02, xs.length, 'stroke');
         } else dots(ctx, xs, ys, k === 2 ? 0.006 : 0.004);
       });
-      star(ctx, 0.5, 0.5, 0.022);
     },
   },
 
