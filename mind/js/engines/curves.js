@@ -1,5 +1,5 @@
 // 1. Кривые, заполняющие пространство: рисуются по порядкам
-import { poly, star, DASH } from '../core/draw.js';
+import { poly, dot, DASH } from '../core/draw.js';
 
 const M = 0.07; // поле внутри рамки
 
@@ -148,6 +148,6 @@ export default {
     poly(ctx, cur, count);
     const hx = cur[(count - 1) * 2];
     const hy = cur[(count - 1) * 2 + 1];
-    star(ctx, hx, hy, 0.016);
+    dot(ctx, hx, hy, 0.006);
   },
 };

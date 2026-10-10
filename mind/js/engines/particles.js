@@ -1,5 +1,5 @@
 // 4. Частицы: энтропия, броуновское движение, демон Максвелла, стая, доска Гальтона, стигмергия
-import { dots, circle, line, poly, star, contours, segments, TAU, DASH } from '../core/draw.js';
+import { dots, circle, line, poly, dot, contours, segments, TAU, DASH } from '../core/draw.js';
 import { gauss } from '../core/rng.js';
 
 const W0 = 0.04, W1 = 0.96; // стенки
@@ -97,7 +97,7 @@ const MODES = {
       ctx.fillStyle = ctx.strokeStyle;
       circle(ctx, s.bx, s.by, s.R);
       circle(ctx, s.bx, s.by, s.R * 0.62);
-      star(ctx, s.bx, s.by, s.R * 0.4);
+      dot(ctx, s.bx, s.by, s.R * 0.25);
     },
   },
 
@@ -127,7 +127,7 @@ const MODES = {
     draw(ctx, s) {
       line(ctx, 0.5, W0, 0.5, 0.42);
       line(ctx, 0.5, 0.58, 0.5, W1);
-      star(ctx, 0.5, 0.5, 0.018);
+      dot(ctx, 0.5, 0.5, 0.007);
       const fx = [], fy = [];
       ctx.beginPath();
       for (let i = 0; i < s.n; i++) {

@@ -1,5 +1,5 @@
 // 5. Волны и осцилляции
-import { contours, segments, poly, circle, line, star, dots, ease, TAU, DASH } from '../core/draw.js';
+import { contours, segments, poly, circle, line, dot, dots, ease, TAU, DASH } from '../core/draw.js';
 
 const G = 120;
 
@@ -41,7 +41,7 @@ const MODES = {
     },
     draw(ctx, s) {
       if (s.segs) segments(ctx, s.segs);
-      for (const [x, y] of s.src) star(ctx, x, y, 0.014);
+      for (const [x, y] of s.src) dot(ctx, x, y, 0.005);
       if (s.slit) {
         line(ctx, 0.02, 0.1, 0.41, 0.1);
         line(ctx, 0.47, 0.1, 0.53, 0.1);
@@ -71,7 +71,7 @@ const MODES = {
         const bx = px + Math.sin(th) * L, by = py + Math.cos(th) * L;
         line(ctx, px, py, bx, by);
         circle(ctx, bx, by, 0.018);
-        if (i === 4) { circle(ctx, bx, by, 0.03); star(ctx, bx, by, 0.009); }
+        if (i === 4) { circle(ctx, bx, by, 0.03); dot(ctx, bx, by, 0.004); }
       }
     },
   },
@@ -114,7 +114,7 @@ const MODES = {
       }
       poly(ctx, pts);
       const u = s.t * 0.9;
-      star(ctx, 0.5 + 0.41 * Math.sin(s.a * u + d), 0.5 + 0.41 * Math.sin(s.b * u), 0.016);
+      dot(ctx, 0.5 + 0.41 * Math.sin(s.a * u + d), 0.5 + 0.41 * Math.sin(s.b * u), 0.006);
     },
   },
 

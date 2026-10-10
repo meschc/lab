@@ -1,6 +1,6 @@
 // Карточка 9:16 (1080×1920): мысль крупно + текущий кадр + область мелко. Без справки и теории.
 import { drawVisual } from './engines/index.js';
-import { fitText, star, FONTS } from './core/draw.js';
+import { fitText, FONTS } from './core/draw.js';
 
 const W = 1080, H = 1920, M = 80, VIS = W - 2 * M;
 
@@ -36,11 +36,10 @@ export async function renderCard({ title, area, visual, colors }) {
 
   // область
   const ay = H - M - 60;
-  star(ctx, M + 16, ay, 16);
   ctx.font = `400 30px ${FONTS.text}`;
   if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
   ctx.textBaseline = 'middle';
-  ctx.fillText(area.toUpperCase(), M + 50, ay + 1);
+  ctx.fillText(area.toUpperCase(), M, ay + 1);
   return cv;
 }
 

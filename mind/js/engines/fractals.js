@@ -1,5 +1,5 @@
 // 2. Фракталы: Мандельброт и Жюлиа — изолиниями, остальные — рекурсией по глубине
-import { contours, segments, star, poly } from '../core/draw.js';
+import { contours, segments, poly } from '../core/draw.js';
 import { mulberry32 } from '../core/rng.js';
 
 const GRID = 128;
@@ -199,6 +199,5 @@ export default {
   draw(ctx, s) {
     if (s.segs) segments(ctx, s.segs);
     if (s.pts) poly(ctx, s.pts);
-    if (s.mode === 'mandelbrot') star(ctx, (TX - s.cx) / s.scale + 0.5, (TY - s.cy) / s.scale + 0.5, 0.014);
   },
 };

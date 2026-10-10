@@ -1,5 +1,5 @@
 // 8. Типографика и символ: геометрия из референсов + отдельные глифы для философских понятий
-import { circle, line, star, dots, poly, text, FONTS, ease, TAU, DASH } from '../core/draw.js';
+import { circle, line, dot, dots, poly, text, FONTS, ease, TAU, DASH } from '../core/draw.js';
 import { mulberry32, pick } from '../core/rng.js';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -129,7 +129,7 @@ const MODES = {
       ctx.restore();
       text(ctx, s.ch, 0.5, 0.52, 0.56, { family: FONTS.display, weight: 400, stroke: true });
       const dx = 0.5 + 0.44 * Math.cos(a * 2), dy = 0.5 + 0.44 * Math.sin(a * 2);
-      star(ctx, dx, dy, 0.016);
+      dot(ctx, dx, dy, 0.006);
     },
   },
 
@@ -178,7 +178,7 @@ const MODES = {
         ctx.beginPath(); ctx.ellipse(0.5, 0.42, r * 1.4, r, 0, 0, TAU); ctx.stroke();
       }
       ctx.restore();
-      star(ctx, 0.5, 0.74, 0.03 * fl);
+      dot(ctx, 0.5, 0.74, 0.012 * fl);
       for (const x of [0.38, 0.5, 0.62]) circle(ctx, x, 0.88, 0.022);
     },
   },
@@ -214,7 +214,7 @@ const MODES = {
       circle(ctx, ...s.best);
       dots(ctx, s.pts.map((p) => p[0]), s.pts.map((p) => p[1]), 0.007);
       const rx = 0.14 + Math.min(1, cut) * 0.84;
-      if (cut < 1) { line(ctx, rx, 0.02, rx - 0.12, 0.98); star(ctx, rx, 0.02, 0.016); }
+      if (cut < 1) { line(ctx, rx, 0.02, rx - 0.12, 0.98); dot(ctx, rx, 0.02, 0.006); }
     },
   },
 
@@ -283,7 +283,7 @@ const MODES = {
       }
       const u = ease(Math.min(1, (ph % 0.55) / 0.55));
       const hx = k >= 14 ? X(14) : X(k) + (X(k + 1) - X(k)) * u;
-      star(ctx, hx, 0.6, 0.016);
+      dot(ctx, hx, 0.6, 0.006);
       circle(ctx, 0.94, 0.6, 0.012);
     },
   },
@@ -307,7 +307,7 @@ const MODES = {
         line(ctx, cx + Math.cos(a) * R * 0.55, cy + Math.sin(a) * R * 0.55, cx + Math.cos(a) * R, cy + Math.sin(a) * R);
         line(ctx, cx - Math.cos(a) * R * 0.55, cy - Math.sin(a) * R * 0.55, cx - Math.cos(a) * R, cy - Math.sin(a) * R);
       }
-      star(ctx, bx - ux * 0.03 + nx * 0.05, by - uy * 0.03 + ny * 0.05, 0.02);
+      dot(ctx, bx - ux * 0.03 + nx * 0.05, by - uy * 0.03 + ny * 0.05, 0.007);
     },
   },
 
@@ -323,7 +323,7 @@ const MODES = {
       const N = 240, n = Math.floor(m * N);
       for (let i = 0; i <= n; i++) { const x = i / N; pts.push(0.08 + x * 0.86, 0.92 - f(x) * 0.95); }
       poly(ctx, pts);
-      if (n > 0) star(ctx, pts[pts.length - 2], pts[pts.length - 1], 0.018);
+      if (n > 0) dot(ctx, pts[pts.length - 2], pts[pts.length - 1], 0.007);
     },
   },
 };
