@@ -1,5 +1,5 @@
 // 4. Частицы: энтропия, броуновское движение, демон Максвелла, стая, доска Гальтона, стигмергия
-import { dots, circle, line, poly, star, contours, segments, TAU } from '../core/draw.js';
+import { dots, circle, line, poly, star, contours, segments, TAU, DASH } from '../core/draw.js';
 import { gauss } from '../core/rng.js';
 
 const W0 = 0.04, W1 = 0.96; // стенки
@@ -51,12 +51,13 @@ const MODES = {
       if ((s.t += dt) > s.life) Object.assign(s, MODES.entropy.create(s.p, s.rng));
     },
     draw(ctx, s) {
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, 1 - s.t / 4) * 0.5;
-      if (!s.p.clusters) {
+      // стенки исходной коробки видны первые секунды, пунктиром
+      if (!s.p.clusters && s.t < 2.5) {
+        ctx.save();
+        ctx.setLineDash(DASH);
         ctx.strokeRect(0.05, 0.05, 0.3, 0.3);
+        ctx.restore();
       }
-      ctx.restore();
       dots(ctx, s.x, s.y, 0.0045);
     },
   },

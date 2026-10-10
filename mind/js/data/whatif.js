@@ -1,20 +1,20 @@
-// «Что если…»: человеческая система × нечеловеческий носитель (× концепт-линза).
+// «Что если…»: человеческая система × нечеловеческий носитель.
 // Слоты носителя записаны как «текст|род», чтобы глаголы в шаблонах согласовывались.
 export const SYSTEMS = [
-  { id: 'religion', nom: 'религия', g: 'f', loc: 'в религии' },
-  { id: 'court', nom: 'суд', g: 'm', loc: 'в суде' },
-  { id: 'art', nom: 'искусство', g: 'n', loc: 'в искусстве' },
-  { id: 'history', nom: 'история', g: 'f', loc: 'в истории' },
-  { id: 'marriage', nom: 'брак', g: 'm', loc: 'в браке' },
-  { id: 'money', nom: 'деньги', g: 'pl', loc: 'в деньгах' },
-  { id: 'medicine', nom: 'медицина', g: 'f', loc: 'в медицине' },
-  { id: 'war', nom: 'война', g: 'f', loc: 'на войне' },
-  { id: 'education', nom: 'образование', g: 'n', loc: 'в образовании' },
-  { id: 'fashion', nom: 'мода', g: 'f', loc: 'в моде' },
-  { id: 'language', nom: 'язык', g: 'm', loc: 'в языке' },
-  { id: 'funeral', nom: 'похороны', g: 'pl', loc: 'на похоронах', in: 'на них' },
-  { id: 'sport', nom: 'спорт', g: 'm', loc: 'в спорте' },
-  { id: 'science', nom: 'наука', g: 'f', loc: 'в науке' },
+  { id: 'religion', nom: 'религия', g: 'f' },
+  { id: 'court', nom: 'суд', g: 'm' },
+  { id: 'art', nom: 'искусство', g: 'n' },
+  { id: 'history', nom: 'история', g: 'f' },
+  { id: 'marriage', nom: 'брак', g: 'm' },
+  { id: 'money', nom: 'деньги', g: 'pl' },
+  { id: 'medicine', nom: 'медицина', g: 'f' },
+  { id: 'war', nom: 'война', g: 'f' },
+  { id: 'education', nom: 'образование', g: 'n' },
+  { id: 'fashion', nom: 'мода', g: 'f' },
+  { id: 'language', nom: 'язык', g: 'm' },
+  { id: 'funeral', nom: 'похороны', g: 'pl', in: 'на них' },
+  { id: 'sport', nom: 'спорт', g: 'm' },
+  { id: 'science', nom: 'наука', g: 'f' },
 ];
 
 export const CARRIERS = [
@@ -131,32 +131,10 @@ const FOLLOW = {
   ],
 };
 
-// с линзой: система × носитель × термин
-const LENS_FULL = [
-  'как {in} {выглядел~lens} бы «{lens}»?',
-  'где {in} {прятался~lens} бы «{lens}»?',
-  'что {in} {объяснял~lens} бы «{lens}»?',
-];
-// без носителя: система × термин
-const LENS_SYS = [
-  'Что если {sys} — это «{lens}»?',
-  'Как {выглядел~lens} бы «{lens}» {loc}?',
-  'Где {loc} {прятался~lens} бы «{lens}»?',
-];
-// без системы: носитель × термин
-const LENS_CAR = [
-  'Как {выглядел~lens} бы «{lens}» с точки зрения {gen}?',
-  'Что если для {gen} весь мир — это «{lens}»?',
-  '{мог~lens} бы «{lens}» объяснить жизнь {gen}?',
-];
-
 const VERBS = {
   был: ['был', 'была', 'было', 'были'],
   стал: ['стал', 'стала', 'стало', 'стали'],
   считался: ['считался', 'считалась', 'считалось', 'считались'],
-  выглядел: ['выглядел', 'выглядела', 'выглядело', 'выглядели'],
-  объяснял: ['объяснял', 'объясняла', 'объясняло', 'объясняли'],
-  прятался: ['прятался', 'пряталась', 'пряталось', 'прятались'],
   мог: ['мог', 'могла', 'могло', 'могли'],
 };
 const G = { m: 0, f: 1, n: 2, pl: 3 };
@@ -170,40 +148,18 @@ function fill(tpl, vars, genders) {
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Сколько вариантов шаблона есть для этой комбинации
-export function templateCount({ sys, car, lens }) {
-  if (sys && car) return lens ? LENS_FULL.length : FOLLOW[sys.id].length;
-  if (sys && lens) return LENS_SYS.length;
-  if (car && lens) return LENS_CAR.length;
-  return 0;
-}
+// Сколько вариантов шаблона есть у системы
+export const templateCount = (sys) => FOLLOW[sys.id].length;
 
-// sys — из SYSTEMS, car — из CARRIERS, lens — термин из TERMS (любой может быть null, но включены минимум два)
-export function buildQuestion({ sys, car, lens }, tpl = 0) {
-  const vars = {}, genders = {};
-  if (sys) {
-    Object.assign(vars, { sys: sys.nom, loc: sys.loc, in: sys.in || IN[sys.g] });
-    genders.sys = sys.g;
+// sys — из SYSTEMS, car — из CARRIERS
+export function buildQuestion(sys, car, tpl = 0) {
+  const vars = { sys: sys.nom, in: sys.in || IN[sys.g], gen: car.gen, poss: car.poss };
+  const genders = { sys: sys.g };
+  for (const [k, v] of Object.entries(car.slots)) {
+    const [txt, g] = v.split('|');
+    vars[k] = txt;
+    genders[k] = g;
   }
-  if (car) {
-    Object.assign(vars, { gen: car.gen, poss: car.poss });
-    for (const [k, v] of Object.entries(car.slots)) {
-      const [txt, g] = v.split('|');
-      vars[k] = txt;
-      genders[k] = g;
-    }
-  }
-  if (lens) {
-    // кавычки внутри кавычек — «лапками»
-    vars.lens = lens.title.replace(/«/g, '„').replace(/»/g, '“');
-    genders.lens = lens.g;
-  }
-  let list, head = '';
-  if (sys && car) {
-    head = 'Если бы у {gen} {был~sys} {sys}, ';
-    list = lens ? LENS_FULL : FOLLOW[sys.id];
-  } else if (sys && lens) list = LENS_SYS;
-  else if (car && lens) list = LENS_CAR;
-  else return '';
-  return cap(fill(head + list[tpl % list.length], vars, genders));
+  const list = FOLLOW[sys.id];
+  return cap(fill(`Если бы у {gen} {был~sys} {sys}, ${list[tpl % list.length]}`, vars, genders));
 }

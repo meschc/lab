@@ -2,9 +2,14 @@
 // вызывающий код ставит transform, lineWidth = LW и цвета.
 export const LW = 0.003; // 3px на 1000px, как в референсах
 export const TAU = Math.PI * 2;
+// вспомогательные линии — пунктиром, а не полутоном
+export const DASH = [0.006, 0.009];
 
-export const FONT_DISPLAY = 'Minipax, "PT Serif", Georgia, serif';
-export const FONT_TEXT = '"Golos Text", "Helvetica Neue", Arial, sans-serif';
+// шрифты холста; app.js подставляет те же семейства, что и в CSS (--display, --text)
+export const FONTS = {
+  display: 'Minipax, "PT Serif", Georgia, serif',
+  text: 'Minipax, "PT Serif", Georgia, serif',
+};
 
 // Фирменная 12-лучевая звезда из референсов
 export function star(ctx, x, y, r, n = 12, inner = 0.37) {
@@ -107,7 +112,7 @@ export function contours(field, nx, ny, level, out = [], x0 = 0, y0 = 0, w = 1, 
 
 // Текст в единичных координатах: масштабируем через 1000, чтобы не упираться в минимальный кегль
 export function text(ctx, str, x, y, size, opts = {}) {
-  const { family = FONT_TEXT, weight = 400, align = 'center', baseline = 'middle', stroke = false, lw = LW } = opts;
+  const { family = FONTS.text, weight = 400, align = 'center', baseline = 'middle', stroke = false, lw = LW } = opts;
   ctx.save();
   ctx.scale(0.001, 0.001);
   ctx.font = `${weight} ${size * 1000}px ${family}`;

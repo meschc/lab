@@ -1,5 +1,5 @@
 // 6. Маятники и хаос
-import { poly, circle, line, star } from '../core/draw.js';
+import { poly, circle, line, star, DASH } from '../core/draw.js';
 
 function rk4(f, y, h) {
   const k1 = f(y);
@@ -42,7 +42,7 @@ const MODES = {
     },
     draw(ctx, s) {
       ctx.save();
-      ctx.globalAlpha = 0.45;
+      ctx.setLineDash(DASH);
       poly(ctx, s.trail);
       ctx.restore();
       const [x1, y1, x2, y2] = this.pos(s);
@@ -122,7 +122,7 @@ const MODES = {
       if (shown < s.COLS) {
         const x = 0.06 + (0.88 * shown) / (s.COLS - 1);
         ctx.save();
-        ctx.globalAlpha = 0.3;
+        ctx.setLineDash(DASH);
         line(ctx, x, 0.04, x, 0.96);
         ctx.restore();
       }
@@ -149,7 +149,7 @@ const MODES = {
     },
     draw(ctx, s) {
       ctx.save();
-      ctx.globalAlpha = 0.35;
+      ctx.setLineDash(DASH);
       for (const o of s.orbits) poly(ctx, o);
       ctx.restore();
       poly(ctx, s.trail);

@@ -1,5 +1,5 @@
 // 8. Типографика и символ: геометрия из референсов + отдельные глифы для философских понятий
-import { circle, line, star, dots, poly, text, FONT_DISPLAY, ease, TAU } from '../core/draw.js';
+import { circle, line, star, dots, poly, text, FONTS, ease, TAU, DASH } from '../core/draw.js';
 import { mulberry32, pick } from '../core/rng.js';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -75,7 +75,7 @@ const MODES = {
         else { sx = x; sy = y + h - sq; cx = x + sq; cy = sy; a0 = 0.5 * Math.PI; h -= sq; }
         const part = Math.min(1, k - i);
         ctx.strokeRect(sx, sy, sq, sq);
-        ctx.save(); ctx.globalAlpha = 0.3; circle(ctx, sx + sq / 2, sy + sq / 2, sq / 2); ctx.restore();
+        ctx.save(); ctx.setLineDash(DASH); circle(ctx, sx + sq / 2, sy + sq / 2, sq / 2); ctx.restore();
         ctx.beginPath(); ctx.arc(cx, cy, sq, a0, a0 + (Math.PI / 2) * part); ctx.stroke();
       }
       ctx.restore();
@@ -125,12 +125,12 @@ const MODES = {
     draw(ctx, s) {
       const a = s.t * 0.15;
       circle(ctx, 0.5, 0.5, 0.44);
-      ctx.save(); ctx.globalAlpha = 0.3;
+      ctx.save(); ctx.setLineDash(DASH);
       ctx.save(); ctx.translate(0.5, 0.5); ctx.rotate(a); ctx.strokeRect(-0.311, -0.311, 0.622, 0.622); ctx.restore();
       line(ctx, 0.06, 0.5, 0.94, 0.5); line(ctx, 0.5, 0.06, 0.5, 0.94);
       line(ctx, 0.19, 0.19, 0.81, 0.81); line(ctx, 0.81, 0.19, 0.19, 0.81);
       ctx.restore();
-      text(ctx, s.ch, 0.5, 0.52, 0.56, { family: FONT_DISPLAY, weight: 400, stroke: true });
+      text(ctx, s.ch, 0.5, 0.52, 0.56, { family: FONTS.display, weight: 400, stroke: true });
       const dx = 0.5 + 0.44 * Math.cos(a * 2), dy = 0.5 + 0.44 * Math.sin(a * 2);
       star(ctx, dx, dy, 0.016);
     },
@@ -158,7 +158,7 @@ const MODES = {
           ctx.beginPath(); ctx.arc(0.5, 0.5, 0.24, a0, a1); ctx.stroke();
         }
       }
-      ctx.save(); ctx.globalAlpha = 0.2; circle(ctx, 0.5, 0.5, 0.24); ctx.restore();
+      ctx.save(); ctx.setLineDash(DASH); circle(ctx, 0.5, 0.5, 0.24); ctx.restore();
       star(ctx, 0.5, 0.5, 0.02);
     },
   },
@@ -212,7 +212,8 @@ const MODES = {
       s.hyp.forEach(([x, y, r], i) => {
         const gone = cut * s.hyp.length - i;
         if (gone >= 1) return;
-        ctx.save(); ctx.globalAlpha = gone > 0 ? 1 - gone : 1; circle(ctx, x, y, r); ctx.restore();
+        if (gone > 0) return; // срезанная гипотеза исчезает сразу, без полутона
+        circle(ctx, x, y, r);
       });
       circle(ctx, ...s.best);
       dots(ctx, s.pts.map((p) => p[0]), s.pts.map((p) => p[1]), 0.007);
@@ -258,8 +259,8 @@ const MODES = {
     draw(ctx, s) {
       const a = Math.min(1, s.t / 1.2) * (s.t > 7 ? Math.max(0, 8 - s.t) : 1);
       dots(ctx, s.xs, s.ys, 0.005);
+      if (a < 0.5) return; // лицо появляется и исчезает целиком
       ctx.save();
-      ctx.globalAlpha = a;
       if (s.t > 1.2) s.eyes.forEach((i) => { circle(ctx, s.xs[i], s.ys[i], 0.03); circle(ctx, s.xs[i], s.ys[i], 0.05); });
       const m = Math.min(1, Math.max(0, (s.t - 2.4) / 2)) * (s.mouth.length - 1);
       const pts = [];
@@ -284,7 +285,7 @@ const MODES = {
       for (let n = 0; n < k; n++) {
         const a = X(n), b = X(n + 1), r = (b - a) / 2;
         ctx.beginPath(); ctx.arc(a + r, 0.6, r, Math.PI, TAU); ctx.stroke();
-        ctx.save(); ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.arc(a + r, 0.6, r, 0, Math.PI); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.setLineDash(DASH); ctx.beginPath(); ctx.arc(a + r, 0.6, r, 0, Math.PI); ctx.stroke(); ctx.restore();
       }
       const u = ease(Math.min(1, (ph % 0.55) / 0.55));
       const hx = k >= 14 ? X(14) : X(k) + (X(k + 1) - X(k)) * u;
