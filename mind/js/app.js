@@ -79,7 +79,7 @@ function currentView() {
     const t = termById(state.theory.term);
     const idx = state.theory.idx % t.theories.length;
     return {
-      eyebrow: `теория · ${t.title}`, headline: t.theories[idx], card: t.title, cardArea: t.area,
+      eyebrow: '', headline: t.theories[idx], card: t.title, cardArea: t.area,
       engine: t.engine, params: t.params, seed: hashStr(t.id), ref: t,
     };
   }
@@ -87,7 +87,7 @@ function currentView() {
   const q = buildQuestion(sys, car, state.wf.tpl);
   const axes = `${sys.nom} × ${car.label}`;
   return {
-    eyebrow: `что если · ${axes}`, headline: q, card: q, cardArea: `что если · ${axes}`,
+    eyebrow: '', headline: q, card: q, cardArea: `что если · ${axes}`,
     ref: null, wf: { sys, car },
     engine: 'symbol', params: { mode: 'auto' }, seed: hashStr(`${sys.id}·${car.id}`),
   };
@@ -404,6 +404,7 @@ const catalog = initCatalog({
   reducedMotion,
   onOpen({ id, mode, fromEl }) {
     state.revealed = false;
+    state.area = catalog.getArea(); // «ещё» остаётся в области, выбранной в каталоге
     if (mode === 'theory') { state.branch = 'theory'; state.theory = { term: id, idx: 0 }; }
     else { state.branch = 'term'; state.term = id; }
     state.view = { ref: termById(id), engine: termById(id).engine, seed: hashStr(id) };
@@ -412,6 +413,7 @@ const catalog = initCatalog({
   },
   onGo(branch) {
     state.revealed = false;
+    state.area = catalog.getArea();
     state.branch = branch;
     if (branch === 'term') state.term = pickTerm();
     else if (branch === 'theory') { const id = pickTerm(); state.theory = { term: id, idx: 0 }; }
