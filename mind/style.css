@@ -35,7 +35,6 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 
 h1, h2, h3, h4, h5, h6, small, sup, sub { font-size: inherit; }
 b, strong, .tile__title, .reveal__title { font-weight: 600; }
-.seg__btn.is-on, .chip.is-on { font-weight: 600; }
 
 /* текстовые переключатели вместо «таблеток» */
 .seg { display: flex; gap: 20px; }
