@@ -9,6 +9,7 @@ export async function renderCard({ title, area, visual, colors }) {
     await Promise.all([
       document.fonts.load(`400 100px ${FONTS.display}`, title),
       document.fonts.load(`400 30px ${FONTS.text}`, area),
+      document.fonts.load(`300 40px ${FONTS.figure}`, 'Аа0'),
     ]);
   } catch { /* рисуем запасным шрифтом */ }
 

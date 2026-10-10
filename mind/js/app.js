@@ -8,8 +8,6 @@ import { exportCard } from './card.js';
 import { initCatalog } from './catalog.js';
 
 const COLORS = { paper: '#FFFFFF', ink: '#1F1F1F' };
-// единый кегль сайта — и для подписей внутри схем
-const FS = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 15;
 
 // холст берёт те же семейства, что и CSS
 {
@@ -73,7 +71,7 @@ function currentView() {
   if (state.branch === 'term') {
     const t = termById(state.term);
     return {
-      eyebrow: t.area, headline: t.title, card: t.title, cardArea: t.area,
+      eyebrow: '', headline: t.title, card: t.title, cardArea: t.area,
       engine: t.engine, params: t.params, seed: hashStr(t.id), ref: t,
     };
   }
@@ -126,7 +124,7 @@ function paint() {
   ctx.fillStyle = COLORS.paper;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   // на экране без рамки — воздух; рамка остаётся только на карточке PNG
-  drawVisual(ctx, state.visual, 0, 0, canvas.width, COLORS, { frame: false, textPx: FS * canvas.width / (canvas.clientWidth || canvas.width) });
+  drawVisual(ctx, state.visual, 0, 0, canvas.width, COLORS, { frame: false });
 }
 
 let last = performance.now();
@@ -230,9 +228,9 @@ function renderLinks(v) {
   const box = $('#links');
   box.innerHTML = '';
   if (state.branch === 'term') {
-    box.append(linkBtn('→ Вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
+    box.append(linkBtn('Вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
   } else if (state.branch === 'theory') {
-    box.append(linkBtn('→ К термину', () => go('term', () => { state.term = v.ref.id; })));
+    box.append(linkBtn('К термину', () => go('term', () => { state.term = v.ref.id; })));
   } else {
     const n = templateCount(v.wf.sys);
     if (n > 1) box.append(linkBtn('Переформулировать', () => { state.wf.tpl = (state.wf.tpl + 1) % n; render(); }));
@@ -467,3 +465,5 @@ new ResizeObserver(() => { fitCanvas(); paint(); }).observe(canvas);
 route();
 requestAnimationFrame(loop);
 document.fonts?.ready.then(() => state.screen === 'gen' && paint());
+// Geist нужен только холсту — грузим явно и перерисовываем
+document.fonts?.load(`400 40px ${FONTS.figure}`, 'Аа0').then(() => state.screen === 'gen' && paint()).catch(() => {});
