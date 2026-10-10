@@ -35,6 +35,8 @@ const ROWS = {
   ],
 };
 const HOVER_SPEED = 2.5;
+// единый кегль сайта — и для подписей внутри схем
+const fs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 15;
 const STORE_KEY = 'mind.catalog.view';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -137,7 +139,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     ctx.fillStyle = colors.paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const size = Math.min(canvas.width, canvas.height);
-    drawVisual(ctx, tile.visual, (canvas.width - size) / 2, (canvas.height - size) / 2, size, colors, { frame: false });
+    drawVisual(ctx, tile.visual, (canvas.width - size) / 2, (canvas.height - size) / 2, size, colors, { frame: false, textPx: fs * canvas.width / (canvas.clientWidth || canvas.width) });
   }
 
   const io = new IntersectionObserver((entries) => {
