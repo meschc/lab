@@ -7,7 +7,7 @@
 @font-face { font-family: 'Geist'; src: url('fonts/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
 
 :root {
-  --paper: #F3F0E8;
+  --paper: #FFFFFF;
   --ink: #1F1F1F;
   --lw: 1.5px;
   --fs: 15px;

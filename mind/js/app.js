@@ -7,7 +7,7 @@ import { FONTS } from './core/draw.js';
 import { exportCard } from './card.js';
 import { initCatalog } from './catalog.js';
 
-const COLORS = { paper: '#F3F0E8', ink: '#1F1F1F' };
+const COLORS = { paper: '#FFFFFF', ink: '#1F1F1F' };
 
 // вариант шрифта для сравнения: ?font=geist (только Geist) или ?font=mix (Minipax + Geist);
 // по умолчанию — только Minipax. Холст берёт те же семейства, что и CSS.
