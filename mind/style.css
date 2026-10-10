@@ -176,11 +176,11 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .cat-head { padding-bottom: 120px; row-gap: 32px; align-items: start; }
   .grid { row-gap: 96px; }
   .tile { grid-column: var(--cd); grid-row: var(--rd); }
-  /* слева: «мысль», описание, кнопки; справа вверху: области и иконки вида */
-  .wordmark { grid-column: 1 / span 6; grid-row: 1; }
-  .cat-lede { grid-column: 1 / span 5; grid-row: 2; }
-  .cat-bar { grid-column: 1 / span 6; grid-row: 3; }
-  .cat-filters { grid-column: 9 / span 4; grid-row: 1 / span 3; }
+  /* верхняя строка: «мысль», справа описание; в правой колонке сверху кнопки, под ними области */
+  .wordmark { grid-column: 1 / span 2; grid-row: 1 / span 2; }
+  .cat-lede { grid-column: 3 / span 5; grid-row: 1 / span 2; }
+  .cat-bar { grid-column: 9 / span 4; grid-row: 1; }
+  .cat-filters { grid-column: 9 / span 4; grid-row: 2; }
   .filter { flex-direction: column; gap: 2px; }
   .filter__btn { align-self: flex-start; }
 }
