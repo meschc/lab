@@ -1,9 +1,18 @@
 // Курируемая библиотека терминов.
 // g — род названия (m/f/n/pl) для согласования в «Что если»; engine + params — визуализация;
 // ref — справка (скрыта до «Раскрыть»); theories — авторские тезисы для ветки «Теория».
+import CURVES from './more/curves.js';
+import FRACTALS from './more/fractals.js';
+import AUTOMATA from './more/automata.js';
+import PARTICLES from './more/particles.js';
+import WAVES from './more/waves.js';
+import CHAOS from './more/chaos.js';
+import GRAPHS from './more/graphs.js';
+import SYMBOL from './more/symbol.js';
+
 export const AREAS = ['математика', 'физика', 'биология', 'информатика', 'теория игр', 'психология', 'философия'];
 
-export const TERMS = [
+const BASE = [
   // ——— математика ———
   {
     id: 'hilbert', title: 'Кривая Гилберта', g: 'f', area: 'математика',
@@ -583,5 +592,9 @@ export const TERMS = [
     ],
   },
 ];
+
+// новые термины лежат по файлам движков; каталог идёт по областям
+const ALL = [...BASE, ...CURVES, ...FRACTALS, ...AUTOMATA, ...PARTICLES, ...WAVES, ...CHAOS, ...GRAPHS, ...SYMBOL];
+export const TERMS = AREAS.flatMap((a) => ALL.filter((t) => t.area === a));
 
 export const termById = (id) => TERMS.find((t) => t.id === id);
