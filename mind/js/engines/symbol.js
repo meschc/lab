@@ -25,13 +25,13 @@ const MODES = {
     draw(ctx, s) {
       const tw = s.twist * (1 + 0.45 * Math.sin(s.t * 0.3));
       const g = s.t * 0.04;
-      let R = 0.47;
+      // арка повёрнута, её угол уходит на R·√2 — держим его внутри квадрата
+      let R = 0.335;
       for (let i = 0; i < s.n; i++) {
         arch(ctx, 0.5, 0.5, R, g + i * tw);
         arch(ctx, 0.5, 0.5, R, g + i * tw, true);
         R *= s.ratio;
       }
-      star(ctx, 0.5, 0.5, 0.015);
     },
   },
 
@@ -51,7 +51,6 @@ const MODES = {
         ctx.lineTo(0.5 - R, 0.005); ctx.lineTo(0.5 + R, 0.005); ctx.closePath();
         ctx.stroke();
       }
-      star(ctx, 0.5, 0.5, 0.015);
     },
   },
 
@@ -96,7 +95,6 @@ const MODES = {
           circle(ctx, 0.5 + (R0 - r) * Math.cos(a), 0.5 + (R0 - r) * Math.sin(a), r);
         }
       }
-      star(ctx, 0.5, 0.5, 0.015);
     },
   },
 
@@ -115,7 +113,6 @@ const MODES = {
           R = r;
         }
       }
-      star(ctx, 0.5, 0.5, 0.015);
     },
   },
 
@@ -159,7 +156,6 @@ const MODES = {
         }
       }
       ctx.save(); ctx.setLineDash(DASH); circle(ctx, 0.5, 0.5, 0.24); ctx.restore();
-      star(ctx, 0.5, 0.5, 0.02);
     },
   },
 
@@ -194,7 +190,7 @@ const MODES = {
       const cx = (0.46 + 0.56 + 0.49) / 3, cy = (0.46 + 0.5 + 0.57) / 3;
       const hyp = [];
       for (let i = 0; i < 13; i++) {
-        const a = rng() * TAU, d = 0.03 + rng() * 0.22;
+        const a = rng() * TAU, d = 0.02 + rng() * 0.12;
         const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
         const r = Math.max(...pts.map(([px, py]) => Math.hypot(px - x, py - y))) + 0.02 + rng() * 0.05;
         hyp.push([x, y, r]);
@@ -217,7 +213,7 @@ const MODES = {
       });
       circle(ctx, ...s.best);
       dots(ctx, s.pts.map((p) => p[0]), s.pts.map((p) => p[1]), 0.007);
-      const rx = -0.1 + Math.min(1, cut) * 1.2;
+      const rx = 0.14 + Math.min(1, cut) * 0.84;
       if (cut < 1) { line(ctx, rx, 0.02, rx - 0.12, 0.98); star(ctx, rx, 0.02, 0.016); }
     },
   },
@@ -227,12 +223,10 @@ const MODES = {
     create() { return { t: 0 }; },
     draw(ctx, s) {
       const d = 0.065 * Math.sin(s.t * 0.3);
-      for (let k = 1; k <= 17; k++) {
+      for (let k = 1; k <= 15; k++) {
         circle(ctx, 0.5 - d, 0.5, k * 0.028);
         circle(ctx, 0.5 + d, 0.5, k * 0.028);
       }
-      star(ctx, 0.5 - d, 0.5, 0.012);
-      star(ctx, 0.5 + d, 0.5, 0.012);
     },
   },
 
@@ -302,7 +296,7 @@ const MODES = {
       const ux = (bx - ax) / L, uy = (by - ay) / L, nx = uy, ny = -ux, R = 0.07;
       const P = 10, ph = s.t % P;
       const u = ph < 8.4 ? ease(ph / 8.4) * 0.86 : 0.86 * (1 - ease((ph - 8.4) / 1.6));
-      const d = 0.04 + u * (L - 0.2);
+      const d = 0.12 + u * (L - 0.28);
       const cx = ax + ux * d - nx * R * -1, cy = ay + uy * d - ny * R * -1;
       line(ctx, 0.02, ay + (0.02 - ax) * (uy / ux), 0.98, ay + (0.98 - ax) * (uy / ux));
       const rot = -d / R;

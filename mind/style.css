@@ -4,23 +4,16 @@
 /* Minipax с ровными (lnum) цифрами по умолчанию: canvas не умеет включать OpenType-фичи */
 @font-face { font-family: 'Minipax'; src: url('fonts/MinipaxLining-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Minipax'; src: url('fonts/MinipaxLining-SemiBold.otf') format('opentype'); font-weight: 600; font-display: swap; }
-@font-face { font-family: 'Geist'; src: url('fonts/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
 
 :root {
   --paper: #FFFFFF;
   --ink: #1F1F1F;
   --lw: 1.5px;
   --fs: 15px;
-  --minipax: Minipax, 'PT Serif', Georgia, serif;
-  --geist: Geist, 'Helvetica Neue', Arial, sans-serif;
-  --display: var(--minipax);
-  --text: var(--minipax);
+  --display: Minipax, 'PT Serif', Georgia, serif;
+  --text: Minipax, 'PT Serif', Georgia, serif;
   --ease: cubic-bezier(.2, .7, 0, 1);
 }
-
-/* варианты шрифта для сравнения: ?font=geist, ?font=mix */
-:root[data-font="geist"] { --display: var(--geist); --text: var(--geist); }
-:root[data-font="mix"] { --display: var(--minipax); --text: var(--geist); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
@@ -46,11 +39,10 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   position: relative; padding: 4px 0; font-size: var(--fs); color: var(--ink); white-space: nowrap;
 }
 .seg__btn::after, .chip::after, .filter__btn::after, .link::after, .btn::after, .cat-go__btn::after {
-  content: ''; position: absolute; left: 0; right: 100%; bottom: 0; height: 1px; background: currentColor;
-  transition: right .45s var(--ease);
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: currentColor; display: none;
 }
-.seg__btn:hover::after, .chip:hover::after, .filter__btn:hover::after, .link:hover::after, .btn:hover::after, .cat-go__btn:hover::after { right: 0; }
-.seg__btn.is-on::after, .chip.is-on::after, .filter__btn.is-on::after { right: 0; }
+.seg__btn:hover::after, .chip:hover::after, .filter__btn:hover::after, .link:hover::after, .btn:hover::after, .cat-go__btn:hover::after,
+.seg__btn.is-on::after, .chip.is-on::after, .filter__btn.is-on::after, .btn[aria-expanded="true"]::after { display: block; }
 .filter__btn .n { margin-left: 4px; }
 
 /* ═════════ ГЕНЕРАТОР ═════════ */
@@ -88,7 +80,6 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 .actions { display: flex; align-items: center; gap: 28px; margin-top: 28px; }
 .btn--ink::before { content: '→ '; }
-.btn[aria-expanded="true"]::after { right: 0; }
 .btn:disabled { cursor: progress; }
 .btn--icon { margin-left: auto; display: grid; place-items: center; }
 .btn--icon::after { display: none; }
@@ -158,8 +149,8 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .tile:hover .tile__vis canvas, .tile:focus-visible .tile__vis canvas { transform: scale(.97); }
 .tile__body { padding-top: 14px; }
 .tile__meta { margin: 2px 0 0; }
-.tile__title { margin: 0; font-size: var(--fs); line-height: 1.4; display: inline; background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size .5s var(--ease); }
-.tile:hover .tile__title, .tile:focus-visible .tile__title { background-size: 100% 1px; }
+.tile__title { margin: 0; font-size: var(--fs); line-height: 1.4; display: inline; }
+.tile:hover .tile__title, .tile:focus-visible .tile__title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .tile__go { display: inline-block; margin-left: 6px; opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .5s var(--ease); }
 .tile:hover .tile__go, .tile:focus-visible .tile__go { opacity: 1; transform: none; }
 .tile__thesis { display: none; margin: 8px 0 0; max-width: 46ch; }
@@ -201,5 +192,5 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal, .toast, .catalog.is-intro .tile, .wordmark__star, .catalog:not([hidden]), .app:not([hidden]) { animation: none; }
-  .tile__vis canvas, .tile__title, .tile__go, .seg__btn::after, .chip::after, .filter__btn::after, .link::after, .btn::after { transition: none; }
+  .tile__vis canvas, .tile__go { transition: none; }
 }

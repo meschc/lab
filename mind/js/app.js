@@ -9,10 +9,7 @@ import { initCatalog } from './catalog.js';
 
 const COLORS = { paper: '#FFFFFF', ink: '#1F1F1F' };
 
-// вариант шрифта для сравнения: ?font=geist (только Geist) или ?font=mix (Minipax + Geist);
-// по умолчанию — только Minipax. Холст берёт те же семейства, что и CSS.
-const fontMode = new URLSearchParams(location.search).get('font');
-if (fontMode === 'geist' || fontMode === 'mix') document.documentElement.dataset.font = fontMode;
+// холст берёт те же семейства, что и CSS
 {
   const cs = getComputedStyle(document.documentElement);
   FONTS.display = cs.getPropertyValue('--display').trim() || FONTS.display;

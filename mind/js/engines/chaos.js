@@ -13,7 +13,7 @@ const lorenzF = ([x, y, z]) => [10 * (y - x), x * (28 - z) - y, x * y - (8 / 3) 
 
 function project(x, y, z, phi) {
   const X = x * Math.cos(phi) - y * Math.sin(phi);
-  return [0.5 + X / 58, 0.9 - z * 0.0158];
+  return [0.5 + X / 66, 0.88 - z * 0.0152];
 }
 
 const MODES = {
@@ -51,7 +51,6 @@ const MODES = {
       circle(ctx, x1, y1, 0.022);
       circle(ctx, x2, y2, 0.022);
       circle(ctx, x2, y2, 0.012);
-      star(ctx, 0.5, 0.5, 0.012);
     },
   },
 
