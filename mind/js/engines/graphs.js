@@ -1,5 +1,5 @@
 // 7. Графы и сети
-import { circle, line, star, dots, text, FONTS, TAU, DASH } from '../core/draw.js';
+import { circle, line, dot, dots, text, FONTS, TAU, DASH } from '../core/draw.js';
 
 function rings(ctx, x, y, r, n, gap) {
   for (let k = 0; k < n; k++) circle(ctx, x, y, r - k * gap);
@@ -145,7 +145,7 @@ const MODES = {
         px = (1 - t) ** 2 * ax + 2 * (1 - t) * t * cx + t * t * bx;
         py = (1 - t) ** 2 * ay + 2 * (1 - t) * t * cy + t * t * by;
       } else [px, py] = s.V[s.at];
-      star(ctx, px, py, s.stuck ? 0.02 + 0.006 * Math.sin(s.stuck * 12) : 0.018);
+      dot(ctx, px, py, s.stuck ? 0.007 + 0.002 * Math.sin(s.stuck * 12) : 0.007);
     },
   },
 
@@ -244,7 +244,7 @@ const MODES = {
         const px = X0 + (s.prev[1] + 0.5) * C, py = Y0 + (s.prev[0] + 0.5) * C + 0.075;
         ctx.save(); ctx.setLineDash([0.008, 0.008]); line(ctx, px, py, cx, cy); ctx.restore();
       }
-      star(ctx, cx, cy, 0.02);
+      dot(ctx, cx, cy, 0.007);
     },
   },
 
@@ -341,7 +341,7 @@ const MODES = {
       ctx.stroke();
       const xs = s.P.map((p) => p[0]), ys = s.P.map((p) => p[1]);
       dots(ctx, xs, ys, 0.008);
-      star(ctx, ...s.P[s.tour[0]], 0.018);
+      dot(ctx, ...s.P[s.tour[0]], 0.007);
     },
   },
 };

@@ -11,15 +11,10 @@ export const FONTS = {
   text: 'Minipax, "PT Serif", Georgia, serif',
 };
 
-// Фирменная 12-лучевая звезда из референсов
-export function star(ctx, x, y, r, n = 12, inner = 0.37) {
+// Залитая точка — метка движущегося объекта
+export function dot(ctx, x, y, r) {
   ctx.beginPath();
-  for (let i = 0; i < n * 2; i++) {
-    const a = -Math.PI / 2 + (i * Math.PI) / n;
-    const rr = i % 2 ? r * inner : r;
-    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
-  }
-  ctx.closePath();
+  ctx.arc(x, y, Math.max(r, 0), 0, TAU);
   ctx.fill();
 }
 
