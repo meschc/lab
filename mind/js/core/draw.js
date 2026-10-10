@@ -140,7 +140,7 @@ export function text(ctx, str, x, y, size, opts = {}) {
 
 // Перенос по словам (в пикселях текущего ctx.font)
 export function wrapLines(ctx, str, maxW) {
-  const words = str.split(/\s+/).filter(Boolean);
+  const words = str.split(/[ \t\n]+/).filter(Boolean); // неразрывные пробелы (U+00A0) не режем
   const lines = [];
   let cur = '';
   for (const w of words) {

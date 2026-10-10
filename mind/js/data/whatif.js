@@ -1,3 +1,5 @@
+import { typo } from '../core/typo.js';
+
 // «Что если…»: человеческая система × нечеловеческий носитель.
 // Слоты носителя записаны как «текст|род», чтобы глаголы в шаблонах согласовывались.
 export const SYSTEMS = [
@@ -160,5 +162,5 @@ export function buildQuestion(sys, car, tpl = 0) {
     genders[k] = g;
   }
   const list = FOLLOW[sys.id];
-  return (fill(`если бы у {gen} {был~sys} {sys}, ${list[tpl % list.length]}`, vars, genders));
+  return typo(fill(`если бы у {gen} {был~sys} {sys}, ${list[tpl % list.length]}`, vars, genders));
 }
