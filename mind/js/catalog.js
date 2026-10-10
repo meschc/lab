@@ -1,5 +1,5 @@
 // Главный экран-каталог: швейцарская сетка живых схем и теорий
-import { TERMS, AREAS } from './data/terms.js';
+import { TERMS, AREAS, lc } from './data/terms.js';
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
 
@@ -68,7 +68,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
       <div class="tile__body">
         <h3 class="tile__title">${esc(t.title)}</h3><span class="tile__go" aria-hidden="true">→</span>
         <p class="tile__meta">${num(i)} · ${esc(t.area)}</p>
-        <p class="tile__thesis">${esc(t.theories[0])}</p>
+        <p class="tile__thesis">${esc(lc(t.theories[0]))}</p>
       </div>`;
     const canvas = a.querySelector('canvas');
     const tile = { t, el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
@@ -198,7 +198,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   }
 
   function buildFilter() {
-    const items = [{ id: null, label: 'Все', n: TERMS.length }, ...AREAS.map((a) => ({ id: a, label: a, n: TERMS.filter((t) => t.area === a).length }))];
+    const items = [{ id: null, label: 'все', n: TERMS.length }, ...AREAS.map((a) => ({ id: a, label: a, n: TERMS.filter((t) => t.area === a).length }))];
     filterBox.innerHTML = '';
     for (const it of items) {
       const b = document.createElement('button');

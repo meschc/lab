@@ -38,9 +38,9 @@ export async function renderCard({ title, area, visual, colors }) {
   // область
   const ay = H - M - 60;
   ctx.font = `400 30px ${FONTS.text}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
   ctx.textBaseline = 'middle';
-  ctx.fillText(area.toUpperCase(), M, ay + 1);
+  ctx.fillText(area, M, ay + 1);
   return cv;
 }
 

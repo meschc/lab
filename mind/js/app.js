@@ -1,5 +1,5 @@
 // «Мысль»: три ветки — термин, теория, «что если»
-import { TERMS, AREAS, termById } from './data/terms.js';
+import { TERMS, AREAS, termById, lc } from './data/terms.js';
 import { SYSTEMS, CARRIERS, buildQuestion, templateCount } from './data/whatif.js';
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
@@ -24,8 +24,8 @@ const sysById = (id) => SYSTEMS.find((s) => s.id === id);
 const carById = (id) => CARRIERS.find((c) => c.id === id);
 
 const AXES = [
-  { key: 'sys', label: 'Система', list: SYSTEMS, byId: sysById, name: (s) => s.nom },
-  { key: 'car', label: 'Носитель', list: CARRIERS, byId: carById, name: (c) => c.label },
+  { key: 'sys', label: 'система', list: SYSTEMS, byId: sysById, name: (s) => s.nom },
+  { key: 'car', label: 'носитель', list: CARRIERS, byId: carById, name: (c) => c.label },
 ];
 
 const state = {
@@ -79,7 +79,7 @@ function currentView() {
     const t = termById(state.theory.term);
     const idx = state.theory.idx % t.theories.length;
     return {
-      eyebrow: `Теория · ${t.title}`, headline: t.theories[idx], card: t.title, cardArea: t.area,
+      eyebrow: `теория · ${t.title}`, headline: lc(t.theories[idx]), card: t.title, cardArea: t.area,
       engine: t.engine, params: t.params, seed: hashStr(t.id), ref: t,
     };
   }
@@ -87,7 +87,7 @@ function currentView() {
   const q = buildQuestion(sys, car, state.wf.tpl);
   const axes = `${sys.nom} × ${car.label}`;
   return {
-    eyebrow: `Что если · ${axes}`, headline: q, card: q, cardArea: `что если · ${axes}`,
+    eyebrow: `что если · ${axes}`, headline: q, card: q, cardArea: `что если · ${axes}`,
     ref: null, wf: { sys, car },
     engine: 'symbol', params: { mode: 'auto' }, seed: hashStr(`${sys.id}·${car.id}`),
   };
@@ -147,7 +147,7 @@ const ICONS = {
 
 function buildAreas() {
   const box = $('#areas');
-  const chips = [{ id: null, label: 'Все области' }, ...AREAS.map((a) => ({ id: a, label: a }))];
+  const chips = [{ id: null, label: 'все области' }, ...AREAS.map((a) => ({ id: a, label: a }))];
   box.innerHTML = '';
   for (const c of chips) {
     const b = document.createElement('button');
@@ -193,13 +193,13 @@ function buildAxes() {
       row.append(b);
       return b;
     };
-    mk('shuffle', 'Перемешать', ICONS.shuffle).addEventListener('click', () => {
+    mk('shuffle', 'перемешать', ICONS.shuffle).addEventListener('click', () => {
       const a = state.wf[ax.key];
       a.id = rand(ax.list.filter((x) => x.id !== a.id)).id;
       state.revealed = false;
       render();
     });
-    mk('lock', 'Зафиксировать', ICONS.lock).addEventListener('click', () => {
+    mk('lock', 'зафиксировать', ICONS.lock).addEventListener('click', () => {
       state.wf[ax.key].lock = !state.wf[ax.key].lock;
       renderAxes();
     });
@@ -228,33 +228,33 @@ function renderLinks(v) {
   const box = $('#links');
   box.innerHTML = '';
   if (state.branch === 'term') {
-    box.append(linkBtn('Вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
+    box.append(linkBtn('вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
   } else if (state.branch === 'theory') {
-    box.append(linkBtn('К термину', () => go('term', () => { state.term = v.ref.id; })));
+    box.append(linkBtn('к термину', () => go('term', () => { state.term = v.ref.id; })));
   } else {
     const n = templateCount(v.wf.sys);
-    if (n > 1) box.append(linkBtn('Переформулировать', () => { state.wf.tpl = (state.wf.tpl + 1) % n; render(); }));
+    if (n > 1) box.append(linkBtn('переформулировать', () => { state.wf.tpl = (state.wf.tpl + 1) % n; render(); }));
   }
 }
 
 const searchLinks = (queries) => queries.map((q) =>
-  `<a href="https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}" target="_blank" rel="noopener">Википедия: ${q}</a>`).join('');
+  `<a href="https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}" target="_blank" rel="noopener">википедия: ${q}</a>`).join('');
 
 function renderReveal(v) {
   const box = $('#reveal');
   const btn = $('#revealBtn');
   box.hidden = !state.revealed;
   btn.setAttribute('aria-expanded', String(state.revealed));
-  btn.textContent = state.revealed ? 'Спрятать' : 'Раскрыть';
+  btn.textContent = state.revealed ? 'спрятать' : 'раскрыть';
   if (!state.revealed) return;
   if (v.ref) {
     $('#revealTitle').textContent = v.ref.title;
-    $('#revealText').textContent = v.ref.ref;
+    $('#revealText').textContent = lc(v.ref.ref);
     $('#revealMore').innerHTML = searchLinks([v.ref.title]) +
-      `<a href="https://yandex.ru/search/?text=${encodeURIComponent(v.ref.title)}" target="_blank" rel="noopener">Искать в Яндексе</a>`;
+      `<a href="https://yandex.ru/search/?text=${encodeURIComponent(v.ref.title)}" target="_blank" rel="noopener">искать в Яндексе</a>`;
   } else {
-    $('#revealTitle').textContent = 'Готового ответа нет';
-    $('#revealText').textContent = 'Это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.';
+    $('#revealTitle').textContent = 'готового ответа нет';
+    $('#revealText').textContent = 'это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.';
     $('#revealMore').innerHTML = searchLinks([v.wf.car.label, v.wf.sys.nom]);
   }
 }
@@ -301,7 +301,7 @@ function render() {
   $('#eyebrow').textContent = v.eyebrow;
   const h = $('#headline');
   h.textContent = v.headline;
-  canvas.setAttribute('aria-label', `Визуализация: ${v.ref ? v.ref.title : v.headline}`);
+  canvas.setAttribute('aria-label', `визуализация: ${v.ref ? v.ref.title : v.headline}`);
   setVisual(v.engine, v.params, v.seed);
   renderLinks(v);
   renderReveal(v);
@@ -441,10 +441,10 @@ $('#cardBtn').addEventListener('click', async () => {
   try {
     const v = state.view;
     const res = await exportCard({ title: v.card, area: v.cardArea, visual: state.visual, colors: COLORS });
-    if (res === 'downloaded') toast('Карточка сохранена');
+    if (res === 'downloaded') toast('карточка сохранена');
   } catch (e) {
     console.error(e);
-    toast('Не получилось сохранить карточку');
+    toast('не получилось сохранить карточку');
   } finally {
     btn.disabled = false;
   }
