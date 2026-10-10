@@ -1,5 +1,5 @@
 // 7. Графы и сети
-import { circle, line, dot, dots, text, FONTS, TAU, DASH } from '../core/draw.js';
+import { circle, line, dot, dots, segments, text, FONTS, TAU, DASH, ease } from '../core/draw.js';
 
 function rings(ctx, x, y, r, n, gap) {
   for (let k = 0; k < n; k++) circle(ctx, x, y, r - k * gap);
@@ -49,6 +49,112 @@ function fit(pos, m = 0.12) {
   const s = (1 - 2 * m) / Math.max(x1 - x0, y1 - y0, 0.2);
   const ox = 0.5 - ((x1 - x0) * s) / 2, oy = 0.5 - ((y1 - y0) * s) / 2;
   return (i) => [ox + (pos[i * 2] - x0) * s, oy + (pos[i * 2 + 1] - y0) * s];
+}
+
+// ——— помощники для новых режимов ———
+
+// кружок, залитый бумагой (чтобы линии под ним не просвечивали)
+function blank(ctx, s, x, y, r) {
+  ctx.save(); ctx.fillStyle = s.paper; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.restore();
+}
+
+// наконечник стрелки в точке (x, y), направление (ux, uy)
+function head(ctx, x, y, ux, uy, h) {
+  ctx.beginPath();
+  ctx.moveTo(x - ux * h - uy * h * 0.55, y - uy * h + ux * h * 0.55);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x - ux * h + uy * h * 0.55, y - uy * h - ux * h * 0.55);
+  ctx.stroke();
+}
+
+// прямоугольник, залитый бумагой
+function blank0(ctx, s, x, y, w, h) {
+  ctx.save(); ctx.fillStyle = s.paper; ctx.fillRect(x, y, w, h); ctx.restore();
+}
+
+// отрезок, проведённый на долю u от (x1, y1) к (x2, y2)
+function partial(ctx, x1, y1, x2, y2, u) {
+  if (u <= 0) return;
+  line(ctx, x1, y1, x1 + (x2 - x1) * Math.min(1, u), y1 + (y2 - y1) * Math.min(1, u));
+}
+
+// отрезок между кружками радиусов r1 и r2
+function trim(x1, y1, x2, y2, r1, r2) {
+  const d = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / d, uy = (y2 - y1) / d;
+  return [x1 + ux * r1, y1 + uy * r1, x2 - ux * r2, y2 - uy * r2];
+}
+
+function shuffle(rng, a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+// Сазерленд — Ходжман для полуплоскости n·p ≤ c; у вершины [x, y, метка ребра, идущего из неё]
+function clipHalf(poly, nx, ny, c, label) {
+  const out = [];
+  for (let k = 0; k < poly.length; k++) {
+    const P = poly[k], Q = poly[(k + 1) % poly.length];
+    const dp = nx * P[0] + ny * P[1] - c, dq = nx * Q[0] + ny * Q[1] - c;
+    if (dp <= 0) out.push(P);
+    if ((dp <= 0) !== (dq <= 0)) {
+      const t = dp / (dp - dq);
+      out.push([P[0] + (Q[0] - P[0]) * t, P[1] + (Q[1] - P[1]) * t, dp <= 0 ? label : P[2]]);
+    }
+  }
+  return out;
+}
+
+function centroid(poly) {
+  let a = 0, cx = 0, cy = 0;
+  for (let k = 0; k < poly.length; k++) {
+    const [x0, y0] = poly[k], [x1, y1] = poly[(k + 1) % poly.length], c = x0 * y1 - x1 * y0;
+    a += c; cx += (x0 + x1) * c; cy += (y0 + y1) * c;
+  }
+  return Math.abs(a) < 1e-12 ? poly[0].slice(0, 2) : [cx / (3 * a), cy / (3 * a)];
+}
+
+// ячейки Вороного внутри многоугольника-границы
+function voronoi(sites, border) {
+  return sites.map(([x, y], i) => {
+    let poly = border;
+    sites.forEach(([u, v], j) => {
+      if (j === i) return;
+      const nx = u - x, ny = v - y;
+      poly = clipHalf(poly, nx, ny, nx * (x + u) / 2 + ny * (y + v) / 2, j);
+    });
+    return poly;
+  });
+}
+
+// внутренние нормали выпуклого многоугольника: [px, py, nx, ny]
+function inwardEdges(poly) {
+  const [cx, cy] = centroid(poly);
+  return poly.map((P, k) => {
+    const Q = poly[(k + 1) % poly.length];
+    let nx = -(Q[1] - P[1]), ny = Q[0] - P[0];
+    const d = Math.hypot(nx, ny) || 1;
+    nx /= d; ny /= d;
+    if (nx * (cx - P[0]) + ny * (cy - P[1]) < 0) { nx = -nx; ny = -ny; }
+    return [P[0], P[1], nx, ny];
+  });
+}
+
+// отсечение прямой A + tD выпуклым многоугольником (с отступом inset)
+function clipLine(edges, ax, ay, dx, dy, inset, out) {
+  let t0 = -Infinity, t1 = Infinity;
+  for (const [px, py, nx, ny] of edges) {
+    const num = nx * (ax - px) + ny * (ay - py) - inset, den = nx * dx + ny * dy;
+    if (Math.abs(den) < 1e-12) { if (num < 0) return; continue; }
+    const t = -num / den;
+    if (den > 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+    if (t0 >= t1) return;
+  }
+  out.push(ax + dx * t0, ay + dy * t0, ax + dx * t1, ay + dy * t1);
+}
+
+function insideBy(edges, x, y, inset) {
+  for (const [px, py, nx, ny] of edges) if (nx * (x - px) + ny * (y - py) < inset) return false;
+  return true;
 }
 
 const MODES = {
@@ -342,6 +448,616 @@ const MODES = {
       const xs = s.P.map((p) => p[0]), ys = s.P.map((p) => p[1]);
       dots(ctx, xs, ys, 0.008);
       dot(ctx, ...s.P[s.tour[0]], 0.007);
+    },
+  },
+
+  // четыре краски: карта Вороного раскрашивается перебором с возвратами
+  fourcolor: {
+    create(p, rng) {
+      const C = 0.5, R = 0.42, border = [];
+      for (let k = 0; k < 72; k++) { const a = (k / 72) * TAU; border.push([C + R * Math.cos(a), C + R * Math.sin(a), -1]); }
+      const n = 13 + Math.floor(rng() * 4);
+      let sites = [];
+      while (sites.length < n) {
+        const a = rng() * TAU, r = R * 0.92 * Math.sqrt(rng());
+        sites.push([C + r * Math.cos(a), C + r * Math.sin(a)]);
+      }
+      let cells;
+      for (let it = 0; it < 4; it++) { cells = voronoi(sites, border); sites = cells.map(centroid); }
+      cells = voronoi(sites, border);
+      const adj = cells.map((poly, i) => {
+        const set = new Set();
+        poly.forEach((P, k) => {
+          const Q = poly[(k + 1) % poly.length];
+          if (P[2] >= 0 && Math.hypot(Q[0] - P[0], Q[1] - P[1]) > 0.008) set.add(P[2]);
+        });
+        return set;
+      });
+      adj.forEach((set, i) => set.forEach((j) => adj[j].add(i)));
+      // узоры-«краски»: 0 — пусто, 1 — точки, 2 — штриховка, 3 — мелкая сетка
+      const pats = cells.map((poly) => {
+        const E = inwardEdges(poly), dx = [], dy = [], hatch = [], grid = [];
+        for (let j = 0; j * 0.021 < 1; j++) for (let i = 0; i * 0.024 < 1; i++) {
+          const x = i * 0.024 + (j % 2) * 0.012, y = j * 0.021;
+          if (insideBy(E, x, y, 0.009)) { dx.push(x); dy.push(y); }
+        }
+        for (let c = -1; c < 1; c += 0.019) clipLine(E, c, 0, 1, 1, 0.004, hatch);
+        for (let c = 0; c < 1; c += 0.017) { clipLine(E, 0, c, 1, 0, 0.004, grid); clipLine(E, c, 0, 0, 1, 0.004, grid); }
+        return { dx, dy, hatch, grid };
+      });
+      // обход от центра; порядок красок подбираем так, чтобы были возвраты, но немного
+      const order = sites.map((_, i) => i).sort((a, b) => Math.hypot(sites[a][0] - C, sites[a][1] - C) - Math.hypot(sites[b][0] - C, sites[b][1] - C));
+      let events = null;
+      for (let tries = 0; tries < 40; tries++) {
+        const perm = sites.map(() => shuffle(rng, [0, 1, 2, 3]));
+        const col = new Array(n).fill(-1), ev = [];
+        let back = 0;
+        const go = (k) => {
+          if (k === n) return true;
+          const i = order[k];
+          for (const c of perm[i]) {
+            if ([...adj[i]].some((j) => col[j] === c)) continue;
+            col[i] = c; ev.push([i, c]);
+            if (go(k + 1) || ev.length > 400) return true;
+            col[i] = -1; ev.push([i, -1]); back++;
+          }
+          return false;
+        };
+        go(0);
+        events = ev;
+        if (back >= 2 && back <= 10) break;
+      }
+      return { rng, sites, cells, pats, events, k: 0, acc: 0, hold: 0, col: new Array(n).fill(-1) };
+    },
+    step(s, dt) {
+      s.acc += dt;
+      while (s.k < s.events.length && s.acc > 0.26) {
+        s.acc -= 0.26;
+        const [i, c] = s.events[s.k++];
+        s.col[i] = c;
+      }
+      if (s.k >= s.events.length && (s.hold += dt) > 3.5) Object.assign(s, MODES.fourcolor.create({}, s.rng));
+    },
+    draw(ctx, s) {
+      ctx.beginPath();
+      for (const poly of s.cells) {
+        poly.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.closePath();
+      }
+      ctx.stroke();
+      const segs = [];
+      s.cells.forEach((poly, i) => {
+        const c = s.col[i], P = s.pats[i];
+        if (c === 1) dots(ctx, P.dx, P.dy, 0.0032);
+        else if (c === 2) segs.push(P.hatch);
+        else if (c === 3) segs.push(P.grid);
+      });
+      ctx.beginPath();
+      for (const a of segs) for (let k = 0; k < a.length; k += 4) { ctx.moveTo(a[k], a[k + 1]); ctx.lineTo(a[k + 2], a[k + 3]); }
+      ctx.stroke();
+      // ещё не раскрашенные области — пустой кружок в центре; текущая — точка
+      const last = s.k > 0 && s.k < s.events.length ? s.events[s.k - 1] : null;
+      s.sites.forEach(([x, y], i) => {
+        if (s.col[i] >= 0) return;
+        blank(ctx, s, x, y, 0.009);
+        circle(ctx, x, y, 0.009);
+      });
+      if (last) {
+        const [x, y] = s.sites[last[0]];
+        blank(ctx, s, x, y, 0.012);
+        if (last[1] < 0) { ctx.save(); ctx.setLineDash(DASH); circle(ctx, x, y, 0.016); ctx.restore(); circle(ctx, x, y, 0.009); }
+        else dot(ctx, x, y, 0.008);
+      }
+    },
+  },
+
+  // парадокс дружбы: у друзей в среднем больше друзей, чем у тебя
+  friendship: {
+    create(p, rng) {
+      const N = 18, edges = [[0, 1]], deg = [1, 1];
+      for (let i = 2; i < N; i++) {
+        deg.push(0);
+        const pickOne = () => {
+          let tot = 0; for (let j = 0; j < i; j++) tot += deg[j];
+          let r = rng() * tot; for (let j = 0; j < i; j++) if ((r -= deg[j]) < 0) return j; return i - 1;
+        };
+        const a = pickOne();
+        edges.push([i, a]); deg[a]++; deg[i]++;
+        if (rng() < 0.28) { const b = pickOne(); if (b !== a) { edges.push([i, b]); deg[b]++; deg[i]++; } }
+      }
+      const pos = new Float32Array(N * 2);
+      for (let i = 0; i < N * 2; i++) pos[i] = 0.3 + rng() * 0.4;
+      relax(pos, edges, 500, 0.3);
+      const F = fit(pos, 0.13), xy = Array.from({ length: N }, (_, i) => F(i));
+      const nb = Array.from({ length: N }, () => []);
+      for (const [a, b] of edges) { nb[a].push(b); nb[b].push(a); }
+      const low = shuffle(rng, deg.map((d, i) => i).filter((i) => deg[i] <= 2 && nb[i].some((j) => deg[j] > deg[i])));
+      return { rng, N, edges, deg, xy, nb, focus: low.slice(0, 5), f: 0, t: 0 };
+    },
+    R(d) { return 0.007 + 0.0135 * Math.sqrt(d); },
+    step(s, dt) {
+      s.t += dt;
+      if (s.t > 2.6) { s.t = 0; if (++s.f >= s.focus.length) Object.assign(s, MODES.friendship.create({}, s.rng)); }
+    },
+    draw(ctx, s) {
+      const R = this.R, me = s.focus[s.f], fr = new Set(me == null ? [] : s.nb[me]);
+      ctx.beginPath();
+      for (const [a, b] of s.edges) {
+        if (a === me || b === me) continue;
+        const [x1, y1, x2, y2] = trim(...s.xy[a], ...s.xy[b], R(s.deg[a]), R(s.deg[b]));
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      }
+      ctx.stroke();
+      if (me != null) {
+        ctx.save(); ctx.lineWidth *= 2;
+        const u = ease(Math.min(1, s.t / 0.6));
+        for (const j of fr) {
+          const [x1, y1, x2, y2] = trim(...s.xy[me], ...s.xy[j], R(s.deg[me]), R(s.deg[j]) + 0.009);
+          partial(ctx, x1, y1, x2, y2, u);
+        }
+        ctx.restore();
+      }
+      s.xy.forEach(([x, y], i) => {
+        const r = R(s.deg[i]);
+        blank(ctx, s, x, y, r);
+        rings(ctx, x, y, r, s.deg[i] > 6 ? 3 : s.deg[i] > 3 ? 2 : 1, 0.0065);
+        if (fr.has(i)) circle(ctx, x, y, r + 0.009);
+      });
+      if (me != null) {
+        const [x, y] = s.xy[me];
+        const mean = [...fr].reduce((a, j) => a + s.deg[j], 0) / fr.size;
+        const g = ease(Math.min(1, Math.max(0, (s.t - 0.5) / 0.9)));
+        const r0 = R(s.deg[me]);
+        ctx.save(); ctx.setLineDash(DASH); circle(ctx, x, y, r0 + (R(mean) + 0.012 - r0) * g); ctx.restore();
+        dot(ctx, x, y, 0.006);
+      }
+    },
+  },
+
+  // информационный каскад: каждый видит выбор предыдущих и идёт за толпой
+  cascade: {
+    create(p, rng) {
+      const N = 11;
+      let best = null;
+      for (let tries = 0; tries < 30; tries++) {
+        const truth = rng() < 0.5 ? 0 : 1, sig = [], ch = [];
+        let d = 0, over = 0;
+        for (let i = 0; i < N; i++) {
+          const sg = rng() < 0.66 ? truth : 1 - truth;
+          const c = d >= 2 ? 0 : d <= -2 ? 1 : sg;
+          sig.push(sg); ch.push(c); d += c === 0 ? 1 : -1;
+          if (c !== sg) over++;
+        }
+        best = { truth, sig, ch };
+        if (over >= 1 && over <= 5) break;
+      }
+      return { rng, N, ...best, t: 0 };
+    },
+    step(s, dt) {
+      s.t += dt;
+      if (s.t > 0.5 + s.N * 0.7 + 3.2) Object.assign(s, MODES.cascade.create({}, s.rng), { t: 0 });
+    },
+    draw(ctx, s) {
+      const DX = [0.31, 0.69], BASE = 0.4, TOPC = 0.27, W = 0.085, AY = 0.8;
+      line(ctx, 0.12, BASE, 0.88, BASE);
+      for (const x of DX) {
+        ctx.beginPath(); ctx.moveTo(x - W, BASE); ctx.lineTo(x - W, TOPC); ctx.arc(x, TOPC, W, Math.PI, TAU); ctx.lineTo(x + W, BASE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - W + 0.018, BASE); ctx.lineTo(x - W + 0.018, TOPC); ctx.arc(x, TOPC, W - 0.018, Math.PI, TAU); ctx.lineTo(x + W - 0.018, BASE); ctx.stroke();
+      }
+      dot(ctx, DX[s.truth], TOPC + 0.02, 0.008);
+      const AX = (i) => 0.1 + (i / (s.N - 1)) * 0.8;
+      for (let i = 0; i < s.N; i++) {
+        const x = AX(i), u = (s.t - 0.5 - i * 0.7) / 0.5;
+        // частный сигнал — галочка под агентом в сторону «своей» двери
+        const dir = s.sig[i] === 0 ? -1 : 1, cy = AY + 0.05;
+        ctx.beginPath(); ctx.moveTo(x - dir * 0.008, cy - 0.011); ctx.lineTo(x + dir * 0.008, cy); ctx.lineTo(x - dir * 0.008, cy + 0.011); ctx.stroke();
+        if (u > 0) {
+          const tx = DX[s.ch[i]], ty = BASE;
+          partial(ctx, x, AY - 0.012, tx, ty, ease(Math.min(1, u)));
+        }
+        if (u > 1 && s.ch[i] !== s.sig[i]) { blank(ctx, s, x, AY, 0.009); circle(ctx, x, AY, 0.009); }
+        else if (u > 0) dot(ctx, x, AY, 0.008);
+        else { blank(ctx, s, x, AY, 0.006); circle(ctx, x, AY, 0.006); }
+      }
+    },
+  },
+
+  // ханойская башня: рекурсивные перекладывания по аркам
+  hanoi: {
+    create(p, rng) {
+      const n = 6;
+      return { rng, n, pegs: [[5, 4, 3, 2, 1, 0], [], []], from: 0, moves: this.plan(n, 0, 2), k: 0, t: 0, hold: 0 };
+    },
+    plan(n, a, b) {
+      const out = [], c = 3 - a - b;
+      const go = (m, x, y, z) => { if (!m) return; go(m - 1, x, z, y); out.push([x, y]); go(m - 1, z, y, x); };
+      go(n, a, b, c);
+      return out;
+    },
+    X: [0.2, 0.5, 0.8], BASE: 0.78, H: 0.058, LIFT: 0.36, ARC: 0.1, DUR: 0.36,
+    W(d) { return 0.09 + d * 0.037; },
+    step(s, dt) {
+      if (s.k >= s.moves.length) {
+        if ((s.hold += dt) > 1.6) {
+          const a = s.moves[s.moves.length - 1][1], b = (a + 1 + Math.floor(s.rng() * 2)) % 3;
+          s.moves = this.plan(s.n, a, b); s.k = 0; s.t = 0; s.hold = 0;
+        }
+        return;
+      }
+      s.t += dt / this.DUR;
+      while (s.t >= 1 && s.k < s.moves.length) {
+        const [a, b] = s.moves[s.k++];
+        s.pegs[b].push(s.pegs[a].pop());
+        s.t -= 1;
+      }
+      if (s.k >= s.moves.length) s.t = 0;
+    },
+    draw(ctx, s) {
+      const { X, BASE, H, LIFT, ARC } = this;
+      line(ctx, 0.06, BASE, 0.94, BASE);
+      for (const x of X) line(ctx, x, BASE, x, LIFT + 0.03);
+      const disk = (d, cx, yb) => { const w = this.W(d); blank0(ctx, s, cx - w / 2, yb - H, w, H); ctx.strokeRect(cx - w / 2, yb - H, w, H); };
+      const moving = s.k < s.moves.length ? s.moves[s.k] : null;
+      s.pegs.forEach((stack, pi) => stack.forEach((d, h) => {
+        if (moving && pi === moving[0] && h === stack.length - 1) return;
+        disk(d, X[pi], BASE - h * H);
+      }));
+      if (!moving) return;
+      const [a, b] = moving, d = s.pegs[a][s.pegs[a].length - 1];
+      const y0 = BASE - (s.pegs[a].length - 1) * H, y1 = BASE - s.pegs[b].length * H;
+      const l0 = y0 - LIFT, l2 = y1 - LIFT, l1 = ARC * Math.PI * 0.5 + Math.abs(X[b] - X[a]) * 0.5;
+      const L = l0 + l1 + l2, u = ease(Math.min(1, s.t)) * L;
+      let cx, cy;
+      if (u < l0) { cx = X[a]; cy = y0 - u; }
+      else if (u < l0 + l1) {
+        const v = (u - l0) / l1;
+        cx = X[a] + (X[b] - X[a]) * (1 - Math.cos(Math.PI * v)) / 2; cy = LIFT - ARC * Math.sin(Math.PI * v);
+      } else { cx = X[b]; cy = LIFT + (u - l0 - l1); }
+      // траектория — пунктирная арка
+      ctx.save(); ctx.setLineDash(DASH);
+      ctx.beginPath(); ctx.ellipse((X[a] + X[b]) / 2, LIFT - H / 2, Math.abs(X[b] - X[a]) / 2, ARC, 0, Math.PI, TAU); ctx.stroke();
+      ctx.restore();
+      disk(d, cx, cy);
+      dot(ctx, cx, cy - H / 2, 0.006);
+    },
+  },
+
+  // минимакс: оценки поднимаются от листьев к корню
+  minimax: {
+    create(p, rng) {
+      const leaves = Array.from({ length: 8 }, () => 1 + Math.floor(rng() * 9));
+      const val = [], best = [];
+      // узлы уровня L: индексы 0..2^L-1; L=3 — листья
+      for (let L = 0; L <= 3; L++) { val.push(new Array(1 << L).fill(null)); best.push(new Array(1 << L).fill(-1)); }
+      val[3] = leaves.slice();
+      const order = [];
+      const post = (L, i) => { if (L === 3) return; post(L + 1, i * 2); post(L + 1, i * 2 + 1); order.push([L, i]); };
+      post(0, 0);
+      return { rng, leaves, val, best, order, k: 0, t: 0, done: 0 };
+    },
+    step(s, dt) {
+      s.t += dt;
+      if (s.k < s.order.length) {
+        if (s.t > 0.6) {
+          s.t = 0;
+          const [L, i] = s.order[s.k++], a = s.val[L + 1][i * 2], b = s.val[L + 1][i * 2 + 1];
+          const pickA = L % 2 === 0 ? a >= b : a <= b;
+          s.val[L][i] = pickA ? a : b; s.best[L][i] = pickA ? i * 2 : i * 2 + 1;
+        }
+      } else if ((s.done += dt) > 4.6) Object.assign(s, MODES.minimax.create({}, s.rng));
+    },
+    pos(L, i) {
+      const lx = (j) => 0.11 + (j / 7) * 0.78;
+      const span = 1 << (3 - L);
+      return [(lx(i * span) + lx(i * span + span - 1)) / 2, 0.15 + L * 0.225];
+    },
+    draw(ctx, s) {
+      const r = 0.04, sq = 0.066;
+      const path = new Set();
+      if (s.done > 0) {
+        let i = 0;
+        for (let L = 0; L < 3 && s.done > L * 0.35; L++) { path.add(`${L}:${i}`); i = s.best[L][i]; }
+      }
+      for (let L = 0; L < 3; L++) for (let i = 0; i < 1 << L; i++) {
+        const [x, y] = this.pos(L, i);
+        for (const c of [i * 2, i * 2 + 1]) {
+          const [cx, cy] = this.pos(L + 1, c);
+          const [x1, y1, x2, y2] = trim(x, y, cx, cy, r, L === 2 ? sq * 0.62 : r);
+          const chosen = s.best[L][i] === c;
+          ctx.save();
+          if (!chosen) ctx.setLineDash(DASH);
+          if (chosen && path.has(`${L}:${i}`)) ctx.lineWidth *= 2;
+          line(ctx, x1, y1, x2, y2);
+          ctx.restore();
+        }
+      }
+      ctx.fillStyle = ctx.strokeStyle;
+      const cur = s.k < s.order.length ? s.order[s.k] : null;
+      for (let L = 0; L <= 3; L++) for (let i = 0; i < 1 << L; i++) {
+        const [x, y] = this.pos(L, i), v = s.val[L][i];
+        if (L === 3) ctx.strokeRect(x - sq / 2, y - sq / 2, sq, sq);
+        else {
+          circle(ctx, x, y, r);
+          if (L % 2 === 0) circle(ctx, x, y, r - 0.008);
+          if (cur && cur[0] === L && cur[1] === i) { ctx.save(); ctx.setLineDash(DASH); circle(ctx, x, y, r + 0.014); ctx.restore(); }
+        }
+        if (v != null) text(ctx, String(v), x, y + 0.003, 0.04, { family: FONTS.text });
+      }
+    },
+  },
+
+  // Гейл — Шепли: предложения, помолвки и разрывы до стабильного паросочетания
+  stablemarriage: {
+    create(p, rng) {
+      const N = 5;
+      let ev, tries = 0;
+      do {
+        const pref = Array.from({ length: N }, () => shuffle(rng, [...Array(N).keys()]));
+        const rank = Array.from({ length: N }, () => { const o = shuffle(rng, [...Array(N).keys()]), r = []; o.forEach((m, k) => (r[m] = k)); return r; });
+        const next = new Array(N).fill(0), acc = new Array(N).fill(-1), free = [...Array(N).keys()];
+        ev = [];
+        while (free.length) {
+          const m = free.shift(), w = pref[m][next[m]++], cur = acc[w];
+          if (cur < 0) { acc[w] = m; ev.push([m, w, 1, -1]); }
+          else if (rank[w][m] < rank[w][cur]) { acc[w] = m; ev.push([m, w, 1, cur]); free.unshift(cur); }
+          else { ev.push([m, w, 0, -1]); free.unshift(m); }
+        }
+      } while (ev.length < 9 && ++tries < 30);
+      return { rng, N, ev, k: 0, t: 0, pairs: new Array(N).fill(-1), hold: 0 };
+    },
+    D: 1.05,
+    step(s, dt) {
+      if (s.k >= s.ev.length) {
+        if ((s.hold += dt) > 3.4) Object.assign(s, MODES.stablemarriage.create({}, s.rng));
+        return;
+      }
+      s.t += dt / this.D;
+      if (s.t >= 1) {
+        const [m, w, ok, old] = s.ev[s.k++];
+        if (ok) { s.pairs[w] = m; }
+        s.t = 0;
+      }
+    },
+    draw(ctx, s) {
+      const r = 0.032, X = (i) => 0.14 + (i / (s.N - 1)) * 0.72, YT = 0.25, YB = 0.75;
+      const e = s.k < s.ev.length ? s.ev[s.k] : null, t = s.t;
+      const seg = (m, w) => trim(X(m), YT, X(w), YB, r + 0.004, r + 0.004);
+      // помолвки
+      s.pairs.forEach((m, w) => {
+        if (m < 0) return;
+        const [x1, y1, x2, y2] = seg(m, w);
+        if (e && e[2] && e[1] === w && t > 0.5) {
+          // разрыв: линия расходится от середины и исчезает
+          const g = (t - 0.5) / 0.3;
+          if (g < 1) { const mx = (x1 + x2) / 2, my = (y1 + y2) / 2; partial(ctx, x1, y1, mx, my, 1 - g); partial(ctx, x2, y2, mx, my, 1 - g); }
+          return;
+        }
+        line(ctx, x1, y1, x2, y2);
+      });
+      if (e) {
+        const [m, w, ok] = e, [x1, y1, x2, y2] = seg(m, w);
+        if (ok && t > 0.5) line(ctx, x1, y1, x2, y2);
+        else {
+          const u = t < 0.45 ? ease(t / 0.45) : ok ? 1 : 1 - ease(Math.min(1, (t - 0.5) / 0.35));
+          ctx.save(); ctx.setLineDash(DASH); partial(ctx, x1, y1, x2, y2, u); ctx.restore();
+        }
+      }
+      const engagedM = new Set(s.pairs.filter((m) => m >= 0));
+      for (let i = 0; i < s.N; i++) {
+        for (const [y, on] of [[YT, engagedM.has(i)], [YB, s.pairs[i] >= 0]]) {
+          blank(ctx, s, X(i), y, r);
+          circle(ctx, X(i), y, r);
+          if (on) circle(ctx, X(i), y, r - 0.01);
+        }
+      }
+      if (e) dot(ctx, X(e[0]), YT, 0.007);
+    },
+  },
+
+  // парадокс Браеса: новая перемычка замедляет всех
+  braess: {
+    create(p, rng) {
+      // прогрев: дороги уже заполнены машинами
+      const s = { rng, t: 0, cars: [], spawn: 0, n: 0 };
+      for (let k = 0; k < 150; k++) MODES.braess.step(s, 1 / 30);
+      return s;
+    },
+    V: { S: [0.1, 0.45], A: [0.5, 0.15], E: [0.9, 0.45], B: [0.5, 0.75] },
+    CYCLE: 19, OPEN: 9,
+    routes(open) {
+      const c = open ? 2.6 : 1.3, f = 2.9;
+      return open ? [[['S', 'A', c], ['A', 'B', 0.35], ['B', 'E', c]]] : [[['S', 'A', c], ['A', 'E', f]], [['S', 'B', f], ['B', 'E', c]]];
+    },
+    isOpen(t) { const ph = t % this.CYCLE; return ph >= this.OPEN; },
+    step(s, dt) {
+      s.t += dt; s.spawn += dt;
+      while (s.spawn > 1 / 7) {
+        s.spawn -= 1 / 7;
+        const R = this.routes(this.isOpen(s.t)), route = R[s.n++ % R.length];
+        s.cars.push({ t0: s.t - s.spawn, route, total: route.reduce((a, e) => a + e[2], 0), j: (s.n % 3) - 1 });
+      }
+      s.cars = s.cars.filter((c) => s.t - c.t0 < c.total);
+    },
+    draw(ctx, s) {
+      const V = this.V, rN = 0.034;
+      const road = (a, b, wide) => {
+        const [x1, y1, x2, y2] = trim(...V[a], ...V[b], rN, rN);
+        if (!wide) { line(ctx, x1, y1, x2, y2); return; }
+        const d = Math.hypot(x2 - x1, y2 - y1), nx = -(y2 - y1) / d * 0.009, ny = (x2 - x1) / d * 0.009;
+        line(ctx, x1 + nx, y1 + ny, x2 + nx, y2 + ny); line(ctx, x1 - nx, y1 - ny, x2 - nx, y2 - ny);
+      };
+      road('S', 'A', false); road('B', 'E', false); road('A', 'E', true); road('S', 'B', true);
+      // перемычка видна, пока по ней едут последние машины (≈3 с после закрытия)
+      const ph = s.t % this.CYCLE, open = ph >= this.OPEN || (ph < 3 && s.t > this.CYCLE);
+      const grow = ph >= this.OPEN ? ease(Math.min(1, (ph - this.OPEN) / 0.7)) : 1;
+      if (open) {
+        const [x1, y1, x2, y2] = trim(...V.A, ...V.B, rN, rN);
+        const d = 0.009;
+        partial(ctx, x1 + d, y1, x2 + d, y2, grow); partial(ctx, x1 - d, y1, x2 - d, y2, grow);
+      } else {
+        const [x1, y1, x2, y2] = trim(...V.A, ...V.B, rN, rN);
+        ctx.save(); ctx.setLineDash(DASH); line(ctx, x1, y1, x2, y2); ctx.restore();
+      }
+      const xs = [], ys = [];
+      for (const c of s.cars) {
+        let e = s.t - c.t0;
+        for (const [a, b, T] of c.route) {
+          if (e <= T) {
+            const u = e / T, [x1, y1, x2, y2] = trim(...V[a], ...V[b], rN, rN);
+            const d = Math.hypot(x2 - x1, y2 - y1);
+            xs.push(x1 + (x2 - x1) * u - (y2 - y1) / d * c.j * 0.004); ys.push(y1 + (y2 - y1) * u + (x2 - x1) / d * c.j * 0.004);
+            break;
+          }
+          e -= T;
+        }
+      }
+      dots(ctx, xs, ys, 0.0055);
+      for (const k of 'SAEB') {
+        const [x, y] = V[k];
+        blank(ctx, s, x, y, rN);
+        rings(ctx, x, y, rN, k === 'S' || k === 'E' ? 2 : 1, 0.01);
+      }
+      ctx.fillStyle = ctx.strokeStyle;
+      text(ctx, this.isOpen(s.t) ? '80 мин' : '65 мин', 0.5, 0.89, 0.032, { family: FONTS.text });
+    },
+  },
+
+  // парадокс Кондорсе: большинство ходит по кругу
+  condorcet: {
+    create(p, rng) { return { rng, t: 0, dir: p.dir || 1 }; },
+    C: [0.5, 0.52], R: 0.34,
+    ang(s, k) { return -Math.PI / 2 + s.dir * (k % 3) * (TAU / 3); },
+    vtx(s, k) { const a = this.ang(s, k); return [this.C[0] + this.R * Math.cos(a), this.C[1] + this.R * Math.sin(a)]; },
+    step(s, dt) {
+      s.t += dt;
+      if (s.t > 3 * 2.2 + 2 * 2.6 + 0.8) { s.t = 0; s.dir = -s.dir; }
+    },
+    arc(ctx, s, k, u) {
+      const g = 0.18, a0 = this.ang(s, k) + s.dir * g, a1 = a0 + s.dir * (TAU / 3 - 2 * g) * u;
+      ctx.beginPath(); ctx.arc(this.C[0], this.C[1], this.R, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke();
+      if (u >= 1) {
+        const x = this.C[0] + this.R * Math.cos(a1), y = this.C[1] + this.R * Math.sin(a1);
+        head(ctx, x, y, -Math.sin(a1) * s.dir, Math.cos(a1) * s.dir, 0.028);
+      }
+    },
+    draw(ctx, s) {
+      const rV = 0.048, T = s.t, contest = Math.min(3, Math.floor(T / 2.2)), ph = T - contest * 2.2;
+      // группы избирателей: группа g ставит кандидата g первым, g+1 вторым, g+2 третьим
+      const G = [0, 1, 2].map((g) => { const a = this.ang(s, g); return [this.C[0] + 0.11 * Math.cos(a), this.C[1] + 0.11 * Math.sin(a)]; });
+      for (let k = 0; k < 3; k++) {
+        if (k < contest) this.arc(ctx, s, k, 1);
+        else if (k === contest) this.arc(ctx, s, k, ease(Math.min(1, Math.max(0, (ph - 0.9) / 1)) ));
+      }
+      if (contest < 3 && ph < 2.0) {
+        // попарное голосование: k против k+1; группа выбирает того, кто у неё выше
+        const u = ease(Math.min(1, ph / 0.8));
+        for (let g = 0; g < 3; g++) {
+          const rk = (c) => (c - g + 3) % 3, pick = rk(contest) < rk(contest + 1) ? contest : (contest + 1) % 3;
+          const [x1, y1, x2, y2] = trim(...G[g], ...this.vtx(s, pick), 0.03, rV + 0.006);
+          ctx.save(); ctx.setLineDash(DASH); partial(ctx, x1, y1, x2, y2, u); ctx.restore();
+        }
+      }
+      for (let k = 0; k < 3; k++) {
+        const [x, y] = this.vtx(s, k);
+        blank(ctx, s, x, y, rV);
+        rings(ctx, x, y, rV, 3, 0.013);
+        if (contest < 3 && (k === contest || k === (contest + 1) % 3)) { ctx.save(); ctx.setLineDash(DASH); circle(ctx, x, y, rV + 0.016); ctx.restore(); }
+      }
+      G.forEach(([x, y], g) => {
+        const xs = [], ys = [];
+        for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + this.ang(s, g); xs.push(x + 0.017 * Math.cos(a)); ys.push(y + 0.017 * Math.sin(a)); }
+        blank(ctx, s, x, y, 0.026);
+        dots(ctx, xs, ys, 0.0045);
+        dot(ctx, x, y, 0.0045);
+      });
+      if (contest >= 3) {
+        // точка бежит по кругу предпочтений — победителя нет
+        const v = (T - 6.6) / 2.6, a = this.ang(s, 0) + s.dir * v * TAU;
+        dot(ctx, this.C[0] + this.R * Math.cos(a), this.C[1] + this.R * Math.sin(a), 0.008);
+      }
+    },
+  },
+
+  // митохондриальная Ева: материнские линии сходятся к одной прародительнице
+  mitoeve: {
+    create(p, rng) {
+      const G = 8, N = 9;
+      let par, mrca = -1, tries = 0;
+      while (tries++ < 400) {
+        par = [null];
+        for (let g = 1; g < G; g++) {
+          const w = Array.from({ length: N }, () => rng() ** 2.2), tot = w.reduce((a, b) => a + b, 0);
+          par.push(Array.from({ length: N }, () => { let r = rng() * tot; for (let j = 0; j < N; j++) if ((r -= w[j]) < 0) return j; return N - 1; }));
+        }
+        let set = new Set([...Array(N).keys()]);
+        mrca = -1;
+        for (let g = G - 1; g > 0; g--) { set = new Set([...set].map((i) => par[g][i])); if (set.size === 1 && mrca < 0) mrca = g - 1; }
+        if (mrca >= 1 && mrca <= 2) break;
+      }
+      // кто из каждого ряда — предок ныне живущих
+      const live = [];
+      live[G - 1] = new Set([...Array(N).keys()]);
+      for (let g = G - 1; g > 0; g--) live[g - 1] = new Set([...live[g]].map((i) => par[g][i]));
+      let eve = 0;
+      if (mrca >= 0) eve = [...live[mrca]][0];
+      // раскладка без пересечений: дети встают под матерями, по порядку матерей
+      // верхний ряд: прародительница всех ныне живущих — в середине
+      const top = [...live[0]][0], slot = shuffle(rng, [...Array(N).keys()].filter((k) => k !== (N >> 1)));
+      const gap = 0.088, X = [Array.from({ length: N }, (_, i) => 0.5 + ((i === top ? N >> 1 : slot.pop()) - (N - 1) / 2) * gap)];
+      for (let g = 1; g < G; g++) {
+        const up = X[g - 1], ord = [...Array(N).keys()].sort((a, b) => up[par[g][a]] - up[par[g][b]] || a - b);
+        const cnt = new Array(N).fill(0), seen = new Array(N).fill(0);
+        for (const i of ord) cnt[par[g][i]]++;
+        const want = ord.map((i) => { const m = par[g][i]; return up[m] + (seen[m]++ - (cnt[m] - 1) / 2) * gap; });
+        const xs = want.slice();
+        for (let k = 1; k < N; k++) xs[k] = Math.max(xs[k], xs[k - 1] + gap);
+        let shift = 0; for (let k = 0; k < N; k++) shift += want[k] - xs[k];
+        shift /= N;
+        const w = xs[N - 1] - xs[0], sc = w > 0.82 ? 0.82 / w : 1;
+        let x0 = xs[0] + shift;
+        x0 = Math.min(0.91 - w * sc, Math.max(0.09, x0));
+        const row = []; ord.forEach((i, k) => (row[i] = x0 + (xs[k] - xs[0]) * sc)); X.push(row);
+      }
+      return { rng, G, N, par, live, X, mrca, eve, t: 0 };
+    },
+    px(s, g, i) { return [s.X[g][i], 0.1 + (g / (s.G - 1)) * 0.8]; },
+    step(s, dt) {
+      s.t += dt;
+      if (s.t > 1.6 + s.G * 0.5 + 5) Object.assign(s, MODES.mitoeve.create({}, s.rng));
+    },
+    draw(ctx, s) {
+      const { G, N } = s, shown = Math.min(G, 1 + Math.floor(s.t / 0.2));
+      const back = Math.max(0, (s.t - 1.6) / 0.5); // сколько поколений назад прослежено
+      const dash = [], solid = [];
+      for (let g = 1; g < shown; g++) for (let i = 0; i < N; i++) {
+        const [x1, y1] = this.px(s, g, i), [x2, y2] = this.px(s, g - 1, s.par[g][i]);
+        const traced = s.live[g].has(i) && G - 1 - g < back;
+        (traced ? solid : dash).push(x1, y1 - 0.008, x2, y2 + 0.008);
+      }
+      ctx.save(); ctx.setLineDash(DASH); segments(ctx, dash); ctx.restore();
+      segments(ctx, solid);
+      // частично прослеженное поколение — линии растут вверх
+      const gp = G - 1 - Math.floor(back), frac = back - Math.floor(back);
+      if (gp >= 1 && gp < shown && back > 0) {
+        for (const i of s.live[gp]) {
+          const [x1, y1] = this.px(s, gp, i), [x2, y2] = this.px(s, gp - 1, s.par[gp][i]);
+          partial(ctx, x1, y1 - 0.008, x2, y2 + 0.008, ease(frac));
+        }
+      }
+      for (let g = 0; g < shown; g++) {
+        const xs = [], ys = [], hx = [], hy = [];
+        for (let i = 0; i < N; i++) {
+          const [x, y] = this.px(s, g, i);
+          if (s.live[g].has(i) && G - 1 - g <= back) { xs.push(x); ys.push(y); } else { hx.push(x); hy.push(y); }
+        }
+        dots(ctx, xs, ys, g === G - 1 ? 0.0075 : 0.006);
+        dots(ctx, hx, hy, 0.0035);
+      }
+      if (s.mrca >= 0 && G - 1 - s.mrca <= back) {
+        const [x, y] = this.px(s, s.mrca, s.eve);
+        const u = ease(Math.min(1, (back - (G - 1 - s.mrca)) / 1.5));
+        for (let k = 1; k <= 3; k++) circle(ctx, x, y, 0.006 + k * 0.011 * u);
+      }
     },
   },
 };

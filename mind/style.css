@@ -146,7 +146,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .tile:hover .tile__vis canvas, .tile:focus-visible .tile__vis canvas { transform: scale(.97); }
 .tile__body { padding-top: 14px; }
 .tile__meta { margin: 2px 0 0; }
-.tile__title { margin: 0; font-size: var(--fs); line-height: 1.4; display: inline; }
+.tile__title { margin: 0; font-size: var(--fs); line-height: 1.4; display: inline; hyphens: auto; overflow-wrap: break-word; }
 .tile:hover .tile__title, .tile:focus-visible .tile__title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .tile__go { display: inline-block; margin-left: 6px; opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .5s var(--ease); }
 .tile:hover .tile__go, .tile:focus-visible .tile__go { opacity: 1; transform: none; }
