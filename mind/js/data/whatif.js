@@ -146,7 +146,6 @@ function fill(tpl, vars, genders) {
     .replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
 
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Сколько вариантов шаблона есть у системы
 export const templateCount = (sys) => FOLLOW[sys.id].length;
@@ -161,5 +160,5 @@ export function buildQuestion(sys, car, tpl = 0) {
     genders[k] = g;
   }
   const list = FOLLOW[sys.id];
-  return cap(fill(`Если бы у {gen} {был~sys} {sys}, ${list[tpl % list.length]}`, vars, genders));
+  return (fill(`если бы у {gen} {был~sys} {sys}, ${list[tpl % list.length]}`, vars, genders));
 }

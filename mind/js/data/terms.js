@@ -597,4 +597,9 @@ const BASE = [
 const ALL = [...BASE, ...CURVES, ...FRACTALS, ...AUTOMATA, ...PARTICLES, ...WAVES, ...CHAOS, ...GRAPHS, ...SYMBOL];
 export const TERMS = AREAS.flatMap((a) => ALL.filter((t) => t.area === a));
 
+// фразы на сайте — со строчной; имена собственные в начале фразы не трогаем
+const PROPER = /^[«"]?(Улам|Птолемей|Ева|Томас|Сизиф|Гильберт|Пеано|Зенон|Платон|Оккам)/;
+const keep = (s) => !s || PROPER.test(s) || (s.split(/\s/)[0].match(/\p{Lu}/gu) || []).length > 1; // PageRank, RAND
+export const lc = (s) => (keep(s) ? s : s.replace(/^([«"(]?)(\p{Lu})(?!\p{Lu})/u, (m, a, b) => a + b.toLowerCase()));
+
 export const termById = (id) => TERMS.find((t) => t.id === id);
