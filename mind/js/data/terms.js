@@ -1,6 +1,7 @@
 // Курируемая библиотека терминов.
 // g — род названия (m/f/n/pl) для согласования в «Что если»; engine + params — визуализация;
 // ref — справка (скрыта до «Раскрыть»); theories — авторские тезисы для ветки «Теория».
+import { typo } from '../core/typo.js';
 import CURVES from './more/curves.js';
 import FRACTALS from './more/fractals.js';
 import AUTOMATA from './more/automata.js';
@@ -595,7 +596,8 @@ const BASE = [
 
 // новые термины лежат по файлам движков; каталог идёт по областям
 const ALL = [...BASE, ...CURVES, ...FRACTALS, ...AUTOMATA, ...PARTICLES, ...WAVES, ...CHAOS, ...GRAPHS, ...SYMBOL];
-export const TERMS = AREAS.flatMap((a) => ALL.filter((t) => t.area === a));
+export const TERMS = AREAS.flatMap((a) => ALL.filter((t) => t.area === a))
+  .map((t) => ({ ...t, title: typo(t.title), ref: typo(t.ref), theories: t.theories.map(typo) }));
 
 // фразы на сайте — со строчной; имена собственные в начале фразы не трогаем
 const PROPER = /^[«"]?(Улам|Птолемей|Ева|Томас|Сизиф|Гильберт|Пеано|Зенон|Платон|Оккам)/;

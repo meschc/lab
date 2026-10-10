@@ -4,6 +4,7 @@ import { SYSTEMS, CARRIERS, buildQuestion, templateCount } from './data/whatif.j
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
 import { FONTS } from './core/draw.js';
+import { typo, typoDom, plain } from './core/typo.js';
 import { exportCard } from './card.js';
 import { initCatalog } from './catalog.js';
 
@@ -219,7 +220,7 @@ function renderAxes() {
 function linkBtn(label, fn) {
   const b = document.createElement('button');
   b.className = 'link';
-  b.textContent = label;
+  b.textContent = typo(label);
   b.addEventListener('click', fn);
   return b;
 }
@@ -238,7 +239,7 @@ function renderLinks(v) {
 }
 
 const searchLinks = (queries) => queries.map((q) =>
-  `<a href="https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}" target="_blank" rel="noopener">википедия: ${q}</a>`).join('');
+  `<a href="https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(plain(q))}" target="_blank" rel="noopener">${typo('википедия:')} ${q}</a>`).join('');
 
 function renderReveal(v) {
   const box = $('#reveal');
@@ -251,10 +252,10 @@ function renderReveal(v) {
     $('#revealTitle').textContent = v.ref.title;
     $('#revealText').textContent = lc(v.ref.ref);
     $('#revealMore').innerHTML = searchLinks([v.ref.title]) +
-      `<a href="https://yandex.ru/search/?text=${encodeURIComponent(v.ref.title)}" target="_blank" rel="noopener">искать в Яндексе</a>`;
+      `<a href="https://yandex.ru/search/?text=${encodeURIComponent(plain(v.ref.title))}" target="_blank" rel="noopener">${typo('искать в Яндексе')}</a>`;
   } else {
     $('#revealTitle').textContent = 'готового ответа нет';
-    $('#revealText').textContent = 'это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.';
+    $('#revealText').textContent = typo('это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.');
     $('#revealMore').innerHTML = searchLinks([v.wf.car.label, v.wf.sys.nom]);
   }
 }
@@ -423,6 +424,7 @@ const catalog = initCatalog({
   },
 });
 
+typoDom(document.body);
 buildAreas();
 buildAxes();
 state.term = pickTerm();
