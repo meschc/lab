@@ -148,12 +148,12 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .filter__btn { flex: 0 0 auto; }
 
 /* сетка без рамок: плитки висят в поле, места раскладки задаёт catalog.js */
-.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); column-gap: 16px; row-gap: 48px; align-items: start; }
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); column-gap: 16px; row-gap: 72px; align-items: start; }
 .tile { grid-column: var(--cm); grid-row: var(--rm); display: block; color: inherit; text-decoration: none; outline: none; }
 .tile__vis { position: relative; aspect-ratio: 1; width: 100%; }
 .tile__vis canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transition: opacity .5s ease, transform .8s var(--ease); }
 .tile:hover .tile__vis canvas, .tile:focus-visible .tile__vis canvas { transform: scale(.97); }
-.tile__body { padding-top: 14px; }
+.tile__body { padding-top: 18px; }
 .tile__title { margin: 0; font-size: var(--fs); line-height: 1.4; display: inline; hyphens: auto; overflow-wrap: break-word; }
 .tile:hover .tile__title, .tile:focus-visible .tile__title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 /* номер появляется слева от названия при наведении (только где есть наведение) */
@@ -163,11 +163,12 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .tile__num { display: block; position: absolute; left: -.7em; top: -3px; transform: translateX(-100%); opacity: 0; transition: opacity .25s ease; font-weight: 400; pointer-events: none; }
   .tile:hover .tile__num, .tile:focus-visible .tile__num { opacity: 1; }
 }
-.tile__thesis { display: none; margin: 8px 0 0; max-width: 46ch; }
+.tile__thesis { display: none; margin: 14px 0 0; max-width: 46ch; line-height: 1.65; }
 
 .catalog.is-text .tile__vis { display: none; }
 .catalog.is-text .tile__body { padding-top: 0; }
 .catalog.is-text .tile__thesis { display: block; }
+.catalog.is-text .grid { row-gap: 96px; }
 
 .catalog.is-intro .tile { animation: rise .9s var(--ease) both; animation-delay: calc(min(var(--i), 16) * 45ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
@@ -175,7 +176,8 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 @media (min-width: 720px) {
   .catalog { padding: 40px 40px 120px; }
   .cat-head, .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); column-gap: 24px; }
-  .grid { row-gap: 72px; }
+  .grid { row-gap: 96px; }
+  .catalog.is-text .grid { row-gap: 120px; }
   .tile { grid-column: var(--ct); grid-row: var(--rt); }
   .cat-lede { grid-column: 3 / span 5; }
   .filter { margin: 0; padding: 0; flex-wrap: wrap; }
@@ -186,7 +188,8 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .catalog { padding: 48px 64px 160px; }
   .cat-head, .grid { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 32px; }
   .cat-head { padding-bottom: 120px; row-gap: 32px; align-items: start; }
-  .grid { row-gap: 96px; }
+  .grid { row-gap: 130px; }
+  .catalog.is-text .grid { row-gap: 170px; }
   .tile { grid-column: var(--cd); grid-row: var(--rd); }
   /* верхняя строка: «мысль», справа описание; в правой колонке сверху кнопки, под ними области */
   .wordmark { grid-column: 1 / span 2; grid-row: 1 / span 2; }
