@@ -66,8 +66,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     a.innerHTML = `
       <div class="tile__vis"><canvas></canvas></div>
       <div class="tile__body">
-        <h3 class="tile__title">${esc(t.title)}</h3><span class="tile__go" aria-hidden="true">→</span>
-        <p class="tile__meta">${num(i)} · ${esc(t.area)}</p>
+        <h3 class="tile__title"><span class="tile__num" aria-hidden="true">${num(i)}</span>${esc(t.title)}</h3>
         <p class="tile__thesis">${esc(t.theories[0])}</p>
       </div>`;
     const canvas = a.querySelector('canvas');
