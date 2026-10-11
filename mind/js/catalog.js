@@ -98,8 +98,9 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
 
   /* ——— плитки ——— */
 
-  // термины идут в разнобой — при каждом заходе в новом порядке; номер — место в этом порядке
-  shuffled(TERMS).forEach((t, i) => {
+  // термины идут в разнобой — при каждом заходе в новом порядке; номер закреплён за термином (место в базе)
+  shuffled(TERMS).forEach((t) => {
+    const i = TERMS.indexOf(t);
     const a = document.createElement('a');
     a.className = 'tile';
     a.href = `#t/${t.id}`;
