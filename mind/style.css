@@ -160,7 +160,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .tile__title { position: relative; }
 .tile__num { display: none; }
 @media (hover: hover) {
-  .tile__num { display: block; position: absolute; left: -.7em; top: -3px; transform: translateX(-100%); opacity: 0; transition: opacity .25s ease; font-weight: 400; pointer-events: none; }
+  .tile__num { display: block; position: absolute; left: -.7em; top: 0; transform: translateX(-100%); opacity: 0; transition: opacity .25s ease; font-weight: 400; pointer-events: none; }
   .tile:hover .tile__num, .tile:focus-visible .tile__num { opacity: 1; }
 }
 .tile__thesis { display: none; margin: 14px 0 0; max-width: 46ch; line-height: 1.65; }
