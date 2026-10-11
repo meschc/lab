@@ -154,11 +154,15 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .tile__vis canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transition: opacity .5s ease, transform .8s var(--ease); }
 .tile:hover .tile__vis canvas, .tile:focus-visible .tile__vis canvas { transform: scale(.97); }
 .tile__body { padding-top: 14px; }
-.tile__meta { margin: 2px 0 0; }
 .tile__title { margin: 0; font-size: var(--fs); line-height: 1.4; display: inline; hyphens: auto; overflow-wrap: break-word; }
 .tile:hover .tile__title, .tile:focus-visible .tile__title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.tile__go { display: inline-block; margin-left: 6px; opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .5s var(--ease); }
-.tile:hover .tile__go, .tile:focus-visible .tile__go { opacity: 1; transform: none; }
+/* номер появляется слева от названия при наведении (только где есть наведение) */
+.tile__title { position: relative; }
+.tile__num { display: none; }
+@media (hover: hover) {
+  .tile__num { display: block; position: absolute; left: -.7em; top: -3px; transform: translateX(-100%); opacity: 0; transition: opacity .25s ease; font-weight: 400; pointer-events: none; }
+  .tile:hover .tile__num, .tile:focus-visible .tile__num { opacity: 1; }
+}
 .tile__thesis { display: none; margin: 8px 0 0; max-width: 46ch; }
 
 .catalog.is-text .tile__vis { display: none; }
@@ -202,5 +206,5 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal, .toast, .catalog.is-intro .tile, .catalog:not([hidden]), .app:not([hidden]) { animation: none; }
-  .tile__vis canvas, .tile__go { transition: none; }
+  .tile__vis canvas, .tile__num { transition: none; }
 }
