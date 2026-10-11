@@ -69,6 +69,12 @@ const TEXT_ROWS = {
   ],
 };
 const HOVER_SPEED = 2.5;
+
+function shuffled(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
 const STORE_KEY = 'mind.catalog.view';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -92,7 +98,8 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
 
   /* ——— плитки ——— */
 
-  TERMS.forEach((t, i) => {
+  // термины идут в разнобой — при каждом заходе в новом порядке; номер — место в этом порядке
+  shuffled(TERMS).forEach((t, i) => {
     const a = document.createElement('a');
     a.className = 'tile';
     a.href = `#t/${t.id}`;
