@@ -152,13 +152,10 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   font: 600 var(--fs)/1.4 var(--display); align-self: start;
 }
 .wordmark__name { margin: 0; font: inherit; }
-/* поиск: иконка справа от «Мысль» (на ПК — при наведении), поле встаёт на место описания */
-.search-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; transition: opacity .25s ease; }
+/* поиск: иконка слева от «Мысль»; по нажатию слово само становится полем и раскрывается на место описания */
+.search-btn { flex: none; display: grid; place-items: center; width: 16px; height: 22px; }
 .search-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; }
-@media (hover: hover) {
-  .search-btn { opacity: 0; }
-  .wordmark:hover .search-btn, .search-btn:focus-visible, .cat-head.is-search .search-btn { opacity: 1; }
-}
+.wordmark__word { font: inherit; cursor: text; }
 .search {
   flex: 1 1 auto; min-width: 0; max-width: 32ch; margin: 0; padding: 0 0 1px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0;
   background: transparent; color: var(--ink); font: 400 var(--fs)/1.4 var(--text); outline: none; appearance: none; -webkit-appearance: none;

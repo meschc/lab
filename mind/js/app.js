@@ -181,7 +181,7 @@ function buildAxes() {
     sel.addEventListener('change', () => {
       Object.assign(state.wf[ax.key], { id: sel.value, lock: true });
       state.revealed = false;
-      render();
+      render(true);
     });
     row.innerHTML = `<span class="axis__label">${ax.label}</span>`;
     row.append(sel);
@@ -199,7 +199,7 @@ function buildAxes() {
       const a = state.wf[ax.key];
       a.id = rand(ax.list.filter((x) => x.id !== a.id)).id;
       state.revealed = false;
-      render();
+      render(true);
     });
     mk('lock', 'зафиксировать', ICONS.lock).addEventListener('click', () => {
       state.wf[ax.key].lock = !state.wf[ax.key].lock;
@@ -235,7 +235,7 @@ function renderLinks(v) {
     box.append(linkBtn('к термину', () => go('term', () => { state.term = v.ref.id; })));
   } else {
     const n = templateCount(v.wf.sys);
-    if (n > 1) box.append(linkBtn('переформулировать', () => { state.wf.tpl = (state.wf.tpl + 1) % n; render(); }));
+    if (n > 1) box.append(linkBtn('переформулировать', () => { state.wf.tpl = (state.wf.tpl + 1) % n; render(true); }));
   }
 }
 
@@ -403,7 +403,7 @@ function next() {
     const id = pickTerm();
     state.theory = { term: id, idx: Math.floor(Math.random() * termById(id).theories.length) };
   } else shuffleWhatIf();
-  render(state.branch !== 'whatif');
+  render(true);
 }
 
 function toCatalog() {
