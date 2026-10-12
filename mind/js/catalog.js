@@ -2,6 +2,7 @@
 import { TERMS, AREAS } from './data/terms.js';
 import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
+import { FEATURES } from './config.js';
 
 // Асимметричный ритм строк: [колонка, ширина] для каждой плитки в строке.
 // Пустые колонки между плитками — намеренно: воздух важнее плотности.
@@ -89,6 +90,7 @@ function saveView(v) {
 
 export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   const grid = root.querySelector('#grid');
+  root.classList.toggle('no-thesis', !FEATURES.theories); // в текстовом виде только названия — отступы меньше
   const filterBox = root.querySelector('#filter');
   const tiles = [];
   let view = readView();
@@ -109,7 +111,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
       <div class="tile__vis"><canvas></canvas></div>
       <div class="tile__body">
         <h3 class="tile__title"><span class="tile__num" aria-hidden="true">${num(i)}</span>${esc(t.title)}</h3>
-        <p class="tile__thesis">${esc(t.theories[0])}</p>
+        ${FEATURES.theories ? `<p class="tile__thesis">${esc(t.theories[0])}</p>` : ''}
       </div>`;
     const canvas = a.querySelector('canvas');
     const tile = { t, el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
@@ -119,7 +121,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
       e.preventDefault();
       ensureVisual(tile);
-      onOpen({ id: t.id, mode: view === 'text' ? 'theory' : 'term', fromEl: view === 'text' ? a.querySelector('.tile__title') : a.querySelector('.tile__vis'), visual: tile.visual });
+      onOpen({ id: t.id, mode: view === 'text' && FEATURES.theories ? 'theory' : 'term', fromEl: view === 'text' ? a.querySelector('.tile__title') : a.querySelector('.tile__vis'), visual: tile.visual });
     });
     tiles.push(tile);
     grid.append(a);
@@ -185,7 +187,8 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
     for (const e of entries) {
       const tile = tiles.find((x) => x.el === e.target);
       tile.visible = e.isIntersecting;
-      if (tile.visible) { ensureVisual(tile); fit(tile); paint(tile); }
+      // в текстовом виде схемы не нужны — не создаём их и не тратим ресурсы
+      if (tile.visible && view === 'anim') { ensureVisual(tile); fit(tile); paint(tile); }
     }
   }, { rootMargin: '120px 0px' });
   tiles.forEach((tile) => io.observe(tile.el));

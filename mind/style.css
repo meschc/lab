@@ -169,6 +169,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .catalog.is-text .tile__body { padding-top: 0; }
 .catalog.is-text .tile__thesis { display: block; }
 .catalog.is-text .grid { row-gap: 96px; }
+.catalog.is-text.no-thesis .grid { row-gap: 44px; }
 
 .catalog.is-intro .tile { animation: rise .9s var(--ease) both; animation-delay: calc(min(var(--i), 16) * 45ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
@@ -178,6 +179,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .cat-head, .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); column-gap: 24px; }
   .grid { row-gap: 96px; }
   .catalog.is-text .grid { row-gap: 120px; }
+  .catalog.is-text.no-thesis .grid { row-gap: 56px; }
   .tile { grid-column: var(--ct); grid-row: var(--rt); }
   .cat-lede { grid-column: 3 / span 5; }
   .filter { margin: 0; padding: 0; flex-wrap: wrap; }
@@ -190,6 +192,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .cat-head { padding-bottom: 120px; row-gap: 32px; align-items: start; }
   .grid { row-gap: 130px; }
   .catalog.is-text .grid { row-gap: 170px; }
+  .catalog.is-text.no-thesis .grid { row-gap: 72px; }
   .tile { grid-column: var(--cd); grid-row: var(--rd); }
   /* верхняя строка: «мысль», справа описание; в правой колонке сверху кнопки, под ними области */
   .wordmark { grid-column: 1 / span 2; grid-row: 1 / span 2; }

@@ -5,6 +5,7 @@ import { createVisual, drawVisual } from './engines/index.js';
 import { hashStr } from './core/rng.js';
 import { FONTS } from './core/draw.js';
 import { typo, typoDom, plain } from './core/typo.js';
+import { FEATURES } from './config.js';
 import { exportCard } from './card.js';
 import { initCatalog } from './catalog.js';
 
@@ -229,7 +230,7 @@ function renderLinks(v) {
   const box = $('#links');
   box.innerHTML = '';
   if (state.branch === 'term') {
-    box.append(linkBtn('вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
+    if (FEATURES.theories) box.append(linkBtn('вывести теорию', () => go('theory', () => { state.theory = { term: state.term, idx: 0 }; })));
   } else if (state.branch === 'theory') {
     box.append(linkBtn('к термину', () => go('term', () => { state.term = v.ref.id; })));
   } else {
@@ -274,6 +275,7 @@ function writeHash() {
 function readHash() {
   const [kind, a, b, c, d] = location.hash.slice(1).split('/');
   if (kind === 't' && termById(a)) { state.branch = 'term'; state.term = a; return true; }
+  if (kind === 'th' && termById(a) && !FEATURES.theories) { state.branch = 'term'; state.term = a; return true; }
   if (kind === 'th' && termById(a)) { state.branch = 'theory'; state.theory = { term: a, idx: +b || 0 }; return true; }
   if (kind === 'w' && sysById(a) && carById(b)) {
     Object.assign(state.wf.sys, { id: a, lock: true });
@@ -424,6 +426,7 @@ const catalog = initCatalog({
   },
 });
 
+if (!FEATURES.theories) document.querySelectorAll('[data-go="theory"], [data-branch="theory"]').forEach((e) => e.remove());
 typoDom(document.body);
 buildAreas();
 buildAxes();
