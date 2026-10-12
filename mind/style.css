@@ -74,7 +74,10 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 .riddle { min-height: 96px; display: flex; flex-direction: column; justify-content: flex-end; margin: 8px 0 28px; }
 .eyebrow { margin: 0 0 12px; }
 .eyebrow:empty { display: none; }
-.riddle__row { display: flex; align-items: flex-start; gap: 16px; }
+.riddle__row { position: relative; display: flex; align-items: flex-start; gap: 16px; }
+/* номер термина висит слева от названия — само название не сдвигается */
+.riddle__num { position: absolute; right: 100%; top: 0; margin-right: 5px; line-height: 1.4; font-variant-numeric: lining-nums; }
+@media (max-width: 579px) { .riddle__num { display: none; } } /* на узком экране слева нет места */
 .riddle__row .headline { flex: 1 1 auto; min-width: 0; }
 .headline { margin: 0; font: 600 var(--fs)/1.4 var(--display); text-wrap: balance; }
 
@@ -90,7 +93,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 .links { display: contents; }
 
-.reveal { margin-top: 36px; max-width: 52ch; animation: in .4s ease; }
+.reveal { margin: -14px 0 28px; max-width: 52ch; animation: in .4s ease; }
 .reveal__title { margin: 0 0 8px; font-size: var(--fs); line-height: 1.4; }
 .reveal__text { margin: 0 0 14px; }
 .reveal__more { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 24px; }
@@ -103,7 +106,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
     padding: 48px 64px;
     display: grid;
     grid-template-columns: minmax(360px, 1fr) min(calc(100dvh - 96px), 680px);
-    grid-template-areas: "top stage" "controls stage" "riddle stage" "actions stage" "reveal stage";
+    grid-template-areas: "top stage" "controls stage" "riddle stage" "reveal stage" "actions stage";
     grid-template-rows: auto auto 1fr auto auto;
     column-gap: 96px;
     align-items: start;
@@ -115,7 +118,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .riddle { grid-area: riddle; align-self: end; margin: 48px 0 32px; }
   .stage { grid-area: stage; position: sticky; top: 48px; }
   .actions { grid-area: actions; margin-top: 0; }
-  .reveal { grid-area: reveal; }
+  .reveal { grid-area: reveal; margin: -16px 0 32px; }
   .chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
 }
 

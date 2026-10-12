@@ -57,11 +57,18 @@
   <section class="riddle" aria-live="polite">
     <p class="eyebrow" id="eyebrow">—</p>
     <div class="riddle__row">
+      <span class="riddle__num" id="termNum" aria-hidden="true"></span>
       <h1 class="headline" id="headline">—</h1>
       <button class="btn btn--icon" id="cardBtn" title="скачать карточку 9:16" aria-label="скачать карточку 9:16">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
       </button>
     </div>
+  </section>
+
+  <section class="reveal" id="reveal" hidden>
+    <h2 class="reveal__title" id="revealTitle"></h2>
+    <p class="reveal__text" id="revealText"></p>
+    <p class="reveal__more" id="revealMore"></p>
   </section>
 
   <div class="stage">
@@ -73,12 +80,6 @@
     <button class="btn" id="revealBtn" aria-expanded="false" aria-controls="reveal">раскрыть</button>
     <div class="links" id="links"></div>
   </div>
-
-  <section class="reveal" id="reveal" hidden>
-    <h2 class="reveal__title" id="revealTitle"></h2>
-    <p class="reveal__text" id="revealText"></p>
-    <p class="reveal__more" id="revealMore"></p>
-  </section>
 
 </main>
 <script type="module" src="js/app.js"></script>

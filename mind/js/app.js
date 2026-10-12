@@ -250,11 +250,12 @@ function renderReveal(v) {
   btn.textContent = state.revealed ? 'спрятать' : 'раскрыть';
   if (!state.revealed) return;
   if (v.ref) {
-    $('#revealTitle').textContent = v.ref.title;
+    $('#revealTitle').hidden = true; // название и так над текстом
     $('#revealText').textContent = lc(v.ref.ref);
     $('#revealMore').innerHTML = searchLinks([v.ref.title]) +
       `<a href="https://yandex.ru/search/?text=${encodeURIComponent(plain(v.ref.title))}" target="_blank" rel="noopener">${typo('искать в Яндексе')}</a>`;
   } else {
+    $('#revealTitle').hidden = false;
     $('#revealTitle').textContent = 'готового ответа нет';
     $('#revealText').textContent = typo('это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.');
     $('#revealMore').innerHTML = searchLinks([v.wf.car.label, v.wf.sys.nom]);
@@ -304,6 +305,7 @@ function render() {
   $('#eyebrow').textContent = v.eyebrow;
   const h = $('#headline');
   h.textContent = v.headline;
+  $('#termNum').textContent = state.branch === 'term' && v.ref ? String(TERMS.indexOf(v.ref) + 1).padStart(2, '0') : '';
   canvas.setAttribute('aria-label', `визуализация: ${v.ref ? v.ref.title : v.headline}`);
   setVisual(v.engine, v.params, v.seed);
   renderLinks(v);
