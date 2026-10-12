@@ -161,7 +161,7 @@ function buildAreas() {
       if (state.branch === 'theory') state.theory = { term: pickTerm(), idx: 0 };
       else state.term = pickTerm();
       state.revealed = false;
-      render();
+      render(true);
     });
     box.append(b);
   }
@@ -242,27 +242,34 @@ function renderLinks(v) {
 const searchLinks = (queries) => queries.map((q) =>
   `<a href="https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(plain(q))}" target="_blank" rel="noopener">${typo('википедия:')} ${q}</a>`).join('');
 
+// на телефоне справка — шторка снизу; закрытая остаётся в DOM, чтобы уехать вниз плавно
+const sheetMode = matchMedia('(max-width: 959px)');
+
 function renderReveal(v) {
   const box = $('#reveal');
   const btn = $('#revealBtn');
-  box.hidden = !state.revealed;
+  box.classList.toggle('is-open', state.revealed);
+  box.inert = !state.revealed;
   btn.setAttribute('aria-expanded', String(state.revealed));
   btn.textContent = state.revealed ? 'спрятать' : 'раскрыть';
   if (!state.revealed) return;
+  box.classList.toggle('reveal--term', !!v.ref); // на ПК название термина и так над текстом
   if (v.ref) {
-    $('#revealTitle').hidden = true; // название и так над текстом
+    $('#revealTitle').textContent = v.ref.title;
     $('#revealText').textContent = lc(v.ref.ref);
     $('#revealMore').innerHTML = searchLinks([v.ref.title]) +
       `<a href="https://yandex.ru/search/?text=${encodeURIComponent(plain(v.ref.title))}" target="_blank" rel="noopener">${typo('искать в Яндексе')}</a>`;
   } else {
-    $('#revealTitle').hidden = false;
     $('#revealTitle').textContent = 'готового ответа нет';
     $('#revealText').textContent = typo('это вопрос для размышления. Начни с того, как на самом деле устроена жизнь носителя, — и сравни с тем, как устроена человеческая система.');
     $('#revealMore').innerHTML = searchLinks([v.wf.car.label, v.wf.sys.nom]);
   }
 }
 
-function writeHash() {
+// глубина входа в генератор: «назад» ведёт к прошлому термину, «Мысль» — сразу в каталог
+const depth = () => history.state?.depth || 0;
+
+function writeHash(push = false) {
   let h;
   if (state.branch === 'term') h = `t/${state.term}`;
   else if (state.branch === 'theory') h = `th/${state.theory.term}/${state.theory.idx}`;
@@ -270,7 +277,8 @@ function writeHash() {
     const { sys, car, tpl } = state.wf;
     h = `w/${sys.id}/${car.id}/${tpl}`;
   }
-  history.replaceState(history.state, '', `#${h}`);
+  if (push) history.pushState({ gen: true, depth: depth() + 1 }, '', `#${h}`);
+  else history.replaceState(history.state, '', `#${h}`);
 }
 
 function readHash() {
@@ -279,8 +287,10 @@ function readHash() {
   if (kind === 'th' && termById(a) && !FEATURES.theories) { state.branch = 'term'; state.term = a; return true; }
   if (kind === 'th' && termById(a)) { state.branch = 'theory'; state.theory = { term: a, idx: +b || 0 }; return true; }
   if (kind === 'w' && sysById(a) && carById(b)) {
-    Object.assign(state.wf.sys, { id: a, lock: true });
-    Object.assign(state.wf.car, { id: b, lock: true });
+    state.wf.sys.id = a;
+    state.wf.car.id = b;
+    // по ссылке оси фиксируются; при шаге назад внутри генератора замки остаются как были
+    if (state.screen !== 'gen') state.wf.sys.lock = state.wf.car.lock = true;
     // старые ссылки с линзой: #w/sys/car/lens/tpl
     state.wf.tpl = +(d ?? c) || 0;
     state.branch = 'whatif';
@@ -289,7 +299,7 @@ function readHash() {
   return false;
 }
 
-function render() {
+function render(push = false) {
   for (const b of document.querySelectorAll('.seg__btn[data-branch]')) {
     const on = b.dataset.branch === state.branch;
     b.classList.toggle('is-on', on);
@@ -310,7 +320,7 @@ function render() {
   setVisual(v.engine, v.params, v.seed);
   renderLinks(v);
   renderReveal(v);
-  writeHash();
+  writeHash(push);
 }
 
 /* ——— экраны: каталог ⇄ генератор ——— */
@@ -368,13 +378,14 @@ function enterCatalog() {
 
 function route() {
   if (readHash()) {
+    state.revealed = false;
     if (state.screen !== 'gen') enterGen();
     else render();
   } else if (state.screen !== 'catalog') enterCatalog();
 }
 
 function openGen(push) {
-  history.pushState({ gen: true }, '', push);
+  history.pushState({ gen: true, depth: 1 }, '', push);
 }
 
 function go(branch, mutate) {
@@ -392,7 +403,23 @@ function next() {
     const id = pickTerm();
     state.theory = { term: id, idx: Math.floor(Math.random() * termById(id).theories.length) };
   } else shuffleWhatIf();
-  render();
+  render(state.branch !== 'whatif');
+}
+
+function toCatalog() {
+  history.pushState(null, '', location.pathname);
+  route();
+}
+
+function back() {
+  if (depth()) history.back();
+  else toCatalog();
+}
+
+function setRevealed(on) {
+  if (state.revealed === on) return;
+  state.revealed = on;
+  renderReveal(state.view);
 }
 
 function toast(msg) {
@@ -402,6 +429,9 @@ function toast(msg) {
 }
 
 /* ——— старт ——— */
+
+// старые ссылки несли параметры (?font=…), которые больше ничего не значат
+if (location.search) history.replaceState(history.state, '', location.pathname + location.hash);
 
 const catalog = initCatalog({
   root: $('#catalog'),
@@ -443,7 +473,33 @@ document.querySelectorAll('.seg__btn[data-branch]').forEach((b) => b.addEventLis
   });
 }));
 $('#nextBtn').addEventListener('click', next);
-$('#revealBtn').addEventListener('click', () => { state.revealed = !state.revealed; renderReveal(state.view); });
+$('#revealBtn').addEventListener('click', () => setRevealed(!state.revealed));
+$('#revealClose').addEventListener('click', () => setRevealed(false));
+$('#backBtn').addEventListener('click', back);
+// шторка: тап мимо неё или смахивание вниз закрывает
+document.addEventListener('click', (e) => {
+  if (state.revealed && sheetMode.matches && !e.target.closest('#reveal, #revealBtn')) setRevealed(false);
+});
+{
+  const sheet = $('#reveal');
+  let y0 = null, dy = 0;
+  sheet.addEventListener('touchstart', (e) => {
+    y0 = sheetMode.matches && sheet.scrollTop <= 0 ? e.touches[0].clientY : null;
+    dy = 0;
+  }, { passive: true });
+  sheet.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    sheet.style.transition = 'none';
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  sheet.addEventListener('touchend', () => {
+    if (y0 == null) return;
+    sheet.style.transition = sheet.style.transform = '';
+    if (dy > 80) setRevealed(false);
+    y0 = null;
+  });
+}
 $('#cardBtn').addEventListener('click', async () => {
   const btn = $('#cardBtn');
   btn.disabled = true;
@@ -459,15 +515,17 @@ $('#cardBtn').addEventListener('click', async () => {
   }
 });
 document.addEventListener('keydown', (e) => {
-  if (state.screen !== 'gen' || e.target !== document.body || e.metaKey || e.ctrlKey) return;
+  if (state.screen !== 'gen' || e.metaKey || e.ctrlKey) return;
+  if (e.key === 'Escape') { setRevealed(false); return; }
+  if (e.target !== document.body) return;
   if (e.code === 'Space') { e.preventDefault(); next(); }
-  if (e.key === 'r' || e.key === 'к') { state.revealed = !state.revealed; renderReveal(state.view); }
+  if (e.key === 'r' || e.key === 'к') setRevealed(!state.revealed);
 });
 window.addEventListener('popstate', route);
 $('#homeLink').addEventListener('click', (e) => {
   e.preventDefault();
-  if (history.state?.gen) history.back();
-  else { history.pushState(null, '', location.pathname); route(); }
+  if (depth()) history.go(-depth());
+  else toCatalog();
 });
 
 new ResizeObserver(() => { fitCanvas(); paint(); }).observe(canvas);
