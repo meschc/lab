@@ -299,7 +299,7 @@ const MODES = {
       const d = 0.12 + u * (L - 0.28);
       const cx = ax + ux * d - nx * R * -1, cy = ay + uy * d - ny * R * -1;
       line(ctx, 0.02, ay + (0.02 - ax) * (uy / ux), 0.98, ay + (0.98 - ax) * (uy / ux));
-      const rot = -d / R;
+      const rot = d / R; // качение без проскальзывания: вправо — по часовой
       circle(ctx, cx, cy, R);
       circle(ctx, cx, cy, R * 0.55);
       for (let k = 0; k < 3; k++) {
