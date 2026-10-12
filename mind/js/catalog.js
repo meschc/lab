@@ -90,6 +90,7 @@ function saveView(v) {
 
 export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   const grid = root.querySelector('#grid');
+  root.classList.toggle('no-thesis', !FEATURES.theories); // в текстовом виде только названия — отступы меньше
   const filterBox = root.querySelector('#filter');
   const tiles = [];
   let view = readView();
