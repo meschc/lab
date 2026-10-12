@@ -312,6 +312,7 @@ function render(push = false) {
 
   const v = currentView();
   state.view = v;
+  document.title = `${plain(v.ref ? v.ref.title : 'что если…')} — Мысль`;
   $('#eyebrow').textContent = v.eyebrow;
   const h = $('#headline');
   h.textContent = v.headline;
@@ -349,7 +350,6 @@ function enterGen(from = null) {
   swap(() => {
     catalog.hide();
     genEl.hidden = false;
-    document.title = 'Мысль — генератор';
     state.screen = 'gen';
     fitCanvas();
     render();
