@@ -123,7 +123,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
         ${FEATURES.theories ? `<p class="tile__thesis">${esc(t.theories[0])}</p>` : ''}
       </div>`;
     const canvas = a.querySelector('canvas');
-    const tile = { t, hay: norm(`${t.title} ${t.area} ${t.ref}`), el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
+    const tile = { t, hay: norm(t.title), el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
     a.addEventListener('mouseenter', () => { tile.hover = true; });
     a.addEventListener('mouseleave', () => { tile.hover = false; });
     a.addEventListener('click', (e) => {
@@ -144,8 +144,6 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
       if (on) shown.push(tile);
     }
     emptyEl.hidden = shown.length > 0;
-    // при поиске совпадения в названии — первыми
-    if (query.length) shown.sort((x, y) => titleHit(y) - titleHit(x));
     // раскладываем по ритму строк — отдельно для каждой ширины экрана
     for (const [key, rows] of Object.entries(view === 'text' ? TEXT_ROWS : ROWS)) {
       let r = 0, slot = 0;
@@ -276,8 +274,6 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   }
 
   /* ——— поиск: иконка у «Мысль», поле на месте описания ——— */
-
-  const titleHit = (tile) => +query.every((w) => norm(tile.t.title).includes(w));
 
   function setQuery(s) {
     const q = norm(s).split(/\s+/).filter(Boolean);
