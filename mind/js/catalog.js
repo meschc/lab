@@ -81,6 +81,9 @@ const STORE_KEY = 'mind.catalog.view';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (i) => String(i + 1).padStart(2, '0');
 
+// для поиска: регистр, «ё», неразрывные пробелы и мягкие переносы не важны
+const norm = (s) => s.toLowerCase().replace(/ё/g, 'е').replace(/\u00ad/g, '').replace(/\u00a0/g, ' ');
+
 function readView() {
   try { return localStorage.getItem(STORE_KEY) === 'text' ? 'text' : 'anim'; } catch { return 'anim'; }
 }
@@ -92,9 +95,14 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   const grid = root.querySelector('#grid');
   root.classList.toggle('no-thesis', !FEATURES.theories); // в текстовом виде только названия — отступы меньше
   const filterBox = root.querySelector('#filter');
+  const head = root.querySelector('.cat-head');
+  const searchEl = root.querySelector('#search');
+  const searchBtn = root.querySelector('#searchBtn');
+  const emptyEl = root.querySelector('#gridEmpty');
   const tiles = [];
   let view = readView();
   let area = null;
+  let query = []; // слова из поиска
   let running = false;
   let last = 0;
 
@@ -114,7 +122,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
         ${FEATURES.theories ? `<p class="tile__thesis">${esc(t.theories[0])}</p>` : ''}
       </div>`;
     const canvas = a.querySelector('canvas');
-    const tile = { t, el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
+    const tile = { t, hay: norm(`${t.title} ${t.area} ${t.ref}`), el: a, canvas, ctx: canvas.getContext('2d'), visual: null, visible: false, hover: false, acc: 0, cost: 0, wait: 0 };
     a.addEventListener('mouseenter', () => { tile.hover = true; });
     a.addEventListener('mouseleave', () => { tile.hover = false; });
     a.addEventListener('click', (e) => {
@@ -130,10 +138,13 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   function layout() {
     const shown = [];
     for (const tile of tiles) {
-      const on = !area || tile.t.area === area;
+      const on = (!area || tile.t.area === area) && query.every((w) => tile.hay.includes(w));
       tile.el.hidden = !on;
       if (on) shown.push(tile);
     }
+    emptyEl.hidden = shown.length > 0;
+    // при поиске совпадения в названии — первыми
+    if (query.length) shown.sort((x, y) => titleHit(y) - titleHit(x));
     // раскладываем по ритму строк — отдельно для каждой ширины экрана
     for (const [key, rows] of Object.entries(view === 'text' ? TEXT_ROWS : ROWS)) {
       let r = 0, slot = 0;
@@ -262,6 +273,31 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
       layout();
     }, animate);
   }
+
+  /* ——— поиск: иконка у «Мысль», поле на месте описания ——— */
+
+  const titleHit = (tile) => +query.every((w) => norm(tile.t.title).includes(w));
+
+  function setQuery(s) {
+    const q = norm(s).split(/\s+/).filter(Boolean);
+    if (q.join(' ') === query.join(' ')) return;
+    query = q;
+    layout();
+  }
+
+  function openSearch(on) {
+    head.classList.toggle('is-search', on);
+    searchEl.hidden = !on;
+    searchBtn.setAttribute('aria-expanded', String(on));
+    if (on) searchEl.focus();
+    else { searchEl.value = ''; setQuery(''); }
+  }
+
+  searchBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // не терять фокус поля до клика
+  searchBtn.addEventListener('click', () => openSearch(searchEl.hidden));
+  searchEl.addEventListener('input', () => setQuery(searchEl.value));
+  searchEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { openSearch(false); searchBtn.focus(); } });
+  searchEl.addEventListener('blur', () => { if (!searchEl.value.trim()) openSearch(false); });
 
   for (const b of root.querySelectorAll('[data-view]')) b.addEventListener('click', () => setView(b.dataset.view));
   for (const b of root.querySelectorAll('[data-go]')) b.addEventListener('click', () => onGo(b.dataset.go));

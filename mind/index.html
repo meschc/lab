@@ -13,7 +13,13 @@
 <body>
 <div class="catalog" id="catalog" hidden>
   <header class="cat-head">
-    <h1 class="wordmark">Мысль</h1>
+    <div class="wordmark">
+      <h1 class="wordmark__name">Мысль</h1>
+      <button class="search-btn" id="searchBtn" aria-label="поиск" title="поиск" aria-expanded="false" aria-controls="search">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.6 3.6"/></svg>
+      </button>
+      <input class="search" id="search" type="search" placeholder="поиск" aria-label="поиск по терминам" autocomplete="off" spellcheck="false" hidden>
+    </div>
     <p class="cat-lede">сто двадцать четыре понятия из математики, физики, биологии, информатики, теории игр, психологии и философии. Живые схемы и вопросы «что если».</p>
     <div class="cat-bar">
       <nav class="cat-go" aria-label="Генератор">
@@ -34,7 +40,7 @@
       </div>
     </div>
   </header>
-  <div class="grid-wrap"><div class="grid" id="grid"></div></div>
+  <div class="grid-wrap"><div class="grid" id="grid"></div><p class="grid-empty" id="gridEmpty" hidden>ничего не нашлось</p></div>
 </div>
 
 <main class="app" id="gen" hidden>
@@ -65,8 +71,11 @@
     </div>
   </section>
 
-  <section class="reveal" id="reveal" hidden>
-    <h2 class="reveal__title" id="revealTitle"></h2>
+  <section class="reveal" id="reveal" aria-labelledby="revealTitle">
+    <div class="reveal__head">
+      <h2 class="reveal__title" id="revealTitle"></h2>
+      <button class="btn reveal__close" id="revealClose">закрыть</button>
+    </div>
     <p class="reveal__text" id="revealText"></p>
     <p class="reveal__more" id="revealMore"></p>
   </section>
@@ -78,6 +87,7 @@
   <div class="actions">
     <button class="btn btn--ink" id="nextBtn">ещё</button>
     <button class="btn" id="revealBtn" aria-expanded="false" aria-controls="reveal">раскрыть</button>
+    <button class="btn" id="backBtn">назад</button>
     <div class="links" id="links"></div>
   </div>
 

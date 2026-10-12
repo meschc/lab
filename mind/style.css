@@ -93,9 +93,20 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 .links { display: contents; }
 
-.reveal { margin: -14px 0 28px; max-width: 52ch; animation: in .4s ease; }
-.reveal__title { margin: 0 0 8px; font-size: var(--fs); line-height: 1.4; }
-.reveal__text { margin: 0 0 14px; }
+/* справка: на телефоне — шторка снизу, на ПК — под названием */
+.reveal {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  max-height: 78dvh; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--paper); border-top: 1px solid var(--ink);
+  padding: 18px max(20px, calc(50vw - 260px)) calc(env(safe-area-inset-bottom) + 28px);
+  transform: translateY(100%); visibility: hidden;
+  transition: transform .45s var(--ease), visibility 0s linear .45s;
+}
+.reveal.is-open { transform: none; visibility: visible; transition: transform .45s var(--ease), visibility 0s; }
+.reveal__head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.reveal__title { margin: 0; font-size: var(--fs); line-height: 1.4; }
+.reveal__close { flex: none; }
+.reveal__text { margin: 0 0 14px; max-width: 52ch; }
 .reveal__more { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 24px; }
 .reveal__more a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 @keyframes in { from { opacity: 0; transform: translateY(6px); } }
@@ -118,7 +129,15 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   .riddle { grid-area: riddle; align-self: end; margin: 48px 0 32px; }
   .stage { grid-area: stage; position: sticky; top: 48px; }
   .actions { grid-area: actions; margin-top: 0; }
-  .reveal { grid-area: reveal; margin: -16px 0 32px; }
+  .reveal {
+    grid-area: reveal; position: static; z-index: auto; max-height: none; overflow: visible;
+    background: none; border: 0; padding: 0; margin: -16px 0 32px; max-width: 52ch;
+    transform: none; visibility: visible; transition: none;
+  }
+  .reveal:not(.is-open) { display: none; }
+  .reveal.is-open { animation: in .4s ease; }
+  .reveal__head { margin-bottom: 8px; }
+  .reveal--term .reveal__head, .reveal__close { display: none; }
   .chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
 }
 
@@ -129,9 +148,26 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 
 .cat-head { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); column-gap: 16px; row-gap: 28px; padding-bottom: 72px; }
 .wordmark {
-  grid-column: 1 / span 2; grid-row: 1; margin: 0; display: flex; align-items: flex-start; gap: .05em;
-  font: 600 var(--fs)/1.4 var(--display);
+  grid-column: 1 / span 2; grid-row: 1; margin: 0; display: flex; align-items: center; gap: 8px; min-width: 0;
+  font: 600 var(--fs)/1.4 var(--display); align-self: start;
 }
+.wordmark__name { margin: 0; font: inherit; }
+/* поиск: иконка справа от «Мысль» (на ПК — при наведении), поле встаёт на место описания */
+.search-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; transition: opacity .25s ease; }
+.search-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; }
+@media (hover: hover) {
+  .search-btn { opacity: 0; }
+  .wordmark:hover .search-btn, .search-btn:focus-visible, .cat-head.is-search .search-btn { opacity: 1; }
+}
+.search {
+  flex: 1 1 auto; min-width: 0; max-width: 32ch; margin: 0; padding: 0 0 1px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0;
+  background: transparent; color: var(--ink); font: 400 var(--fs)/1.4 var(--text); outline: none; appearance: none; -webkit-appearance: none;
+}
+.search::placeholder { color: var(--ink); opacity: 1; } /* без полутонов */
+.search::-webkit-search-decoration, .search::-webkit-search-cancel-button { -webkit-appearance: none; }
+.cat-head.is-search .cat-lede { display: none; }
+.cat-head.is-search .wordmark { grid-column: 1 / -1; }
+.grid-empty { margin: 0; }
 .cat-lede { grid-column: 3 / span 4; grid-row: 1; margin: 0; max-width: 40ch; }
 .cat-bar { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 20px; }
 .cat-go { display: flex; flex-wrap: wrap; gap: 4px 24px; }
@@ -200,6 +236,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
   /* верхняя строка: «мысль», справа описание; в правой колонке сверху кнопки, под ними области */
   .wordmark { grid-column: 1 / span 2; grid-row: 1 / span 2; }
   .cat-lede { grid-column: 3 / span 5; grid-row: 1 / span 2; }
+  .cat-head.is-search .wordmark { grid-column: 1 / span 7; }
   .cat-bar { grid-column: 9 / span 4; grid-row: 1; }
   .cat-filters { grid-column: 9 / span 4; grid-row: 2; }
   .filter { flex-direction: column; gap: 2px; }
@@ -214,6 +251,7 @@ b, strong, .tile__title, .reveal__title { font-weight: 600; }
 @keyframes fadein { from { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
+  .reveal { transition: none; }
   .reveal, .toast, .catalog.is-intro .tile, .catalog:not([hidden]), .app:not([hidden]) { animation: none; }
   .tile__vis canvas, .tile__num { transition: none; }
 }
