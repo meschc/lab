@@ -98,6 +98,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   const head = root.querySelector('.cat-head');
   const searchEl = root.querySelector('#search');
   const searchBtn = root.querySelector('#searchBtn');
+  const searchWord = root.querySelector('#searchWord'); // слово «Мысль» само превращается в поле
   const emptyEl = root.querySelector('#gridEmpty');
   const tiles = [];
   let view = readView();
@@ -288,6 +289,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
   function openSearch(on) {
     head.classList.toggle('is-search', on);
     searchEl.hidden = !on;
+    searchWord.parentElement.hidden = on;
     searchBtn.setAttribute('aria-expanded', String(on));
     if (on) searchEl.focus();
     else { searchEl.value = ''; setQuery(''); }
@@ -295,6 +297,7 @@ export function initCatalog({ root, colors, reducedMotion, onOpen, onGo }) {
 
   searchBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // не терять фокус поля до клика
   searchBtn.addEventListener('click', () => openSearch(searchEl.hidden));
+  searchWord.addEventListener('click', () => openSearch(true));
   searchEl.addEventListener('input', () => setQuery(searchEl.value));
   searchEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { openSearch(false); searchBtn.focus(); } });
   searchEl.addEventListener('blur', () => { if (!searchEl.value.trim()) openSearch(false); });
