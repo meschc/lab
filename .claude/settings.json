@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] && ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$CLAUDE_PROJECT_DIR/.zhatva/cases\" node \"$CLAUDE_PROJECT_DIR/.zhatva/collector/hooks/session-start.js\"; true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] && ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$CLAUDE_PROJECT_DIR/.zhatva/cases\" node \"$CLAUDE_PROJECT_DIR/.zhatva/collector/hooks/stop.js\"; true",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] && ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$CLAUDE_PROJECT_DIR/.zhatva/cases\" node \"$CLAUDE_PROJECT_DIR/.zhatva/collector/hooks/pre-compact.js\"; true",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "screenshot|take_screenshot|app_screenshot|computer|control|get_screenshot",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] && ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$CLAUDE_PROJECT_DIR/.zhatva/cases\" node \"$CLAUDE_PROJECT_DIR/.zhatva/collector/hooks/post-tool-use.js\"; true",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

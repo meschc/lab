@@ -1,0 +1,25 @@
+{
+  "casesRoot": "~/Проекты/Кейсы",
+  "llmUpgradeEveryNTurns": 50,
+  "contextThresholdPct": 20,
+  "model": "sonnet",
+  "captionModel": "haiku",
+  "llmTimeoutMs": 120000,
+  "maxSectionsPerUpgrade": 3,
+  "maxRawPerEntry": 40,
+  "maxAutoCopyMediaBytes": 300000000,
+  "webpQuality": 82,
+  "maxAskCount": 2,
+  "maxBackfillPerSession": 6,
+  "siteCssRoot": "~/Проекты/Моё/Код/me/css",
+  "mediaExcludeDirs": [
+    "refs",
+    "references",
+    "reference",
+    "inspiration",
+    "moodboard",
+    "референсы",
+    "мудборд"
+  ],
+  "articleWidthPx": 745
+}

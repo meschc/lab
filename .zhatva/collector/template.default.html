@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+/* Запасные токены: работают, если исходники сайта недоступны. Ниже их перекрывает сайт. */
+:root {
+  --font-size-base: clamp(15px, 1vw + 0.25em, 18px);
+  --font-size-small: clamp(12px, 0.8vw + 0.2em, 14px);
+  --font-size-h1: clamp(1.8em, 2vw + 1em, 2.4em);
+  --font-size-h2: clamp(1.4em, 1.5vw + 0.75em, 1.8em);
+  --font-size-h3: clamp(1.1em, 1vw + 0.5em, 1.4em);
+  --gap-xs: clamp(4px, 0.3vw, 6px);
+  --gap-sm: clamp(8px, 0.5vw, 12px);
+  --gap-md: clamp(12px, 1vw, 16px);
+  --gap-lg: clamp(16px, 1.2vw, 24px);
+  --gap-xl: clamp(24px, 2vw, 32px);
+  --gap-xxl: clamp(32px, 3vw, 48px);
+  --radius-sm: 4px;
+  --ul-padding-left: 20px;
+  --li-margin: 4px 0;
+  --sidebar-padding: 24px;
+  --accent-color: #2291ff;
+  --accent-color-hover: #40a0ff;
+  --letter-spacing-base: -0.02em;
+  --transition-base: all 0.25s;
+  --font-family-base: 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --bg-color: #181a1b;
+  --text-color: #eee;
+  --border-color: #333;
+  --link-color: var(--accent-color);
+}
+</style>
+
+<style>
+{{SITE_CSS}}
+</style>
+
+<style>
+/* @case-css:start */
+:root {
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --article-width: {{ARTICLE_WIDTH}};
+  --grid-width: calc({{ARTICLE_WIDTH}} * 1.34);
+  --col-gap: var(--gap-md);
+  --gutter: clamp(16px, 5vw, 72px);
+  --code-bg: rgba(128, 128, 128, 0.16);
+  /* Акцент — тот же, что у сайта: своего цвета у статьи нет. */
+  --mark-color: var(--accent-color);
+  --dim: 78%;
+}
+
+/* @standalone:start */
+body {
+  display: block;
+  flex-direction: initial;
+  height: auto;
+  background: var(--bg-color);
+  color: var(--text-color);
+  padding: 0;
+  overflow-x: hidden;
+}
+/* @standalone:end */
+
+code {
+  font-family: var(--font-family-mono);
+  font-size: 0.92em;
+  background: var(--code-bg);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+/* Раскладка: всё живёт в одной колонке, разбитой на восемь долей.
+   Текст занимает шесть долей, правые две отданы служебному — подписям,
+   номерам развилок, ярлыкам; изображения и цифры идут на все восемь. */
+.project,
+.project__section,
+.forks,
+.fork,
+.project__figure {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+}
+
+.project {
+  width: min(var(--grid-width), 100% - var(--gutter) * 2);
+  margin: 0 auto;
+  padding: var(--gap-xxl) 0;
+  line-height: 1.65;
+  transition: opacity .4s ease, filter .4s ease, transform .4s ease;
+}
+
+.project > *,
+.project__section > * { grid-column: 1 / 7; }
+
+.project__section { grid-column: 1 / -1; margin: 0 0 var(--gap-xxl); }
+
+/* Служебное — в две правые доли. */
+.side { grid-column: 7 / -1; }
+
+/* На все восемь долей: кадры и всё, что читается как сплошной блок. */
+.project__figure,
+.numbers,
+.forks,
+.compare-block,
+.related { grid-column: 1 / -1; }
+
+.label {
+  font-size: var(--font-size-small);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: color-mix(in srgb, var(--text-color) 45%, transparent);
+  margin: 0 0 var(--gap-md);
+}
+
+.project__meta {
+  font-size: var(--font-size-small);
+  color: color-mix(in srgb, var(--text-color) 50%, transparent);
+  margin: 0 0 var(--gap-lg);
+}
+
+.project__meta b { color: var(--mark-color); font-weight: 400; }
+
+.project__title {
+  font-size: var(--font-size-h1);
+  margin: 0 0 var(--gap-md);
+  line-height: 1.05;
+}
+
+.project__lead {
+  font-size: var(--font-size-h3);
+  font-weight: 400;
+  margin: 0 0 var(--gap-sm);
+  line-height: 1.35;
+}
+
+/* Заголовок раздела держится у верхней кромки, пока раздел читается: на длинной полосе
+   кадров иначе теряется, к чему они относятся. Подложка растянута за пределы колонки,
+   чтобы текст не просвечивал сквозь неё по краям. */
+.project__section > h2 {
+  position: sticky;
+  top: var(--progress-h, 0px);
+  z-index: 3;
+  font-size: var(--font-size-h2);
+  margin: 0 0 var(--gap-md);
+  padding: var(--gap-sm) 0;
+  line-height: 1.15;
+  isolation: isolate;
+  grid-column: 1 / -1;
+}
+
+/* Подложка на всю сетку, а не на весь экран: на сайте слева дерево, и шире колонки ей нельзя. */
+.project__section > h2::before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(var(--col-gap) * -1);
+  z-index: -1;
+  background: var(--bg-color);
+}
+
+/* Полоса прогресса: по отрезку на раздел, прочитанная часть закрашена. Отрезок — кнопка:
+   по нажатию страница едет к началу раздела. Висит над липким заголовком раздела. */
+.project { --progress-h: 20px; }
+.progress {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  height: var(--progress-h);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  isolation: isolate;
+}
+.progress::before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(var(--col-gap) * -1);
+  z-index: -1;
+  background: var(--bg-color);
+}
+.progress__step { flex: 1 1 0; min-width: 0; display: flex; }
+.progress__step button {
+  all: unset;
+  position: relative;
+  flex: 1;
+  cursor: pointer;
+}
+/* Сама полоса тонкая, а попасть по ней можно по всей высоте. */
+.progress__step button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 3px;
+  background: linear-gradient(to right, var(--accent-color) var(--p, 0%), var(--border-color) var(--p, 0%));
+  transition: height .2s ease, bottom .2s ease;
+}
+.progress__step button:hover::after,
+.progress__step button:focus-visible::after { height: 6px; bottom: 4px; }
+.progress__step button:focus { outline: none; }
+.progress__step button::before {
+  content: attr(aria-label);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  padding: 4px 8px;
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+  color: var(--bg-color);
+  background: var(--text-color);
+  opacity: 0;
+  translate: 0 -4px;
+  pointer-events: none;
+  transition: opacity .2s ease, translate .2s ease;
+}
+.progress__step:last-child button::before { left: auto; right: 0; }
+.progress__step button:hover::before,
+.progress__step button:focus-visible::before { opacity: 1; translate: 0 0; }
+
+.project__body {
+  font-size: var(--font-size-base);
+  color: color-mix(in srgb, var(--text-color) var(--dim), transparent);
+  margin: 0;
+}
+
+.project__body + .project__body { margin-top: var(--gap-md); }
+
+.project__figure { margin: var(--gap-xl) 0; }
+.project__figure img,
+.project__figure video { grid-column: 1 / -1; }
+
+.project__figure img,
+.project__figure video {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  object-position: top center;
+  border: 1px solid var(--border-color);
+}
+
+
+.project__figure--wide img,
+.project__figure--wide video { aspect-ratio: 16 / 9; }
+
+/* Мокапы: кадр стоит в том, чем он был, — телефоне, окне браузера, значке приложения.
+   Подложка — мягкий свет сверху и без скругления: скругляются только сами устройства. */
+.mock {
+  --shadow: 0 50px 80px -40px rgba(0, 0, 0, .55), 0 18px 30px -18px rgba(0, 0, 0, .35);
+  grid-column: 1 / -1;
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  perspective: 1600px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--text-color) 10%, var(--bg-color)), transparent 70%),
+    color-mix(in srgb, var(--text-color) 4%, var(--bg-color));
+  border: 1px solid var(--border-color);
+}
+.bento__item .mock { height: 100%; aspect-ratio: auto; border: 0; }
+
+/* Устройство выпрямляется из наклона, когда кадр доезжает до экрана, и слегка следует за курсором. */
+.mock > .device,
+.mock > .app-icon,
+.mock > .mock__card {
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 1.1s cubic-bezier(.2, .7, .2, 1);
+}
+[data-reveal]:not(.is-in) .mock > .device,
+[data-reveal]:not(.is-in) .mock > .app-icon,
+[data-reveal]:not(.is-in) .mock > .mock__card { transform: rotateX(16deg) translateY(6%) scale(.94); }
+.mock.is-tilting > * { transition-duration: .4s; }
+
+/* Экран листается сам, медленно; колесо, палец и клавиши перехватывают прокрутку. */
+.project__screen {
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: var(--bg-color);
+}
+.project__screen::-webkit-scrollbar { display: none; }
+.project__screen:focus { outline: none; }
+.project__screen:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-color); }
+.bento__item .project__screen { overflow: hidden; }
+.mock .project__screen img,
+.mock .project__screen video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  border: 0;
+}
+
+/* Телефон: корпус, островок и кнопка сбоку. */
+.mock--phone { padding: var(--gap-lg) 0; }
+.bento__item .mock--phone { padding: var(--gap-md) 0; }
+.device--phone {
+  position: relative;
+  height: 100%;
+  padding: 7px;
+  border-radius: 42px;
+  background: linear-gradient(145deg, #48484a, #0d0d0e 38%, #1c1c1e);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .16), var(--shadow);
+}
+.device--phone::before {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 24%;
+  width: 3px;
+  height: 11%;
+  border-radius: 0 2px 2px 0;
+  background: #2c2c2e;
+}
+.device--phone::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 1;
+  width: 30%;
+  height: 20px;
+  border-radius: 999px;
+  background: #000;
+  pointer-events: none;
+}
+.device--phone .project__screen {
+  height: 100%;
+  aspect-ratio: 390 / 844;
+  border-radius: 35px;
+}
+.bento__item .device--phone { padding: 5px; border-radius: 30px; }
+.bento__item .device--phone::after { top: 11px; height: 13px; }
+.bento__item .device--phone .project__screen { border-radius: 25px; }
+
+/* Окно браузера поднимается из нижнего края подложки. */
+.mock--browser { align-items: flex-end; padding: 6% 9% 0; }
+.device--browser {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  background: var(--bg-color);
+  box-shadow: 0 0 0 1px var(--border-color), var(--shadow);
+  transform-origin: 50% 100%;
+}
+.device__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 14px;
+  background: color-mix(in srgb, var(--text-color) 6%, var(--bg-color));
+  border-bottom: 1px solid var(--border-color);
+}
+.device__bar i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-color) 22%, transparent);
+}
+.device--browser .project__screen { flex: 1; min-height: 0; }
+.bento__item .device__bar { height: 16px; gap: 4px; padding: 0 8px; }
+.bento__item .device__bar i { width: 6px; height: 6px; }
+
+/* Значок приложения: скруглённый квадрат, блик и цветное свечение из самой иконки. */
+.mock .mock__glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: auto;
+  height: 80%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  object-fit: cover;
+  border: 0;
+  border-radius: 50%;
+  filter: blur(60px) saturate(1.6);
+  opacity: .5;
+}
+.bento__item .mock .mock__glow { filter: blur(30px) saturate(1.6); }
+.app-icon {
+  position: relative;
+  height: 42%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 22.5%;
+  box-shadow: var(--shadow);
+}
+.app-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .28), transparent 45%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+  pointer-events: none;
+}
+.mock .app-icon img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
+  border: 0;
+}
+
+/* Схемы и превью лежат карточкой на подложке. */
+.mock--card { padding: 6% 9%; }
+.mock .mock__card {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  border: 0;
+  border-radius: 10px;
+  background: var(--bg-color);
+  box-shadow: 0 0 0 1px var(--border-color), var(--shadow);
+}
+
+.project__figure figcaption {
+  font-size: var(--font-size-small);
+  color: color-mix(in srgb, var(--text-color) 50%, transparent);
+  margin-top: var(--gap-xs);
+}
+
+/* Цифры */
+.numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--gap-lg);
+  margin: var(--gap-xl) 0;
+  padding-top: var(--gap-lg);
+  padding-bottom: var(--gap-lg);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* «→» в Inter тонкая и теряется рядом с крупными цифрами. Стрелка берётся из Geist (OFL):
+   только этот знак, вшитый в шаблон, — цифры остаются в Inter, внешнего запроса нет. */
+@font-face {
+  font-family: 'Geist стрелка';
+  src: url(data:font/woff2;base64,d09GMgABAAAAAALAAA4AAAAABWwAAAJqAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGx4cKAZgP1NUQVRIADwRCAqBBHcLCAABNgIkAwwEIAWEFgcgG2QEyAQeeD3y/SQHOEeyPYBjYYzdOcEbwEnIxDX18/zBoxegU/oOWyQ+LgNnlCAVOKGJDXTD2A0raGgIARjibBwRWTlFVeijoMWalmsrlo/qSHK75UD7xBCmxhLIcUWqFJvQAWmNVCe7heVm0UKESCGaOYyklYlX86MHNRWZRVxEdd8if/5/XxpR0oSuCjvVhmQpXVLfqRgiEOgjAdYG4NWc7u6Z4O1J70T7gPBBYI2C7Nck4Su2JcumJIdik5xIZ2dQybEGkxVMwQ/UtYRcUt23HEdRWtrzJyMAKqlUaBpmtSOPPN0UdPT8AALF/4KkKIqiqxjpmCkdJjrGzQH9/k19gb3LuruMOpd3mWHqd8nk0kfP60vX9TYV3V5RZL1C++T2CooCY2Kjo4ejY2JiNrRuq9iGzTnEwytx4+bmM2FDrWZJ3/Rl+Z3Ren26q7I899X8pBanmRt4KB48+dIJqKc6YdCmxf3LMvBAWIyuy1IdfvwGWSX4xPpnMKcFnX3r+5L7RSPWnFukGJiVA3xpCYEhrwgJU+4QMmGcIBQcWQfqoGOgLlqHmxKDh0CAMbagD2po+RrPoIJhBmlniHwmjPwBellGLZ1pNz1MpMMTjDBOAqHG8DAjdDJEl1oZYgJYHp0fp5MQhhmjm1xkUWZOEEwFne8nGaCdMWroZIxxer1fVcIJIY4wwsALqQvrVqJy2AoyKSKR/IreAoiTKXhtlrGD/VMlgjAiiEKlih46UUU4V8YYw/TRybJ+KZ3J65APaI0r6/2uptRN72r7JB2EsOxqS6FMHVi+ImdgfUFo/Qo9/7+wF9o+IogAAAA=) format('woff2');
+  unicode-range: U+2192;
+  font-display: block;
+}
+
+.number__value {
+  display: block;
+  font-family: 'Geist стрелка', var(--font-family-base);
+  font-size: clamp(2.2em, 4vw, 3.4em);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Значения вроде «2997→7» вдвое длиннее обычного числа: с ними вся полоса идёт кеглем мельче, иначе короткие числа рядом кажутся крупнее по важности. */
+.numbers[data-long] .number__value { font-size: clamp(1.5em, 2.4vw, 2.2em); }
+
+.number__label {
+  display: block;
+  font-size: var(--font-size-small);
+  color: color-mix(in srgb, var(--text-color) 50%, transparent);
+  margin-top: var(--gap-xs);
+}
+
+/* Развилки: цепочка карточек с общей линией слева */
+.forks { list-style: none; margin: var(--gap-xl) 0; padding: 0; position: relative; }
+
+.fork {
+  position: relative;
+  padding: var(--gap-lg) 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.fork { grid-column: 1 / -1; }
+.fork > * { grid-column: 1 / 7; }
+.fork__no { grid-column: 7 / -1; grid-row: 1; margin: 0; }
+.fork__title { grid-row: 1; margin: 0 0 var(--gap-md); }
+
+.fork:last-child { border-bottom: 1px solid var(--border-color); }
+
+.fork__no {
+  font-size: var(--font-size-small);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--mark-color);
+}
+
+.fork__title { font-size: var(--font-size-h3); line-height: 1.2; }
+
+.fork__rows { margin: 0; display: grid; gap: var(--gap-sm); }
+
+.fork__row {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  gap: var(--gap-md);
+  align-items: baseline;
+}
+
+.fork__row dt {
+  font-size: var(--font-size-small);
+  color: color-mix(in srgb, var(--text-color) 45%, transparent);
+}
+
+.fork__row dd {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: color-mix(in srgb, var(--text-color) var(--dim), transparent);
+}
+
+/* Было и стало: шторка перетаскивается мышью */
+.compare { position: relative; --pos: 50%; overflow: hidden; line-height: 0; container-type: inline-size; }
+.compare img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top center; }
+
+.compare__before {
+  position: absolute;
+  inset: 0;
+  width: var(--pos);
+  overflow: hidden;
+}
+
+/* Кадр «до» ровно той же ширины, что и «после», иначе половинки не совпадут по пикселю. */
+.compare__before img { width: 100cqw; max-width: none; }
+
+.compare__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos);
+  width: 2px;
+  background: var(--mark-color);
+  pointer-events: none;
+}
+
+.compare__handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--mark-color);
+  border-radius: 50%;
+  background: var(--bg-color);
+}
+
+.compare__range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+.compare-block { margin: var(--gap-xl) 0; }
+
+.compare__tags {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-small);
+  color: color-mix(in srgb, var(--text-color) 50%, transparent);
+  margin: var(--gap-xs) 0 0;
+}
+
+/* Другие кейсы */
+.related { border-top: 1px solid var(--border-color); padding-top: var(--gap-lg); margin-top: var(--gap-xl); }
+
+.related__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  padding: var(--gap-md) 0;
+  border-bottom: 1px solid var(--border-color);
+  text-decoration: none;
+  color: inherit;
+  transition: padding-left .25s ease, color .25s ease;
+}
+
+.related__item:hover { padding-left: var(--gap-sm); color: var(--mark-color); }
+.related__title { font-size: var(--font-size-h3); }
+
+.preview {
+  position: fixed;
+  z-index: 40;
+  width: 260px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -110%) scale(.96);
+  transition: opacity .2s ease, transform .2s ease;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+
+.preview.is-on { opacity: 1; transform: translate(-50%, -110%) scale(1); }
+.preview img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top center; }
+
+/* Бенто: текст растворяется, остаются кадры */
+.dissolve {
+  position: fixed;
+  right: var(--gap-lg);
+  bottom: var(--gap-lg);
+  z-index: 50;
+  font-size: var(--font-size-small);
+  color: var(--text-color);
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: var(--gap-sm) var(--gap-lg);
+  cursor: pointer;
+  transition: border-color .25s ease, color .25s ease;
+}
+
+.dissolve:hover,
+.dissolve[aria-expanded="true"] { border-color: var(--mark-color); color: var(--mark-color); }
+
+.dissolve__label { display: inline-flex; align-items: center; gap: var(--gap-xs, 6px); white-space: nowrap; }
+.dissolve[aria-expanded="true"] .dissolve__label--open,
+.dissolve:not([aria-expanded="true"]) .dissolve__label--close { display: none; }
+
+/* Иконки — контуры Tabler, как в дереве сайта; цвет берут у текста рядом.
+   Размер и толщина идут от кегля: в мелкой подписи 18px и обводка 2 выглядят жирнее букв. */
+.ico {
+  width: 1.15em;
+  height: 1.15em;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.dissolve .ico { transition: transform .4s cubic-bezier(.2, .7, .2, 1); }
+.dissolve:hover .ico { transform: rotate(-90deg); }
+
+/* Шапка статьи проявляется сама, лесенкой. Только начальный кадр анимации (backwards):
+   после неё свойства свободны, и растворению ничего не мешает. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(8px); }
+}
+
+.project__logo,
+.project__meta,
+.project__title,
+.project__lead { animation: rise .8s cubic-bezier(.2, .7, .2, 1) backwards; }
+.project__title { animation-delay: 80ms; }
+.project__lead { animation-delay: 160ms; }
+.project__meta { animation-delay: 240ms; }
+
+/* Растворение идёт на глазах: блоки на экране по очереди размываются и уходят вверх,
+   кадры держатся дольше текста. Меняются только opacity, filter и transform —
+   без перестройки строк, поэтому движение ровное. */
+.project { transition: opacity .3s ease; }
+.project.is-melting { opacity: 0; transition-delay: var(--melt-tail, 0ms); }
+
+.project [data-melt] {
+  transition: opacity .55s ease, filter .55s ease, transform .7s cubic-bezier(.4, 0, .2, 1);
+  transition-delay: var(--melt-delay, 0ms);
+  will-change: opacity, filter, transform;
+}
+
+.project.is-melting [data-melt] {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(-12px);
+}
+
+.project.is-melting [data-melt="frame"] {
+  filter: none;
+  transform: scale(.96);
+}
+
+/* Сетка кадров живёт в той же колонке, что и статья: не отдельное окно, а та же страница без текста. */
+.bento {
+  width: min(var(--grid-width), 100% - var(--gutter) * 2);
+  margin: 0 auto;
+  padding: var(--gap-xxl) 0;
+}
+
+.project[hidden],
+.bento[hidden] { display: none; }
+
+.bento__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gap-md);
+  margin: 0 0 var(--gap-lg);
+  padding-bottom: var(--gap-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bento__title { font-size: var(--font-size-h2); line-height: 1.15; margin: 0; }
+.bento__count { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-small); color: var(--mark-color); white-space: nowrap; }
+
+.bento__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-rows: 180px;
+  /* Широкая плитка после узких оставляла пустую ячейку в конце ряда — следующие подтягиваются в неё. */
+  grid-auto-flow: dense;
+  gap: var(--gap-md);
+  /* От сетки скрипт меряет, где стоит каждая плитка. */
+  position: relative;
+}
+
+.bento__item {
+  margin: 0;
+  position: relative;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  opacity: 0;
+  transform: translateY(10px) scale(.98);
+  transition: opacity .35s ease, filter .35s ease, transform .45s cubic-bezier(.2, .7, .2, 1),
+    box-shadow .45s cubic-bezier(.2, .7, .2, 1), border-color .3s ease;
+}
+
+/* Появление — анимацией с каскадом, а не переходом: так задержка каскада не цепляется
+   к наведению, и карточка всплывает сразу. Уходят плитки все разом, переходом. */
+/* Без размытия: фильтр на двух десятках крупных снимков разом и давал рывки при появлении. */
+@keyframes bento-in {
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+}
+
+.bento.is-open .bento__item {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  animation: bento-in .7s cubic-bezier(.2, .7, .2, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 45ms);
+  /* Соседи проясняются с запаздыванием: при переходе курсора через зазор между плитками
+     они не успевают мигнуть резкими и тут же снова размыться. */
+  transition-delay: 120ms;
+}
+
+/* Фокус: плитка под курсором всплывает, остальные уходят в размытие; к ней подъезжает страница. */
+.bento.is-open .bento__item.is-focus {
+  z-index: 3;
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 24px 48px -20px rgba(0, 0, 0, .6);
+  transition-delay: 0ms;
+}
+
+.bento.is-open .bento__grid.has-focus .bento__item:not(.is-focus) {
+  opacity: .5;
+  filter: blur(3px);
+  transform: scale(.98);
+  transition-delay: 0ms;
+}
+.bento__item--wide { grid-column: span 2; }
+.bento__item--tall { grid-row: span 2; }
+.bento__item--big { grid-column: span 2; grid-row: span 2; }
+
+.bento__item img,
+.bento__item video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Широкий кадр в плитке режется по бокам: держим левый край, там логотип и начало заголовка. */
+  object-position: left top;
+  /* Снимок проявляется, когда догрузился, а не выскакивает поверх пустой карточки. */
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+
+.bento__item img.is-ready,
+.bento__item video { opacity: 1; }
+
+/* Подпись — плашка с полным скруглением: выезжает из-под нижнего края карточки наружу. */
+.bento__item figcaption {
+  position: absolute;
+  top: calc(100% + var(--gap-sm));
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 100%;
+  text-align: center;
+  font-size: var(--font-size-small);
+  line-height: 1.35;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-color) 84%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--text-color);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .5);
+  pointer-events: none;
+  opacity: 0;
+  translate: -50% -12px;
+  scale: .96;
+  transition: translate .45s cubic-bezier(.2, .7, .2, 1), scale .45s cubic-bezier(.2, .7, .2, 1), opacity .3s ease;
+}
+
+.bento__item.is-focus figcaption { opacity: 1; translate: -50% 0; scale: 1; }
+
+.hint {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: var(--font-size-small);
+  color: #fff;
+  background: var(--mark-color);
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  /* Сдвиг за курсором — без перехода (иначе плашка догоняет рывками), плавно — только появление. */
+  translate: var(--hint-x, 0) var(--hint-y, 0);
+  scale: .9;
+  transition: opacity .2s ease, scale .2s ease;
+}
+
+.hint.is-on { opacity: 1; scale: 1; }
+.hint .ico { transition: transform .3s ease; }
+.hint.is-on .ico { transform: translateX(2px); }
+
+/* Знак проекта над заголовком: берётся из исходников проекта при каждой сборке. */
+.project__logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 0 var(--gap-md);
+  border-radius: 12px;
+}
+
+.project__raw {
+  margin-top: var(--gap-xxl);
+  padding-top: var(--gap-lg);
+  border-top: 1px solid var(--border-color);
+  font-size: var(--font-size-small);
+  color: color-mix(in srgb, var(--text-color) 55%, transparent);
+}
+
+.project__raw summary { cursor: pointer; }
+.project__raw ul { padding-left: var(--ul-padding-left); list-style: disc; }
+.project__raw h3 { font-size: var(--font-size-base); margin: var(--gap-md) 0 var(--gap-xs); }
+
+.project__draft {
+  border-left: 2px solid var(--mark-color);
+  padding-left: var(--gap-sm);
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity .6s ease, transform .6s cubic-bezier(.2, .7, .2, 1);
+}
+
+[data-reveal].is-in { opacity: 1; transform: none; }
+
+/* Узкий экран: восьми долей не хватает — всё выпрямляется в одну колонку. */
+@media (max-width: 900px) {
+  .project > *,
+  .project__section > *,
+  .fork > *,
+  .side,
+  .fork__no,
+  .fork__title { grid-column: 1 / -1; }
+
+  .fork__no,
+  .fork__title { grid-row: auto; }
+
+  .fork__no { margin-bottom: var(--gap-xs); }
+}
+
+@media (max-width: 600px) {
+  .fork__row { grid-template-columns: 1fr; gap: 2px; }
+  .bento__item--wide, .bento__item--big { grid-column: span 1; }
+  /* Поле у края экрана здесь уже межколонного зазора: шире подложка дала бы горизонтальную прокрутку. */
+  .project__section > h2::before,
+  .progress::before { inset: 0 calc(var(--gap-sm) * -1); }
+  /* В полосе 16:9 шириной с телефон снимок экрана сжимается до марки — панель вытягиваем вверх. */
+  .mock--phone { aspect-ratio: 4 / 5; }
+  .mock--browser { aspect-ratio: 4 / 3; }
+  /* В одну колонку плитки уже не складываются в мозаику: каждая берёт форму своего кадра,
+     иначе высокая ячейка обрезает широкий снимок до середины заголовка. */
+  .bento__grid { grid-auto-rows: auto; }
+  .bento__item { grid-row: auto; aspect-ratio: 16 / 9; }
+  .bento__item--tall { aspect-ratio: 4 / 5; }
+}
+
+/* На касании наведения нет: подписи видны сразу и стоят внутри плитки, снаружи они легли бы на соседнюю. */
+@media (hover: none) {
+  .bento__item figcaption {
+    top: auto;
+    bottom: var(--gap-sm);
+    max-width: calc(100% - var(--gap-sm) * 2);
+    opacity: 1;
+    translate: -50% 0;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  [data-reveal] { opacity: 1; transform: none; }
+}
+/* @case-css:end */
+</style>
+</head>
+<body>
+<!-- @case-body:start -->
+<article class="project">
+  {{LOGO}}
+  <h1 class="project__title">{{TITLE}}</h1>
+  {{LEAD}}
+  <p class="project__meta">{{META}}</p>
+  {{NUMBERS}}
+  {{BODY}}
+  {{RELATED}}
+  {{RAW}}
+</article>
+{{BENTO}}
+<!-- @case-body:end -->
+<script>
+// @case-js:start
+(function () {
+  // @standalone:start
+  var doc = document.documentElement;
+  try {
+    var saved = localStorage.getItem('theme');
+    if (saved) doc.setAttribute('data-theme', saved);
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+      doc.setAttribute('data-theme', 'light');
+  } catch (e) {}
+  // @standalone:end
+
+  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reveals = [].slice.call(document.querySelectorAll('[data-reveal]'));
+
+  // Появление и счёт цифр — одно и то же событие: элемент вошёл в кадр.
+  function countUp(node) {
+    var target = parseInt(node.getAttribute('data-count'), 10);
+    if (isNaN(target)) return;
+    var started = null;
+    var span = 900;
+    function step(now) {
+      if (started === null) started = now;
+      var k = Math.min(1, (now - started) / span);
+      node.textContent = String(Math.round(target * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function show(node) {
+    node.classList.add('is-in');
+    [].forEach.call(node.querySelectorAll('[data-count]'), countUp);
+  }
+
+  if (calm || !('IntersectionObserver' in window)) {
+    reveals.forEach(function (node) { node.classList.add('is-in'); });
+  } else {
+    var seen = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        show(entry.target);
+        seen.unobserve(entry.target);
+      });
+    }, { rootMargin: '0px 0px -12% 0px' });
+    reveals.forEach(function (node) { seen.observe(node); });
+  }
+
+  // Шторка «было/стало»
+  [].forEach.call(document.querySelectorAll('[data-compare]'), function (block) {
+    var range = block.querySelector('.compare__range');
+    var frame = block.querySelector('.compare');
+    if (!range || !frame) return;
+    var apply = function () { frame.style.setProperty('--pos', range.value + '%'); };
+    range.addEventListener('input', apply);
+    apply();
+  });
+
+  // Превью соседнего кейса под курсором
+  var preview = null;
+  [].forEach.call(document.querySelectorAll('[data-preview]'), function (link) {
+    link.addEventListener('mouseenter', function () {
+      if (calm) return;
+      if (!preview) {
+        preview = document.createElement('div');
+        preview.className = 'preview';
+        document.body.appendChild(preview);
+      }
+      preview.innerHTML = '<img src="' + link.getAttribute('data-preview') + '" alt="">';
+      preview.classList.add('is-on');
+    });
+    link.addEventListener('mousemove', function (event) {
+      if (!preview) return;
+      preview.style.left = event.clientX + 'px';
+      preview.style.top = event.clientY + 'px';
+    });
+    link.addEventListener('mouseleave', function () {
+      if (preview) preview.classList.remove('is-on');
+    });
+  });
+
+  // Экран телефона листается сам. Колесо, касание или клавиша отдают прокрутку человеку,
+  // автомат ждёт паузы и продолжает с того места, где его оставили.
+  var SCREEN_SPEED = 36;
+  var SCREEN_IDLE_MS = 2500;
+  var SCREEN_END_HOLD_MS = 2000;
+  var MAX_FRAME_MS = 100;
+
+  function autoScroll(screen) {
+    var pos = 0;
+    var last = null;
+    var resumeAt = 0;
+    var rewind = false;
+    var visible = false;
+    var frame = 0;
+
+    function hold(ms) { resumeAt = performance.now() + ms; last = null; }
+
+    function step(now) {
+      var max = screen.scrollHeight - screen.clientHeight;
+      if (now < resumeAt || max <= 0) return;
+      if (rewind) {
+        rewind = false;
+        screen.scrollTo({ top: 0, behavior: 'smooth' });
+        hold(SCREEN_END_HOLD_MS);
+        return;
+      }
+      if (last === null) pos = screen.scrollTop;
+      pos = Math.min(max, pos + SCREEN_SPEED * Math.min(now - (last === null ? now : last), MAX_FRAME_MS) / 1000);
+      last = now;
+      screen.scrollTop = pos;
+      if (pos >= max) { rewind = true; hold(SCREEN_END_HOLD_MS); }
+    }
+
+    function tick(now) {
+      frame = 0;
+      if (!visible) return;
+      step(now);
+      frame = requestAnimationFrame(tick);
+    }
+
+    ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (type) {
+      screen.addEventListener(type, function () { rewind = false; hold(SCREEN_IDLE_MS); }, { passive: true });
+    });
+    new IntersectionObserver(function (entries) {
+      visible = entries[0].isIntersecting;
+      last = null;
+      if (visible && !frame) frame = requestAnimationFrame(tick);
+    }).observe(screen);
+  }
+
+  if (!calm && 'IntersectionObserver' in window) {
+    [].forEach.call(document.querySelectorAll('[data-screen]'), autoScroll);
+  }
+
+  // Мокап слегка поворачивается за курсором — как устройство, которое держат в руке.
+  var MAX_TILT_DEG = 4;
+
+  function tilt(mock) {
+    mock.addEventListener('pointermove', function (event) {
+      var r = mock.getBoundingClientRect();
+      var x = (event.clientX - r.left) / r.width - .5;
+      var y = (event.clientY - r.top) / r.height - .5;
+      mock.classList.add('is-tilting');
+      mock.style.setProperty('--tilt-y', (x * MAX_TILT_DEG * 2).toFixed(2) + 'deg');
+      mock.style.setProperty('--tilt-x', (-y * MAX_TILT_DEG * 2).toFixed(2) + 'deg');
+    });
+    mock.addEventListener('pointerleave', function () {
+      mock.classList.remove('is-tilting');
+      mock.style.removeProperty('--tilt-x');
+      mock.style.removeProperty('--tilt-y');
+    });
+  }
+
+  if (!calm) [].forEach.call(document.querySelectorAll('.project__figure .mock'), tilt);
+
+  // Полоса прогресса: отрезок на раздел, закрашено прочитанное. Черта чтения — середина экрана.
+  var sections = [].slice.call(document.querySelectorAll('.project__section'));
+  if (sections.length > 1) {
+    var bar = document.createElement('ol');
+    bar.className = 'progress';
+    bar.setAttribute('aria-label', 'Разделы');
+    var steps = sections.map(function (section) {
+      var head = section.querySelector('h2');
+      var item = document.createElement('li');
+      var button = document.createElement('button');
+      item.className = 'progress__step';
+      button.type = 'button';
+      button.setAttribute('aria-label', head ? head.textContent : '');
+      button.addEventListener('click', function () {
+        var top = section.getBoundingClientRect().top + window.scrollY - bar.offsetHeight;
+        window.scrollTo({ top: top, behavior: calm ? 'auto' : 'smooth' });
+      });
+      item.appendChild(button);
+      bar.appendChild(item);
+      return button;
+    });
+    sections[0].parentNode.insertBefore(bar, sections[0]);
+
+    var paintQueued = false;
+    var paint = function () {
+      paintQueued = false;
+      var line = window.innerHeight / 2;
+      var atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      sections.forEach(function (section, i) {
+        var r = section.getBoundingClientRect();
+        var share = atEnd ? 1 : Math.max(0, Math.min(1, (line - r.top) / (r.height || 1)));
+        steps[i].style.setProperty('--p', (share * 100).toFixed(1) + '%');
+        if (share > 0 && share < 1) steps[i].setAttribute('aria-current', 'step');
+        else steps[i].removeAttribute('aria-current');
+      });
+    };
+    var queuePaint = function () {
+      if (paintQueued) return;
+      paintQueued = true;
+      requestAnimationFrame(paint);
+    };
+    window.addEventListener('scroll', queuePaint, { passive: true });
+    window.addEventListener('resize', queuePaint);
+    paint();
+  }
+
+  // Бенто: текст растворяется, остаются кадры
+  var bento = document.getElementById('bento');
+  var toggle = document.querySelector('[data-dissolve]');
+
+  var article = document.querySelector('.project');
+  var MELT_STEP = 40;
+  var MELT_MAX_STEPS = 14;
+  var FRAME_LAG = 250;
+  var MELT_MOVE_MS = 700;
+  var ARTICLE_FADE_MS = 300;
+  var MELT_MS = calm ? 0 : MELT_STEP * MELT_MAX_STEPS + FRAME_LAG + MELT_MOVE_MS;
+  var FADE_OUT_MS = calm ? 0 : 320;
+  var FRAME_SELECTOR = '.project__figure, .compare-block';
+  var MELT_SELECTOR = '.project__logo, .project__meta, .project__title, p, h2, h3, dt, dd, li, '
+    + '.numbers, ' + FRAME_SELECTOR;
+  var savedScroll = 0;
+  var busy = false;
+
+  function onScreen(node) {
+    var r = node.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight && r.height > 0;
+  }
+
+  // Тают только блоки на экране: остальное читатель всё равно не видит, а анимировать сотню абзацев дорого.
+  // Вложенный блок тает вместе с внешним: двойное размытие и сдвиг складывались бы и дёргали текст.
+  function meltUnits() {
+    return [].filter.call(article.querySelectorAll(MELT_SELECTOR), onScreen)
+      .reduce(function (units, node) {
+        var nested = units.some(function (unit) { return unit.contains(node); });
+        return nested ? units : units.concat([node]);
+      }, []);
+  }
+
+  function markMelt() {
+    var units = meltUnits();
+    var text = units.filter(function (node) { return !node.matches(FRAME_SELECTOR); });
+    var frames = units.filter(function (node) { return node.matches(FRAME_SELECTOR); });
+    text.forEach(function (node, i) {
+      node.setAttribute('data-melt', 'text');
+      node.style.setProperty('--melt-delay', Math.min(i, MELT_MAX_STEPS) * MELT_STEP + 'ms');
+    });
+    frames.forEach(function (node) {
+      node.setAttribute('data-melt', 'frame');
+      node.style.setProperty('--melt-delay', MELT_STEP * MELT_MAX_STEPS + FRAME_LAG + 'ms');
+    });
+    // Что не попало в блоки (рамки, линии), гаснет вместе со всей статьёй в самом конце.
+    article.style.setProperty('--melt-tail', Math.max(MELT_MS - ARTICLE_FADE_MS, 0) + 'ms');
+  }
+
+  function clearMelt() {
+    [].forEach.call(article.querySelectorAll('[data-melt]'), function (node) {
+      node.removeAttribute('data-melt');
+      node.style.removeProperty('--melt-delay');
+    });
+    article.style.removeProperty('--melt-tail');
+  }
+
+  function later(ms, fn) { return ms ? setTimeout(fn, ms) : fn(); }
+
+  function setLabel(open) {
+    toggle.setAttribute('aria-expanded', String(open));
+  }
+
+  // Кадры витрины весят мегабайты, а скрытая витрина их не грузит: начинаем, как только читатель
+  // потянулся к кнопке, и показываем каждый кадр уже декодированным — без рывка на полпути.
+  function decoded(img) {
+    return img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+  }
+
+  function prepareFrames() {
+    [].forEach.call(bento.querySelectorAll('.bento__item img:not(.is-ready)'), function (img) {
+      var show = function () { img.classList.add('is-ready'); };
+      img.loading = 'eager';
+      if (img.complete && img.naturalWidth) {
+        decoded(img).then(show);
+        return;
+      }
+      img.addEventListener('load', function () { decoded(img).then(show); }, { once: true });
+      img.addEventListener('error', show, { once: true });
+    });
+  }
+
+  function openBento() {
+    prepareFrames();
+    savedScroll = window.scrollY;
+    if (hint) hint.classList.remove('is-on');
+    markMelt();
+    article.classList.add('is-melting');
+    setLabel(true);
+    later(MELT_MS, function () {
+      article.hidden = true;
+      bento.hidden = false;
+      window.scrollTo(0, 0);
+      void bento.offsetWidth;
+      bento.classList.add('is-open');
+      busy = false;
+    });
+  }
+
+  function closeBento() {
+    resetFocus();
+    bento.classList.remove('is-open');
+    setLabel(false);
+    later(FADE_OUT_MS, function () {
+      bento.hidden = true;
+      article.hidden = false;
+      window.scrollTo(0, savedScroll);
+      void article.offsetWidth;
+      article.classList.remove('is-melting');
+      later(MELT_MS, function () { clearMelt(); busy = false; });
+    });
+  }
+
+  function setBento(open) {
+    if (!bento || !toggle || !article || busy) return;
+    if (open === bento.classList.contains('is-open')) return;
+    busy = !calm;
+    if (open) openBento();
+    else closeBento();
+  }
+
+  // Фокус в витрине: плитка под курсором всплывает, соседи размываются, а страница плавно
+  // подъезжает, чтобы плитка встала в середину экрана. Плитку ищем по её месту в сетке, а не
+  // по :hover: во время прокрутки под курсором проезжают другие плитки, и фокус скакал бы по ним.
+  var grid = bento && bento.querySelector('.bento__grid');
+  var SCROLL_DWELL_MS = 300;
+  var SCROLL_MIN_OFFSET = 48;
+  var SCROLL_SETTLE_MS = 900;
+  var POINTER_SLOP = 24;
+  var focused = null;
+  var dwellTimer = 0;
+  var settleTimer = 0;
+  var autoScrolling = false;
+  var restingAt = null;
+  var pointerInGrid = false;
+
+  function inside(x, y, r) {
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  // Место плитки в сетке без учёта всплытия: offset* трансформацию не видят.
+  function itemAt(x, y) {
+    var box = grid.getBoundingClientRect();
+    return [].find.call(grid.children, function (item) {
+      var left = box.left + item.offsetLeft;
+      var top = box.top + item.offsetTop;
+      return inside(x, y, { left: left, top: top, right: left + item.offsetWidth, bottom: top + item.offsetHeight });
+    }) || null;
+  }
+
+  function setFocus(item) {
+    if (item === focused) return;
+    if (focused) focused.classList.remove('is-focus');
+    focused = item;
+    grid.classList.toggle('has-focus', Boolean(item));
+    if (item) item.classList.add('is-focus');
+  }
+
+  function resetFocus() {
+    clearTimeout(dwellTimer);
+    if (grid) setFocus(null);
+  }
+
+  // После прокрутки под курсором уже соседняя плитка: фокус остаётся на выбранной,
+  // пока мышь не сдвинется заметно — иначе страница поехала бы к соседке, потом к следующей.
+  function finishAutoScroll(x, y) {
+    clearTimeout(settleTimer);
+    autoScrolling = false;
+    restingAt = { x: x, y: y };
+    if (!pointerInGrid) resetFocus();
+  }
+
+  function scrollToItem(item, x, y) {
+    var r = item.getBoundingClientRect();
+    var offset = r.top + r.height / 2 - window.innerHeight / 2;
+    if (Math.abs(offset) < SCROLL_MIN_OFFSET) return;
+    autoScrolling = true;
+    // scrollend есть не везде: страхуемся таймером.
+    settleTimer = setTimeout(function () { finishAutoScroll(x, y); }, SCROLL_SETTLE_MS);
+    window.addEventListener('scrollend', function () { finishAutoScroll(x, y); }, { once: true });
+    window.scrollBy({ top: offset, behavior: calm ? 'auto' : 'smooth' });
+  }
+
+  function onPointer(x, y) {
+    if (autoScrolling || !bento.classList.contains('is-open')) return;
+    if (restingAt && Math.hypot(x - restingAt.x, y - restingAt.y) < POINTER_SLOP) return;
+    restingAt = null;
+    var item = itemAt(x, y);
+    if (item === focused) return;
+    clearTimeout(dwellTimer);
+    setFocus(item);
+    // Курсор задержался на плитке — читатель её выбрал, а не проносит мышь мимо.
+    if (item) dwellTimer = setTimeout(function () { scrollToItem(item, x, y); }, SCROLL_DWELL_MS);
+  }
+
+  if (grid && window.matchMedia('(hover: hover)').matches) {
+    grid.addEventListener('mousemove', function (event) { onPointer(event.clientX, event.clientY); });
+    grid.addEventListener('mouseenter', function () { pointerInGrid = true; });
+    grid.addEventListener('mouseleave', function () {
+      pointerInGrid = false;
+      if (!autoScrolling) resetFocus();
+    });
+  }
+
+  if (toggle && bento && article) {
+    toggle.addEventListener('click', function () { setBento(toggle.getAttribute('aria-expanded') !== 'true'); });
+    toggle.addEventListener('pointerenter', prepareFrames, { once: true });
+    toggle.addEventListener('focus', prepareFrames, { once: true });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') setBento(false);
+    });
+  }
+
+  // Подсказка под курсором: по кадру в тексте видно, что его можно открыть в бенто.
+  // У края экрана плашка не режется: сдвигается внутрь окна, а у верхнего края уходит под курсор.
+  var hint = document.querySelector('.hint');
+  var HINT_EDGE = 8;
+  var HINT_LIFT = 14;
+
+  function placeHint(x, y) {
+    var w = hint.offsetWidth;
+    var h = hint.offsetHeight;
+    var left = Math.min(Math.max(x - w / 2, HINT_EDGE), window.innerWidth - w - HINT_EDGE);
+    var above = y - h - HINT_LIFT;
+    var top = above < HINT_EDGE ? y + HINT_LIFT * 1.5 : above;
+    hint.style.setProperty('--hint-x', left + 'px');
+    hint.style.setProperty('--hint-y', top + 'px');
+  }
+
+  if (bento && hint && !calm) {
+    [].forEach.call(document.querySelectorAll('.project__figure'), function (fig) {
+      fig.style.cursor = 'pointer';
+      fig.addEventListener('mouseenter', function (event) {
+        placeHint(event.clientX, event.clientY);
+        hint.classList.add('is-on');
+        prepareFrames();
+      });
+      fig.addEventListener('mousemove', function (event) { placeHint(event.clientX, event.clientY); });
+      fig.addEventListener('mouseleave', function () { hint.classList.remove('is-on'); });
+      fig.addEventListener('click', function () { setBento(true); });
+    });
+  }
+})();
+// @case-js:end
+</script>
+</body>
+</html>
