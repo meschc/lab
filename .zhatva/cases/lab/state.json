@@ -4,9 +4,8 @@
   "created": "2026-10-12T14:00:01.672Z",
   "sessions": {
     "7ca56445": {
-      "lastProcessedLine": 937,
-      "lastStopAt": "2026-10-12T14:00:01.672Z",
-      "backfilled": true
+      "lastProcessedLine": 1340,
+      "lastStopAt": "2026-11-27T06:15:57.149Z"
     }
   },
   "sections": {},
@@ -58,7 +57,43 @@
       "type": "unexpected-moment",
       "at": "2026-11-27T06:08:25.765Z",
       "summary": "Bash `cd /home/user/lab/.zhatva/collector && sed -n 1,200p bin/cli.js | head -150; ls lib hooks; cat config.default.json` — if (!project.root) throw new Error('текущая папка не распознана как проект');"
+    },
+    {
+      "id": "42e8",
+      "type": "unexpected-moment",
+      "at": "2026-11-27T06:08:38.255Z",
+      "summary": "Bash `cd /home/user/lab/.zhatva/cases/lab && cat case-study.md; ls -la media; git -C /home/user/lab status --short | head; git -C /home/user/lab check-ignore -v .zhatva 2>&1` — - Read `/home/user/lab/mind/js/app.js` — 455 console.error(e);"
+    },
+    {
+      "id": "f784",
+      "type": "unexpected-moment",
+      "at": "2026-11-27T06:12:50.744Z",
+      "summary": "Write `/home/user/lab/mind/README.md` — PreToolUse:Write hook error: [Fact-Forcing Gate]"
+    },
+    {
+      "id": "9f5d",
+      "type": "unexpected-moment",
+      "at": "2026-11-27T06:13:16.907Z",
+      "summary": "Bash `node --input-type=module -e \"\nimport {TERMS} from './js/data/terms.js';\nconst g={};for(const t of TERMS)(g[t.engine]??=[]).push(t.title+(t.params?.mode?'['+t.params.mode+(t.params.rule?t.params.rule:'')+']':''));\nfor(con…` — symbol: Золотое сечение[golden]; Отель Гильберта[hotel]; Лента Мёбиуса[mobius]; Кот Шрёдингера[schrodinger]; Ошибка невозвратных затрат[stack]; Когнитивный диссонанс[dissonance]; Апофения[apophenia]; Эффект Даннинга — Кр…"
+    },
+    {
+      "id": "283e",
+      "type": "unexpected-moment",
+      "at": "2026-11-27T06:13:34.457Z",
+      "summary": "Write `/home/user/lab/README.md` — PreToolUse:Write hook error: [Fact-Forcing Gate]"
+    },
+    {
+      "id": "9019",
+      "type": "unexpected-moment",
+      "at": "2026-11-27T06:14:17.901Z",
+      "summary": "Write `/home/user/lab/.claude/skills/minimal-typographic-design/SKILL.md` — PreToolUse:Write hook error: [Fact-Forcing Gate]"
+    },
+    {
+      "id": "5325",
+      "type": "unexpected-moment",
+      "at": "2026-11-27T06:14:36.850Z",
+      "summary": "Bash `cd /home/user/lab/.zhatva/cases/lab && grep -rniE \"gmail|@[a-z0-9-]+\\.[a-z]{2,}|token|secret|password|api[_-]?key|sk-[a-z0-9]{10,}|ghp_|/root/\" case-study.md case-study.html state.json media/index.json | cut -c1-160 | he…` — \"summary\": \"Read `/home/user/lab/mind/js/app.js` — 455\\t    console.error(e);\""
     }
   ],
-  "turnsSinceUpgrade": 28
+  "turnsSinceUpgrade": 39
 }
