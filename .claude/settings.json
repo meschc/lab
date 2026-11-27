@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; if [ \"$CLAUDE_CODE_REMOTE\" = true ] || [ ! -d \"$HOME/.claude/case-study-collector\" ]; then ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$R/.zhatva/cases\" node \"$R/.zhatva/collector/hooks/session-start.js\"; fi; true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; if [ \"$CLAUDE_CODE_REMOTE\" = true ] || [ ! -d \"$HOME/.claude/case-study-collector\" ]; then ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$R/.zhatva/cases\" node \"$R/.zhatva/collector/hooks/stop.js\"; fi; true",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; if [ \"$CLAUDE_CODE_REMOTE\" = true ] || [ ! -d \"$HOME/.claude/case-study-collector\" ]; then ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$R/.zhatva/cases\" node \"$R/.zhatva/collector/hooks/pre-compact.js\"; fi; true",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "screenshot|take_screenshot|app_screenshot|computer|control|get_screenshot",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; if [ \"$CLAUDE_CODE_REMOTE\" = true ] || [ ! -d \"$HOME/.claude/case-study-collector\" ]; then ZHATVA_CLOUD=1 ZHATVA_CASES_ROOT=\"$R/.zhatva/cases\" node \"$R/.zhatva/collector/hooks/post-tool-use.js\"; fi; true",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
